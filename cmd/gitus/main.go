@@ -170,7 +170,9 @@ func main() {
 		ok, err := normalModeGitusReadyCheck(context)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "Gitus Ready Check failed: %s\n", err.Error())
-			InstallGitus(context)
+			// NOTE(2026.2.14): deprecation of cli installer
+			// InstallGitus(context)
+			WebInstaller()
 			os.Exit(1)
 		}
 	}
@@ -188,12 +190,9 @@ func main() {
 	if len(mainCall) > 0 {
 		switch mainCall[0] {
 		case "install":
-			if noConfig {
-				fmt.Fprintf(os.Stderr, "No config file specified. Cannot continue.\n")
-			} else {
-				fmt.Println(mainCall)
-				InstallGitus(context)
-			}
+			// NOTE(2026.2.14): deprecation of cli installer
+			// InstallGitus(context)
+			WebInstaller()
 			return
 		case "reset-admin":
 			if noConfig {

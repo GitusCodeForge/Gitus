@@ -1,23 +1,14 @@
 * installation
 
-as of now (v0.1.3) there are two ways of installation:
+as of now (v0.1.6) there are only one ways of installation:
 
 + through the web installer (recommended), which is done by running this command:
   #+begin_src bash
     aegis -init
   #+end_src
   and choose =y= when being prompted for whether to choose to launch the web installer.
-+ through the manual installer, which is done by completing the following process:
-  1. run the following command:
-       #+begin_src bash
-         aegis -init -config [target-config-file]
-       #+end_src
-     this would create a skeleton config file at =[target-config-file]=.
-  2. fill in the required values in =[target-config-file]=.
-  3. run the following command to setup the required things:
-     #+begin_src bash
-     aegis -config [target-config-file]
-     #+end_src
+
+before v0.1.6 there used to be a manual installer that runs under cli but it's currently deprecated.
 
 after the installation process, you can start aegis by running:
 
