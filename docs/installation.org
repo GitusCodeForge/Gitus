@@ -4,29 +4,29 @@ as of now (v0.1.6) there are only one ways of installation:
 
 + through the web installer (recommended), which is done by running this command:
   #+begin_src bash
-    aegis -init
+    gitus -init
   #+end_src
   and choose =y= when being prompted for whether to choose to launch the web installer.
 
 before v0.1.6 there used to be a manual installer that runs under cli but it's currently deprecated.
 
-after the installation process, you can start aegis by running:
+after the installation process, you can start gitus by running:
 
 #+begin_src bash
-  aegis -config [target-config-file]
+  gitus -config [target-config-file]
 #+end_src
 
 it's recommended to do the following things immediately:
 
-+ run =aegis -config [config] reset-admin= to reset the admin account's password
++ run =gitus -config [config] reset-admin= to reset the admin account's password
 + create an =admin= namespace, since this isn't created automatically.
 
 ** sanity check
 
 the following thing should be true:
 
-+ the aegis executable is inside the git user's =git-shell-commands= folder.
-+ the git user is running the aegis executable.
++ the gitus executable is inside the git user's =git-shell-commands= folder.
++ the git user is running the gitus executable.
 + if using sqlite, all sqlite database files should be accessible by the git user.
 
 ** config
@@ -48,22 +48,22 @@ among the possible ways of hosting, only running directly and nginx reverse prox
 
 if you want to use https w/ certbot, it's recommended to setup a simple ~server~ block that only serves static page first, proceed to obtain license w/ certbot, /then/ configure the ~server~ block into a reverse proxy as above.
 
-it's recommended to have a service for easy management. if you run systemd, you can have the following in the file ~/etc/systemd/system/aegis.service~:
+it's recommended to have a service for easy management. if you run systemd, you can have the following in the file ~/etc/systemd/system/gitus.service~:
 
 #+begin_src ini
 [Unit]
-Description=Aegis
+Description=Gitus
 
 [Service]
 Type=Simple
 User=git
-ExecStart=/home/git/git-shell-commands/aegis -config /home/git/aegis-config.json
+ExecStart=/home/git/git-shell-commands/gitus -config /home/git/gitus-config.json
 WorkingDirectory=/home/git
 
 [Install]
 WantedBy=multi-user.target
 #+end_src
 
-... and run ~systemctl enable aegis~ and ~systemctl start aegis~.
+... and run ~systemctl enable gitus~ and ~systemctl start gitus~.
 
 

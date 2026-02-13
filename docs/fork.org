@@ -1,6 +1,6 @@
 * fork
 
-fork is largely (not fully) an aegis-side construct instead of a fully git-side one. a repo (repo A) is fully the fork of another repo (repo B) when the following condition satisfies:
+fork is largely (not fully) an gitus-side construct instead of a fully git-side one. a repo (repo A) is fully the fork of another repo (repo B) when the following condition satisfies:
 
 + repo A is registered as repo B's fork in database;
 + repo B has a remote pointing to repo A

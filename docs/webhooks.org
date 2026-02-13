@@ -4,17 +4,17 @@ It's better to use webhooks because it's very easy to turn git hooks into a secu
 
 Webhooks are a kind of notification mechanism. When enabled, a POST request with necessary data like commit ids and such would be sent to the pre-configured URL; the receiving end of the POST request could then move on to perform different actions.
 
-Webhooks for repositories in Aegis are introduced with the following steps:
+Webhooks for repositories in Gitus are introduced with the following steps:
 
 + Enable webhook in repository setting.
 + Add repository-specific secret key. This key should be shared w/ the receiving end.
 + Configure URL in repository setting.
 
-After enabling, the corresponding =update= git hook would be set with a shell script that invokes the command =aegis webhook send=.
+After enabling, the corresponding =update= git hook would be set with a shell script that invokes the command =gitus webhook send=.
 
 ** Verification
 
-POST requests sent by Aegis come with an =Authentication= header of the following format:
+POST requests sent by Gitus come with an =Authentication= header of the following format:
 
 #+begin_example
 Authorization: Bearer webhook-jwt-{token}
@@ -31,7 +31,7 @@ Authorization: Bearer webhook-jwt-{token}
   }
   #+end_src json
 
-  ...Aegis uses HMAC SHA-256.
+  ...Gitus uses HMAC SHA-256.
 + Payload: the following:
 
   #+begin_src json
@@ -64,12 +64,12 @@ Data structure are similar to GitHub webhooks:
   			"author": {
   				"name": "{git commit author name}",
   				"email": "{git commit author email}",
-  				"username": "{aegis user name (if exists)}",
+  				"username": "{gitus user name (if exists)}",
   			},
   			"committer": {
   				"name": "{git commit author name}",
   				"email": "{git commit author email}",
-  				"username": "{aegis user name (if exists)}",
+  				"username": "{gitus user name (if exists)}",
   			},
   			"timestamp": "{commit time; integer}"
   		}
@@ -100,7 +100,7 @@ Data structure are similar to GitHub webhooks:
 The following command is executed:
 
 #+begin_example
-aegis web-hooks send "$repo_full_name" "$refname" "$newrev_type" "$oldrev" "$newrev"
+gitus web-hooks send "$repo_full_name" "$refname" "$newrev_type" "$oldrev" "$newrev"
 #+end_example
 
 ...where:
@@ -123,7 +123,7 @@ Authorization: Bearer webhook-jwt-{token}
 Content-Type: application/json
 #+end_example
 
-The payload part of the JWT, however, is different. The webhook request would send, alongside with other info, a special "result report id"; this should be included in the ~jti~ claim of the payload and used to generate the signature. Aegis will not accept the same result report id more than once.
+The payload part of the JWT, however, is different. The webhook request would send, alongside with other info, a special "result report id"; this should be included in the ~jti~ claim of the payload and used to generate the signature. Gitus will not accept the same result report id more than once.
 
 #+begin_src json
   {

@@ -2,5 +2,5 @@
 
 ** terms of service and other similar stuff
 
-you must put them under the directory ~_rrdoc~ under your specified static assets directory for them to be available under the ~/rrdoc/{p}~ route; e.g. if your static assets directory is ~/opt/aegis/static~, then ~/rrdoc/toc.md~ would choose render the file ~/opt/aegis/static/_rrodc/toc.md~. (it's named "rrdoc" (reading-required documents) because these are not necessarily legal documents and can be very informal, e.g. code of conducts.)
+you must put them under the directory ~_rrdoc~ under your specified static assets directory for them to be available under the ~/rrdoc/{p}~ route; e.g. if your static assets directory is ~/opt/gitus/static~, then ~/rrdoc/toc.md~ would choose render the file ~/opt/gitus/static/_rrodc/toc.md~. (it's named "rrdoc" (reading-required documents) because these are not necessarily legal documents and can be very informal, e.g. code of conducts.)
 

@@ -1,4 +1,4 @@
 * config
 
-for details, please visit file ~pkg/aegis/config.go~.
+for details, please visit file ~pkg/gitus/config.go~.
 

@@ -1,10 +1,10 @@
 * notes on pull-request
 
-a pull request is purely an "external" construct that only exists in the eyes of the surrounding tools (in this case, Aegis itself). something like this is to be used:
+a pull request is purely an "external" construct that only exists in the eyes of the surrounding tools (in this case, Gitus itself). something like this is to be used:
 
 #+begin_src sql
-  DROP TABLE IF EXISTS aegis_pull_request;;
-  CREATE TABLE IF NOT EXISTS aegis_pull_request (
+  DROP TABLE IF EXISTS gitus_pull_request;;
+  CREATE TABLE IF NOT EXISTS gitus_pull_request (
       username TEXT,
       pull_request_id INT,
   	title TEXT,
@@ -24,10 +24,10 @@ a pull request is purely an "external" construct that only exists in the eyes of
   	-- 3 - closed (not merged)
   	pull_request_status INT,
   	pull_request_timestamp INT,
-  	FOREIGN KEY (username) REFERENCES aegis_user(user_name)
+  	FOREIGN KEY (username) REFERENCES gitus_user(user_name)
   );;
-  DROP TABLE IF EXISTS aegis_pull_request_event;;
-  CREATE TABLE IF NOT EXISTS aegis_pull_request_event (
+  DROP TABLE IF EXISTS gitus_pull_request_event;;
+  CREATE TABLE IF NOT EXISTS gitus_pull_request_event (
       pull_request_abs_id INTEGER,
   	-- 1 - normal comment.
   	-- 2 - comment on code.
@@ -40,7 +40,7 @@ a pull request is purely an "external" construct that only exists in the eyes of
   	event_timestamp INTEGER,
   	event_author TEXT,
   	event_content TEXT,
-  	FOREIGN KEY (pull_request_abs_id) REFERENCES aegis_pull_request(rowid)
+  	FOREIGN KEY (pull_request_abs_id) REFERENCES gitus_pull_request(rowid)
   )
 
 #+end_src
@@ -71,7 +71,7 @@ as stated in [[https://git-scm.com/docs/git-merge-tree#OUTPUT][the document of g
 
 ** merge
 
-Aegis deals with bare repository so common commands like =git-merge= will not work. Fortunately Git documentation provides an example for using the low-level "plumbing commands" (as per Git lingo). The process shall goes as follows:
+Gitus deals with bare repository so common commands like =git-merge= will not work. Fortunately Git documentation provides an example for using the low-level "plumbing commands" (as per Git lingo). The process shall goes as follows:
 
 + (=$provider= would be =$providerRemote/$providerBranch=, e.g. with branch "myBranch" of remote "myRemote", =$provider= would be =myRemote/myBranch=.)
 + =git merge-tree --write-tree $receiverBranch $provider=

@@ -1,6 +1,6 @@
 * architecture
 
-currently (2025.9.22) the structure of Aegis can somewhat be described as follow. naturally, i couldn't fit everything into the graph; for actual details please refer to other doc files. the part painted blue are planned but not implemented.
+currently (2025.9.22) the structure of Gitus can somewhat be described as follow. naturally, i couldn't fit everything into the graph; for actual details please refer to other doc files. the part painted blue are planned but not implemented.
 
 [[./architecture.png]]
 

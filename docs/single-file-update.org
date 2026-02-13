@@ -1,6 +1,6 @@
 * single file update
 
-currently aegis uses git-fast-import. the process consists of two commands:
+currently gitus uses git-fast-import. the process consists of two commands:
 
 + =git fast-import --date-format=now --quiet=
   + we send the payload to its stdin.
@@ -39,5 +39,5 @@ according to [[https://git-scm.com/docs/git-fast-import][git-fast-import's docum
   + if you use =inline= you need to use a =data= command to specify the data of the resulting file.
   + instead of using =inline= in the =M= command, one can first add the resulting file into the repository as a blob and do =M [mode] [blob-id] [path]= instead.
 
-the =data= command has two forms which I will not describe here. currently aegis use the "delimited" form for commit message and "length-specified" form for text data, since delimited form cannot describe data that doesn't end with line feed.
+the =data= command has two forms which I will not describe here. currently gitus use the "delimited" form for commit message and "length-specified" form for text data, since delimited form cannot describe data that doesn't end with line feed.
 

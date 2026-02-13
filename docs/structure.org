@@ -3,17 +3,17 @@
 NOTE: this should be updated when there's very big changes.
 
 + =cmd=: entry points to executables.
-  + =aegis=: main executable.
+  + =gitus=: main executable.
     + =install.go=: installer (CLI)
     + =ssh.go=: The main handler when the gitus executable is called through git user SSH.
-    + =reset-admin.go=: reset admin password of an aegis instance.
+    + =reset-admin.go=: reset admin password of an gitus instance.
     + =webhooks.go=: handler for webhooks (see [[./webhooks.org]])
     + =webinstaller.go=: installer (web ui)
     + =simple-mode.go=: simple mode related things. (see [[./simple-mode.org]])
 + =docs=: documentations.
 + =devtools=: things used in the development process, e.g. things that should be run at compile-time.
 + =pkg=:
-  + =aegis=: main pkg.
+  + =gitus=: main pkg.
   + =gitlib=: package for handling git repo.
   + =ini=: ini parser. used to parse config files in git repo.
   + =shellparse=: utility to parse command line arguments escaped by git.

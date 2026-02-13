@@ -2,11 +2,11 @@
 
 ** configuration
 
-You should change the value of =sshHostName= in the config file. Same as =hostName=, Aegis would try to complete it into a proper full URL before parsing, i.e. if there's no =ssh://= prefix, it would be added, and if there's trailing slash =/= present, it would be removed. You shouldn't specify the user in =sshHostName= - it wouldn't have any effect since it would got replaced by =gitUser= by Aegis automatically. All specified path would be ignored. You should specifiy the port just like any other URL (e.g. write ={your-domain}:2222= if for whatever reasons your SSH port is at =2222=).
+You should change the value of =sshHostName= in the config file. Same as =hostName=, Gitus would try to complete it into a proper full URL before parsing, i.e. if there's no =ssh://= prefix, it would be added, and if there's trailing slash =/= present, it would be removed. You shouldn't specify the user in =sshHostName= - it wouldn't have any effect since it would got replaced by =gitUser= by Gitus automatically. All specified path would be ignored. You should specifiy the port just like any other URL (e.g. write ={your-domain}:2222= if for whatever reasons your SSH port is at =2222=).
 
 If you leave =sshHostName= to be empty, cloning & pushing through SSH would still be available even if it wouldn't display correctly from the web frontend. To stop any SSH activities you must remove the =gitus= executable from the Git user's =git-shell-commands= directory. It's not recommended to rely on hiding the SSH address as a safety measure either.
 
-Git supports a shorter version of SSH address if the port is at the typical number of 22; this shorter version of address would be of the form ={user_name}@{host_name}:{repo_path}= (e.g. =git@github.com:bctnry/gitus.git=) and is the norm for most Git hosting service. Aegis would provide this kind of address if the SSH port is not specified or determined to be 22.
+Git supports a shorter version of SSH address if the port is at the typical number of 22; this shorter version of address would be of the form ={user_name}@{host_name}:{repo_path}= (e.g. =git@github.com:bctnry/gitus.git=) and is the norm for most Git hosting service. Gitus would provide this kind of address if the SSH port is not specified or determined to be 22.
 
 ** how it works
 
@@ -17,24 +17,24 @@ there is at least two ways to achieve this: through ~authorized_keys~ and throug
 with the **default config of sshd**, when a client is trying to use their pubkey to auth the git user, the file =~/.ssh/authorized_keys= (of the git user) is consulted. by specifying a =command= argument in the =~/.ssh/authorized_keys= file, one could get the =git= user to run certain command automatically when logging in using certain keys.
 
   #+begin_src
-    command="aegis ssh {username1} {keyname1}" {ssh-key-1}
-    command="aegis ssh {username1} {keyname2}" {ssh-key-2}
-    command="aegis ssh {username2} {keyname1}" {ssh-key-1}
-    command="aegis ssh {username2} {keyname2}" {ssh-key-2}
-    command="aegis ssh {username2} {keyname3}" {ssh-key-3}
+    command="gitus ssh {username1} {keyname1}" {ssh-key-1}
+    command="gitus ssh {username1} {keyname2}" {ssh-key-2}
+    command="gitus ssh {username2} {keyname1}" {ssh-key-1}
+    command="gitus ssh {username2} {keyname2}" {ssh-key-2}
+    command="gitus ssh {username2} {keyname3}" {ssh-key-3}
     # ...
   #+end_src
 
   It is still the same Git user that's being logged in, but the result is different because the ssh key is different (which means the command getting executed when logging in can be different if we make it this way.) When clone with SSH, the original command (type of command & the path of the git repo in question) would be stored in envvar =SSH_ORIGINAL_COMMAND=.
   
-(Note that at this time, we know the *Aegis* username and the target git repository path, but we don't know where the heck everything else is: we need to know where the Git Root actually is. Since we are triggering ~aegis~ w/ the git user, we already know the Aegis executable in the =~/git-shell-commands= directory, this doesn't give us any info about the Git Root. For this reason we need to pass the path to the current configuration file in the command as well:
+(Note that at this time, we know the *Gitus* username and the target git repository path, but we don't know where the heck everything else is: we need to know where the Git Root actually is. Since we are triggering ~gitus~ w/ the git user, we already know the Gitus executable in the =~/git-shell-commands= directory, this doesn't give us any info about the Git Root. For this reason we need to pass the path to the current configuration file in the command as well:
 
   #+begin_src
-    command="aegis -config {config-path} ssh {username1} {keyname1}" {ssh-key-1}
-    command="aegis -config {config-path} ssh {username1} {keyname2}" {ssh-key-2}
-    command="aegis -config {config-path} ssh {username2} {keyname1}" {ssh-key-1}
-    command="aegis -config {config-path} ssh {username2} {keyname2}" {ssh-key-2}
-    command="aegis -config {config-path} ssh {username2} {keyname3}" {ssh-key-3}
+    command="gitus -config {config-path} ssh {username1} {keyname1}" {ssh-key-1}
+    command="gitus -config {config-path} ssh {username1} {keyname2}" {ssh-key-2}
+    command="gitus -config {config-path} ssh {username2} {keyname1}" {ssh-key-1}
+    command="gitus -config {config-path} ssh {username2} {keyname2}" {ssh-key-2}
+    command="gitus -config {config-path} ssh {username2} {keyname3}" {ssh-key-3}
     # ...
   #+end_src
 
@@ -50,9 +50,9 @@ this requires one to change sshd_config of the server that would be receiving gi
 
 ** issued command
 
-=git-receive-pack= is issued by the client (the user, not the Aegis instance) when doing =git push=. One could imagine =git-upload-pack= and =git-upload-archive= are issued during =git clone=.
+=git-receive-pack= is issued by the client (the user, not the Gitus instance) when doing =git push=. One could imagine =git-upload-pack= and =git-upload-archive= are issued during =git clone=.
 
 ** "dubious ownership" and the problem of permission
 
-Newer version of Git have this "dubious ownership" thing that stops certain things from working if the user who's doing the thing is not the same as the owner of the Git directory. For this reason *the web server part of Aegis must be run with the Git user, at least after installation*.
+Newer version of Git have this "dubious ownership" thing that stops certain things from working if the user who's doing the thing is not the same as the owner of the Git directory. For this reason *the web server part of Gitus must be run with the Git user, at least after installation*.
     

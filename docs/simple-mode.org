@@ -5,12 +5,12 @@ this works similar to using gitolite. we don't use the proper acl in simple mode
 
 under simple mode, two special repositories would be used for configuration:
 
-+ ~__aegis:__keys~ (~__keys~ when ~useNamespace~ is false): repository for ssh and gpg keys.
-+ ~__aegis:__repo_config~ (~__repo_config~ when ~useNamespace~ is false): repository for repo definitions and configs.
++ ~__gitus:__keys~ (~__keys~ when ~useNamespace~ is false): repository for ssh and gpg keys.
++ ~__gitus:__repo_config~ (~__repo_config~ when ~useNamespace~ is false): repository for repo definitions and configs.
 
-These repositories would be setup during the installation phase. If these repositories were not found when Aegis is started and is configured to run in Simple Mode, it would create the repositories accordingly. The ~__keys~ repository would be created with update hook configured, so that all updates would trigger the command ~aegis simple-mode keys-update~. The hook is written to only trigger the command when the ~master~ branch is updated.
+These repositories would be setup during the installation phase. If these repositories were not found when Gitus is started and is configured to run in Simple Mode, it would create the repositories accordingly. The ~__keys~ repository would be created with update hook configured, so that all updates would trigger the command ~gitus simple-mode keys-update~. The hook is written to only trigger the command when the ~master~ branch is updated.
 
-The ~__repo_config~ repository is created with the post-update hook configured (instead of the update hook, which is called *before* packs are received), so that all updates to the ~master~ branch would trigger ~aegis simple-mode aegis-sync~. This command would go through the repository and ensure all the repositories are created.
+The ~__repo_config~ repository is created with the post-update hook configured (instead of the update hook, which is called *before* packs are received), so that all updates to the ~master~ branch would trigger ~gitus simple-mode gitus-sync~. This command would go through the repository and ensure all the repositories are created.
 
 ** ~__keys~
 
@@ -38,7 +38,7 @@ the directory structure of this repo must be as follows:
 + ...
 #+end_example
 
-the ~update~ hook of this repo is configured to trigger command ~aegis simple-mode update-keys~, which will generate the required ~authorized_keys~ file accordingly.
+the ~update~ hook of this repo is configured to trigger command ~gitus simple-mode update-keys~, which will generate the required ~authorized_keys~ file accordingly.
 
 ** ~__repo_config~
 
@@ -120,12 +120,12 @@ each field must be either ~allow~ or ~disallow~. for any ref and any action that
 
 ** how things are updated in simple mode
 
-~aegis ssh~ is triggered as a separate process; this means that ~aegis ssh~ we cannot have what's in the memory of the web server process; but we need to have access control for ~aegis ssh~; this means that we have to somehow read the acl within ~aegis ssh~. we have the following two different methods:
+~gitus ssh~ is triggered as a separate process; this means that ~gitus ssh~ we cannot have what's in the memory of the web server process; but we need to have access control for ~gitus ssh~; this means that we have to somehow read the acl within ~gitus ssh~. we have the following two different methods:
 
-+ directly read from ~__aegis:__repo_config~.
-+ somehow have the web server process read from ~__aegis:__repo_config~ on startup, and then make ~aegis ssh~ somehow read from the web server process.
++ directly read from ~__gitus:__repo_config~.
++ somehow have the web server process read from ~__gitus:__repo_config~ on startup, and then make ~gitus ssh~ somehow read from the web server process.
 
-if we choose the first method, we will have to create a repository model object for ~__aegis:__repo_config~ and parse through its internal git objects every single time, which involves file IO, zlib decompress and JSON deserializing. for this reason, we currently keep a clone of this repo is thus created directly under the git folder of ~__aegis:__repo_config~ with the subfolder name ~aegis_sync~, so that we can skip the zlib decompress part (also os API is slightly easier to handle).
+if we choose the first method, we will have to create a repository model object for ~__gitus:__repo_config~ and parse through its internal git objects every single time, which involves file IO, zlib decompress and JSON deserializing. for this reason, we currently keep a clone of this repo is thus created directly under the git folder of ~__gitus:__repo_config~ with the subfolder name ~gitus_sync~, so that we can skip the zlib decompress part (also os API is slightly easier to handle).
 
-the update of this ~aegis_sync~ cannot be done during the execution of the ~update~ hook since the update (to refs/heads/master) is only complete *after* the hook has completed running. we prepare the command ~aegis simple-mode aegis-sync~ for this.
+the update of this ~gitus_sync~ cannot be done during the execution of the ~update~ hook since the update (to refs/heads/master) is only complete *after* the hook has completed running. we prepare the command ~gitus simple-mode gitus-sync~ for this.
 

@@ -11,7 +11,7 @@ the source of each of these names are as follows:
 
 the "Git Internals" book that's available online, more specificaly [[https://git-scm.com/book/ms/v2/Git-Internals-Transfer-Protocols][this section]], describes v1-dumb and v1-smart.
 
-as of writing this (2025.12), Aegis uses v1-dumb mainly because both v1-smart and v2 are bloody confusing. github, however, has already deprecated v1-dumb some fourteen years ago.
+as of writing this (2025.12), Gitus uses v1-dumb mainly because both v1-smart and v2 are bloody confusing. github, however, has already deprecated v1-dumb some fourteen years ago.
 
 ** v1-dumb
 

@@ -1,9 +1,9 @@
-* models of aegis
+* models of gitus
 
-NOTE THAT this is only a general guide of how the tables would be implemented. the actual definition and types are database-dependent and one should refer to files in path =pkg/aegis/db/=.
+NOTE THAT this is only a general guide of how the tables would be implemented. the actual definition and types are database-dependent and one should refer to files in path =pkg/gitus/db/=.
 
 #+begin_src sql
-  CREATE TABLE IF NOT EXISTS aegis_user (
+  CREATE TABLE IF NOT EXISTS gitus_user (
       user_name TEXT UNIQUE,
   	user_title TEXT,
   	user_email TEXT,
@@ -28,8 +28,8 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	-- user website preference in JSON.
   	user_website_preference TEXT
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_aegis_user_user_name
-  ON aegis_user (user_name);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_gitus_user_user_name
+  ON gitus_user (user_name);
   -- for the next two tables (for the keys) the pair `user_name`
   -- and `key_name` together should be unique (i.e. one user
   -- can have multiple keys and multiple user can have (different)
@@ -37,23 +37,23 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   -- one key with the same name). we will enforce this at the
   -- golang side for now before i find an easy & cheap way to
   -- do this constraint.
-  CREATE TABLE IF NOT EXISTS aegis_user_authkey (
+  CREATE TABLE IF NOT EXISTS gitus_user_authkey (
       user_name TEXT,
   	key_name TEXT,
   	key_text TEXT,
-      FOREIGN KEY (user_name) REFERENCES aegis_user(user_name)
+      FOREIGN KEY (user_name) REFERENCES gitus_user(user_name)
   );
-  CREATE INDEX IF NOT EXISTS idx_aegis_user_authkey_user_name
-  ON aegis_user_authkey (user_name);
-  CREATE TABLE IF NOT EXISTS aegis_user_signkey (
+  CREATE INDEX IF NOT EXISTS idx_gitus_user_authkey_user_name
+  ON gitus_user_authkey (user_name);
+  CREATE TABLE IF NOT EXISTS gitus_user_signkey (
       user_name TEXT,
   	key_name TEXT,
   	key_text TEXT,
-  	FOREIGN KEY (user_name) REFERENCES aegis_user(user_name)
+  	FOREIGN KEY (user_name) REFERENCES gitus_user(user_name)
   );
-  CREATE INDEX IF NOT EXISTS idx_aegis_user_signkey_user_name
-  ON aegis_user_signkey (user_name);
-  CREATE TABLE IF NOT EXISTS aegis_namespace (
+  CREATE INDEX IF NOT EXISTS idx_gitus_user_signkey_user_name
+  ON gitus_user_signkey (user_name);
+  CREATE TABLE IF NOT EXISTS gitus_namespace (
       ns_name TEXT UNIQUE,
   	ns_title TEXT,
   	ns_description TEXT,
@@ -73,11 +73,11 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	-- should be tinyint.
   	-- 1 - public. 2 - private. 3 - internal.
   	ns_status INT
-  	FOREIGN KEY (ns_owner) REFERENCES aegis_user(user_name)
+  	FOREIGN KEY (ns_owner) REFERENCES gitus_user(user_name)
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_aegis_namespace_ns_name
-  ON aegis_namespace (ns_name);
-  CREATE TABLE IF NOT EXISTS aegis_repository (
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_gitus_namespace_ns_name
+  ON gitus_namespace (ns_name);
+  CREATE TABLE IF NOT EXISTS gitus_repository (
       -- repository type
   	-- 1 - git
   	repo_type INTEGER,
@@ -104,7 +104,7 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	-- webhook config. currently only available for git repo.
   	repo_webhook TEXT
   );
-  CREATE TABLE IF NOT EXISTS aegis_repo_redirect (
+  CREATE TABLE IF NOT EXISTS gitus_repo_redirect (
       old_ns TEXT,
       old_name TEXT,
   	new_ns TEXT,
@@ -112,7 +112,7 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	redirect_timestamp INTEGER
   );
 
-  CREATE TABLE IF NOT EXISTS aegis_issue (
+  CREATE TABLE IF NOT EXISTS gitus_issue (
       repo_namespace TEXT,
   	repo_name TEXT,
   	issue_id INTEGER,
@@ -125,11 +125,11 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	-- 0 to 100 inclusive.
   	issue_priority INTEGER,
   	FOREIGN KEY (repo_namespace, repo_name)
-        REFERENCES aegis_repository(repo_namespace, repo_name),
+        REFERENCES gitus_repository(repo_namespace, repo_name),
   	FOREIGN KEY (issue_author)
-  	  REFERENCES aegis_user(user_name)
+  	  REFERENCES gitus_user(user_name)
   );
-  CREATE TABLE IF NOT EXISTS aegis_issue_event (
+  CREATE TABLE IF NOT EXISTS gitus_issue_event (
       issue_abs_id INTEGER,
   	-- 1 - comment.  2 - close as solved.  3 - close as discarded.
   	-- 4 - reopened.
@@ -137,24 +137,24 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	issue_event_time INTEGER,
   	issue_event_author TEXT,
   	issue_event_content TEXT,
-      FOREIGN KEY (issue_abs_id) REFERENCES aegis_issue(rowid)
+      FOREIGN KEY (issue_abs_id) REFERENCES gitus_issue(rowid)
   );
 
-  CREATE TABLE IF NOT EXISTS aegis_user_email (
+  CREATE TABLE IF NOT EXISTS gitus_user_email (
       username TEXT,
   	email TEXT,
   	-- 0 - not verified. 1 - verified.
   	verified INTEGER,
-  	FOREIGN KEY (username) REFERENCES aegis_user(user_name)
+  	FOREIGN KEY (username) REFERENCES gitus_user(user_name)
   );
 
-  CREATE TABLE IF NOT EXISTS aegis_user_reg_request (
+  CREATE TABLE IF NOT EXISTS gitus_user_reg_request (
       username TEXT,
   	email TEXT,
   	reason TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS aegis_snippet (
+  CREATE TABLE IF NOT EXISTS gitus_snippet (
       username TEXT,
   	snippet_name TEXT,
   	snippet_description TEXT,
@@ -163,10 +163,10 @@ NOTE THAT this is only a general guide of how the tables would be implemented. t
   	-- 4 - shared(user), 5 - private, 6 - shared internal(link)
   	snippet_status INTEGER,
   	snippet_shared_user TEXT,
-  	FOREIGN KEY (username) REFERENCES aegis_user(user_name)
+  	FOREIGN KEY (username) REFERENCES gitus_user(user_name)
   )
 
-  CREATE TABLE IF NOT EXISTS aegis_webhook_log (
+  CREATE TABLE IF NOT EXISTS gitus_webhook_log (
       uuid TEXT UNIQUE,
   	repo_namespace TEXT,
   	repo_name TEXT,

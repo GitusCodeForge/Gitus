@@ -2,7 +2,7 @@
 
 four modes: public, private, shutdown and maintenance.
 
-this settings affect plain mode as well. w/ plain mode, private, shutdown and maintenance are effectively the same, since their difference depends on the user system, which an instance w/ plain mode doesn't have, although aegis would still redirect to the corresponding route. the combination of plain mode + global private mode would lead to the use of the lesser-used route of "/private-notice" (non-plain mode + global private mode would lead visitors to "/login" instead).
+this settings affect plain mode as well. w/ plain mode, private, shutdown and maintenance are effectively the same, since their difference depends on the user system, which an instance w/ plain mode doesn't have, although gitus would still redirect to the corresponding route. the combination of plain mode + global private mode would lead to the use of the lesser-used route of "/private-notice" (non-plain mode + global private mode would lead visitors to "/login" instead).
 
 ** private
 
