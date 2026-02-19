@@ -2,12 +2,12 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Aegis Web Installer</title>
+    <title>Gitus Web Installer</title>
 	{{template "webinstaller/_style"}}
   </head>
   <body>
 	<header>
-	  <h1><a href="/">Aegis Web Installer</a></h1>
+	  <h1><a href="/">Gitus Web Installer</a></h1>
 	  {{template "webinstaller/_nav"}}
 	</header>
 
@@ -18,7 +18,7 @@
 	  
 	  <div class="field">
 		<label class="field-label" for="git-user">Git User</label>
-		<p class="field-description">The name of the user Aegis will use to carry out its actions. This user should also be the user that runs the Aegis web server.</p>
+		<p class="field-description">The name of the user Gitus will use to carry out its actions. This user should also be the user that runs the Gitus web server.</p>
 		<table>
 		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
 		  <tbody>
@@ -28,7 +28,7 @@
 		  </tbody>
 		</table>
 	  </div>
-	  
+
 	  <div class="field">
 		<label class="field-label" for="git-root">Git Root</label>
 		<p class="field-description">The root directory for storing Git repositories. Must be accessible by the Git user configured above.</p>
@@ -59,6 +59,22 @@
 	  </div>
 
 	  <div class="field">
+		<label class="field-label" for="no-interactive-shell-message">"No Interactive Shell" Message</label>
+		{{if and (not (eq .Config.OperationMode "normal")) (not (eq .Config.OperationMode "simple"))}}
+		<p>You have chosen the operation mode "{{.Config.OperationMode}}", which does not support SSH at all, thus no need for this feature.</p>
+		{{else}}
+		<table>
+		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
+		  <tbody>
+			<tr><td><label for="tf-no-interactive-shell-message">noInteractiveShellMessage</label></td>
+			  <td><input name="no-interactive-shell-message" id="tf-no-interactive-shell-message" value="{{htmlEscape .Config.NoInteractiveShellMessage}}" /></td>
+			</tr>
+		  </tbody>
+		</table>
+		{{end}}
+	  </div>
+
+	  <div class="field">
 		<label class="field-label" for="snippet-root">Snippet Root</label>
 		{{if not (eq .Config.OperationMode "normal")}}
 		<p>You have chosen the operation mode "{{.Config.OperationMode}}", which does not support snippets.</p>
@@ -74,6 +90,7 @@
 		</table>
 		{{end}}
 	  </div>
+
 	  
 	  {{if eq .Config.OperationMode "normal"}}
 	  <p>You have choosen to use Normal Mode. Step 7 only makes sense if you use other operation mode, so we'll direct you to Step 8.</p>

@@ -2,12 +2,12 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Aegis Web Installer</title>
+    <title>Gitus Web Installer</title>
 	{{template "webinstaller/_style"}}
   </head>
   <body>
 	<header>
-	  <h1><a href="/">Aegis Web Installer</a></h1>
+	  <h1><a href="/">Gitus Web Installer</a></h1>
 	  {{template "webinstaller/_nav"}}
 	</header>
 
@@ -18,7 +18,7 @@
 	  <div class="field">
 		<label class="field-label" for="operation-mode">Operation Mode</label>
 		<p><a href="/step1">Go back and change this setting</a></p>
-		<p class="field-description">Aegis supports 3 different operation mode.:
+		<p class="field-description">Gitus supports 3 different operation mode.:
 		  <ul>
 			<li>Plain Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
 			<li>Simple Mode: User and repository managements are done by updating special repositories similar to Gitolite. Clone/push through SSH is enabled.</li>
@@ -261,7 +261,7 @@
 	  <div class="field">
 		<label class="field-label" for="git-user">Git User</label>
 		<p><a href="/step6">Go back and change this setting</a></p>
-		<p class="field-description">The name of the user Aegis will use to carry out its actions. This user should also be the user that runs the Aegis web server.</p>
+		<p class="field-description">The name of the user Gitus will use to carry out its actions. This user should also be the user that runs the Gitus web server.</p>
 		<table>
 		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
 		  <tbody>
@@ -336,7 +336,7 @@
 	  <div class="field">
 		<label class="field-label" for="depot-name">Depot Name</label>
 		<p><a href="/step8">Go back and change this setting</a></p>
-		<p class="field-description">The name for this Aegis instance.</p>
+		<p class="field-description">The name for this Gitus instance.</p>
 		<table>
 		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
 		  <tbody>
@@ -350,7 +350,7 @@
 	  <div class="field">
 		<label class="field-label">Bind Address & Port</label>
 		<p><a href="/step8">Go back and change this setting</a></p>
-		<p class="field-description">The address and port this instance is supposed to bind to. Two common choices for bind address: <code>0.0.0.0</code> which allows all external connections, and <code>127.0.0.1</code> which only allows local connections. For security reasons it would be better to set this to 127.0.0.1 and put Aegis behind a reverse proxy.</p>
+		<p class="field-description">The address and port this instance is supposed to bind to. Two common choices for bind address: <code>0.0.0.0</code> which allows all external connections, and <code>127.0.0.1</code> which only allows local connections. For security reasons it would be better to set this to 127.0.0.1 and put Gitus behind a reverse proxy.</p>
 		<table>
 		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
 		  <tbody>
@@ -399,7 +399,7 @@
 	  <div class="field">
 		<span class="field-label">Front Page</span>
 		<p><a href="/step8">Go back and change this setting</a></p>
-		<p class="field-description">The default front page for this instance. This would be the first thing people see when visiting this Aegis instance.</p>
+		<p class="field-description">The default front page for this instance. This would be the first thing people see when visiting this Gitus instance.</p>
 		<table>
 		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
 		  <tbody>
