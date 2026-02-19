@@ -77,6 +77,10 @@
 				<td><input type="checkbox" id="chk-http-enable-v2" name="git-http-enable-v2" class="field-checkbox" {{if .Config.GitConfig.HTTPCloneProtocol.V2}}checked{{end}}/></td>
 			  </tr>
 			  <tr class="field">
+				<td><label class="field-label" for="tf-no-interactive-shell-message">"No Interactive Shell" message:</label></td>
+				<td><input name="no-interactive-shell-message" id="tf-no-interactive-shell-message" class="field-tf" value="{{.Config.NoInteractiveShellMessage}}" /></td>
+			  </tr>
+			  <tr class="field">
 				<td></td>
 				<td><input class="field-submit" type="submit" value="Save Config" /></td>
 			  </tr>

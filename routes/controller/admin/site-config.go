@@ -92,6 +92,7 @@ func bindAdminSiteConfigController(ctx *RouterContext) {
 				rc.Config.GitUser = r.Form.Get("git-user")
 				rc.Config.GitConfig.HTTPCloneProtocol.V1Dumb = len(strings.TrimSpace(r.Form.Get("git-http-enable-v1dumb"))) > 0
 				rc.Config.GitConfig.HTTPCloneProtocol.V2 = len(strings.TrimSpace(r.Form.Get("git-http-enable-v2"))) > 0
+				rc.Config.NoInteractiveShellMessage = strings.TrimSpace(r.Form.Get("no-interactive-shell-message"))
 				err := rc.Config.Sync()
 				if err != nil {
 					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{

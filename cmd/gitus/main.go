@@ -208,6 +208,9 @@ func main() {
 			}
 			HandleSSHLogin(&context, mainCall[1], mainCall[2])
 			return
+		case "no-login":
+			fmt.Println(context.Config.NoInteractiveShellMessage)
+			return
 		case "simple-mode":
 			if len(mainCall) < 3 {
 				fmt.Print(gitlib.ToPktLine("Error format for `gitus simple-mode`."))

@@ -266,6 +266,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		} else {
 			next = "/step8"
 		}
+		ctx.Config.NoInteractiveShellMessage = strings.TrimSpace(r.Form.Get("no-interactive-shell-message"))
 		err = templates.UnpackStaticFileTo(ctx.Config.StaticAssetDirectory)
 		if err != nil {
 			ctx.reportRedirect(next, 0, "Failed", fmt.Sprintf("Static file unpack is unsuccessful due to reason: %s. You can still move forward but would have to unpack static file yourself.", err.Error()), w)
@@ -542,6 +543,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 					return false
 				}
 			}
+			
 			err = os.MkdirAll(ctx.Config.GitRoot, os.ModeDir|0755)
 			if errors.Is(err, os.ErrExist) {
 				err = os.Chown(ctx.Config.GitRoot, uid, gid)
@@ -565,6 +567,22 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			err = auxfuncs.ChangeLocationOwnerByName(ctx.Config.FilePath, ctx.Config.GitUser)
 			if err != nil {
 				fmt.Fprintf(w, "<p>Failed to change config file owner: %s. You should do this after the installation process has completed</p>", err)
+			}
+			
+			noInteractiveLoginPath := path.Join(homePath, "git-shell-commands", "no-interactive-login")
+			f, err := os.OpenFile(noInteractiveLoginPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0754)
+			if err != nil {
+				fmt.Fprintf(w, "<p>Failed to write <code>no-interactive-login</code>: %s; interactive shell would still be available. If this is undesirable, you'll have to add it yourself.</p>", err.Error())
+			} else {
+				defer f.Close()
+				fmt.Fprintf(f, `#!/bin/sh
+
+%s -config "%s" no-login
+`, path.Join(homePath, "git-shell-commands", "gitus"),
+					shellparse.Quote(ctx.Config.FilePath),
+				)
+				os.Chown(noInteractiveLoginPath, uid, gid)
+				fmt.Fprint(w, "<p><code>no-interactive-login</code> file has been written successfully.</p>")
 			}
 			return true
 		}() { goto leave }

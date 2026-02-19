@@ -164,6 +164,10 @@ type GitusConfig struct {
 	// could be more in the future.
 	Theme GitusThemeConfig `json:"theme"`
 
+	// "no-interactive-shell" message.
+	// the message that would get displayed when people try to log in w/
+	// a configured ssh public key.
+	NoInteractiveShellMessage string `json:"noSshLoginMessage"`
 }
 
 const (
@@ -450,6 +454,7 @@ func CreateConfigFile(p string) error {
 			ForegroundColor: "black",
 			BackgroundColor: "white",
 		},
+		NoInteractiveShellMessage: "Direct shell access is forbidden on this host.",
 	}, "", "    ")
 	if err != nil { return err }
 	f.Write(marshalRes)
