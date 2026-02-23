@@ -79,7 +79,7 @@ If you can see this message it means the mailer configuration can be used normal
 				return
 			}
 			rc.Config.Mailer.SMTPPort = int(i)
-			rc.Config.Mailer.User = r.Form.Get("user")
+			rc.Config.Mailer.User = r.Form.Get("username")
 			rc.Config.Mailer.Password = r.Form.Get("password")
 			err = rc.Config.Sync()
 			if err != nil {

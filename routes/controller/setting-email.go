@@ -75,8 +75,11 @@ func bindSettingEmailController(ctx *RouterContext) {
 				rc.ReportNormalError("Invalid request", w, r)
 				return
 			}
-			fmt.Println(ctx)
-			fmt.Println(rc)
+			
+			if rc.Mailer == nil {
+				rc.ReportRedirect("/setting/email", 5, "Invalid Mailer Setup", "Email verification is not supported due to an invalid mailer configuration. Please contact the administrator.", w, r)
+				return
+			}
 			email := r.URL.Query().Get("email")
 			command := make([]string, 3)
 			command[0] = receipt.VERIFY_EMAIL

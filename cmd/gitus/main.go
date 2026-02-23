@@ -151,9 +151,11 @@ func main() {
 
 		if mailerNeeded {
 			ml, err := mail.InitializeMailer(config)
+			// TODO: somehow if err != nil `ml` still seems to be non-nil. fix this.
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to create mailer interface: %s\n", err.Error())
 				fmt.Fprintf(os.Stderr, "You should try to fix the problem and run Gitus again, or things thar depends on sending emails wouldn't work properly.\n")
+				ml = nil
 			}
 			context.Mailer = ml
 		}
