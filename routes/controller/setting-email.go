@@ -75,12 +75,14 @@ func bindSettingEmailController(ctx *RouterContext) {
 				rc.ReportNormalError("Invalid request", w, r)
 				return
 			}
+			fmt.Println(ctx)
+			fmt.Println(rc)
 			email := r.URL.Query().Get("email")
 			command := make([]string, 3)
 			command[0] = receipt.VERIFY_EMAIL
-			command[1] = ctx.LoginInfo.UserName
+			command[1] = rc.LoginInfo.UserName
 			command[2] = email
-			rid, err := ctx.ReceiptSystem.IssueReceipt(24*60, command)
+			rid, err := rc.ReceiptSystem.IssueReceipt(24*60, command)
 			if err != nil {
 				rc.ReportInternalError(fmt.Sprintf("Failed to issue receipt: %s\n", err.Error()), w, r)
 				return
