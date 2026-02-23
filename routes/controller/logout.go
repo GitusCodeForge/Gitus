@@ -11,14 +11,18 @@ import (
 
 func bindLogoutController(ctx *RouterContext) {
 	http.HandleFunc("GET /logout", UseMiddleware(
-		[]Middleware{Logged, ErrorGuard}, ctx,
+		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
 				return
 			}
-			if rc.LoginInfo == nil || !rc.LoginInfo.LoggedIn { FoundAt(w, "/") }
+			if rc.LoginInfo == nil || !rc.LoginInfo.LoggedIn {
+				FoundAt(w, "/")
+				return
+			}
 			LogTemplateError(rc.LoadTemplate("logout").Execute(w, templates.LogoutTemplateModel{
+				LoginInfo: rc.LoginInfo,
 				Config: rc.Config,
 				ErrorMsg: "",
 			}))
@@ -26,7 +30,7 @@ func bindLogoutController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("POST /logout", UseMiddleware(
-		[]Middleware{Logged, ErrorGuard}, ctx,
+		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
