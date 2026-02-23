@@ -230,13 +230,14 @@ func main() {
 				fmt.Print(gitlib.ToPktLine(fmt.Sprintf("Error command for `gitus web-hooks`: %s.", mainCall[1])))
 			}
 			return
-		case "update-trigger":
-			if len(mainCall) < 6 {
-				fmt.Print(gitlib.ToPktLine("Error format for `gitus-update-trigger`."))
-				return
-			}
-			HandleUpdateTrigger(&context, mainCall[1], mainCall[2], mainCall[3], mainCall[4], mainCall[5])
-			return
+			// TODO(2026.2.23): un-comment or remove this after designing the CI system
+			// case "update-trigger":
+			// 	if len(mainCall) < 6 {
+			// 		fmt.Print(gitlib.ToPktLine("Error format for `gitus-update-trigger`."))
+			// 		return
+			// 	}
+			// 	HandleUpdateTrigger(&context, mainCall[1], mainCall[2], mainCall[3], mainCall[4], mainCall[5])
+			// 	return
 		}
 	}
 
