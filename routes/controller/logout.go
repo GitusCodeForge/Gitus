@@ -2,15 +2,30 @@ package controller
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	. "github.com/GitusCodeForge/Gitus/routes"
+	"github.com/GitusCodeForge/Gitus/templates"
 )
 
 
 func bindLogoutController(ctx *RouterContext) {
 	http.HandleFunc("GET /logout", UseMiddleware(
+		[]Middleware{Logged, ErrorGuard}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
+				FoundAt(w, "/maintenance-notice")
+				return
+			}
+			if rc.LoginInfo == nil || !rc.LoginInfo.LoggedIn { FoundAt(w, "/") }
+			LogTemplateError(rc.LoadTemplate("logout").Execute(w, templates.LogoutTemplateModel{
+				Config: rc.Config,
+				ErrorMsg: "",
+			}))
+		},
+	))
+
+	http.HandleFunc("POST /logout", UseMiddleware(
 		[]Middleware{Logged, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
@@ -50,11 +65,7 @@ func bindLogoutController(ctx *RouterContext) {
 				Secure: true,
 				SameSite: http.SameSiteDefaultMode,
 			}).String())
-			callbackURL := strings.TrimSpace(r.URL.Query().Get("callback"))
-			if callbackURL == "" { callbackURL = "/" }
-			target, err := getQueryPath(callbackURL)
-			if err != nil { target = "/" }
-			FoundAt(w, target)
+			FoundAt(w, "/")
 		},
 	))
 }
