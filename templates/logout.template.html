@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Logout :: {{.Config.DepotName}}</title>
+	<link rel="stylesheet" href="/static/style-const-default.css">
+	<link rel="stylesheet" href="/dynamic-asset/style-const-default.css">
+	<link rel="stylesheet" href="/static/style.css">
+	<link rel="stylesheet" href="/static/style-login.css">
+	<link rel="stylesheet" href="/static/style-setting.css">
+  </head>
+  <body>
+	<header>
+	  {{template "_header-nav" .}}
+	  <h1 class="header-name">Login</h1>
+	</header>
+	<hr />
+	{{if gt (len .ErrorMsg) 0}}
+	<div class="error-message">
+	  {{.ErrorMsg}}
+	</div>
+	{{end}}
+
+	<fieldset id="logout-form">
+	  <legend>Logout</legend>
+	  <form action="" method="POST">
+		<table class="field-table">
+		  <tbody>
+			<tr class="field">
+			  <td></td>
+			  <td><input class="form-submit" type="submit" value="Logout" /></td>
+			</tr>
+		  </tbody>
+		</table>
+	  </form>
+	</fieldset>
+
+    <hr />
+	<footer>
+	  {{template "_footer"}}
+	</footer>
+  </body>
+</html>
+
