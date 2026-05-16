@@ -39,30 +39,30 @@
 		  <div class="list-page-nav">
 			{{if gt .PageInfo.PageNum 1}}
 			<a href="?p={{sub .PageInfo.PageNum 1}}&s={{.PageInfo.PageSize}}{{if .Query}}&q={{.Query}}{{end}}">&lt;&lt;</a>
-		{{end}}
-		<span class="list-page-nav-page-indicator">{{.PageInfo.PageNum}} / {{.PageInfo.TotalPage}}</span>
-		{{if lt .PageInfo.PageNum .PageInfo.TotalPage}}
-		<a href="?p={{add .PageInfo.PageNum 1}}&s={{.PageInfo.PageSize}}{{if .Query}}&q={{.Query}}{{end}}">&gt;&gt;</a>
-		{{end}}
+			{{end}}
+			<span class="list-page-nav-page-indicator">{{.PageInfo.PageNum}} / {{.PageInfo.TotalPage}}</span>
+			{{if lt .PageInfo.PageNum .PageInfo.TotalPage}}
+			<a href="?p={{add .PageInfo.PageNum 1}}&s={{.PageInfo.PageSize}}{{if .Query}}&q={{.Query}}{{end}}">&gt;&gt;</a>
+			{{end}}
 		  </div>
 		  <div class="list-page-goto">
 			<form class="list-page-goto-form" action="" method="GET">
-		  <input type="hidden" name="s" value="{{.PageInfo.PageSize}}" />
-		<label for="p">Page:</label> <input class="list-page-goto-form-tf" name="p" id="p" />
-		<input type="submit" value="Go" />
-		</form>
-		
-		<div class="list-page-nav-page-sizer">
-		  (<a class="list-page-nav-l" href="?s=10">10</a>
-		<a class="list-page-nav-l" href="?s=25">25</a>
-		<a class="list-page-nav-l" href="?s=50">50</a>)
-		</div>
+			  <input type="hidden" name="s" value="{{.PageInfo.PageSize}}" />
+			  <label for="p">Page:</label> <input class="list-page-goto-form-tf" name="p" id="p" />
+			  <input type="submit" value="Go" />
+			</form>
+			
+			<div class="list-page-nav-page-sizer">
+			  (<a class="list-page-nav-l" href="?s=10">10</a>
+			  <a class="list-page-nav-l" href="?s=25">25</a>
+			  <a class="list-page-nav-l" href="?s=50">50</a>)
+			</div>
 		  </div>
 		  <div class="list-search">
-		  <form class="list-search-form" action="" method="GET">
-			<label for="q">Search Snippet:</label> <input class="list-search-tf" name="q" id="q" value="{{if .Query}}{{.Query}}{{end}}" />
-			<input type="submit" value="Search" />
-		  </form>
+			<form class="list-search-form" action="" method="GET">
+			  <label for="q">Search Snippet:</label> <input class="list-search-tf" name="q" id="q" value="{{if .Query}}{{.Query}}{{end}}" />
+			  <input type="submit" value="Search" />
+			</form>
 		  </div>
 		</div>
 		<table class="list-table">
