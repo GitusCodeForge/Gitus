@@ -1,0 +1,8 @@
+* comma-separated value
+
+this describes the csv format used *within* gitus.
+
+all spaces are preserved other than the ones at the head and the tail. for example, ~"val1,val2,val3"~ would be parsed as the same as ="   val1,val2,val3  "= but not the same as ~"val1, val2, val3"~ and ~"val1,     val2, val3"~.
+
+there is only one kind of escape sequence: slash ~\~ followed by any character resolves that exact character. for example, ~"\   val\1\\  \ "~ would result in the value ~"   val1\   "~.
+
