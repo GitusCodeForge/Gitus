@@ -66,7 +66,8 @@ func bindRepositoryForkController(ctx *RouterContext) {
 	http.HandleFunc("POST /repo/{repoName}/fork", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
 			ValidRepositoryNameRequired("repoName"),
-			UseLoginInfo, LoginRequired, GlobalVisibility, ErrorGuard,
+			UseLoginInfo, LoginRequired, CSRFCheck,
+			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")

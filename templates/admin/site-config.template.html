@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 <!DOCTYPE html>
 <html>
   <head>
@@ -25,6 +26,7 @@
 		<fieldset class="setting-section">
 		  <legend>Basic Settings</legend>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="section" value="basic" />
 			<table class="field-table">
 			  <tr class="field">
@@ -58,6 +60,7 @@
 		<fieldset class="git-section">
 		  <legend>Git Settings</legend>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="section" value="git" />
 			<table class="field-table">
 			  <tr class="field">
@@ -91,6 +94,7 @@
 		<fieldset class="setting-section">
 		  <legend>Web Setting</legend>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="section" value="web" />
 			<table class="field-table">
 			  <tr>
@@ -125,6 +129,7 @@
 		  <legend>Theme Configuration</legend>
 		  
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="section" value="theme-config" />
 			<table class="field-table">
 			  <tbody>
@@ -148,6 +153,7 @@
 		<fieldset>
 		  <legend>Index Configuration</legend>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="section" value="front-page" />
 			<table class="field-table">
 			  <tr class="field">

@@ -117,6 +117,34 @@ var ErrorGuard Middleware = func(f HandlerFunc) HandlerFunc {
 	}
 }
 
+var CSRFCheck Middleware = func(f HandlerFunc) HandlerFunc {
+	return func(ctx *RouterContext, w http.ResponseWriter, r *http.Request) {
+		if ctx.LoginInfo == nil {
+			ctx.ReportRedirect("/login", 0, "Login Required", "You need to login first to access this resource.", w, r)
+			return
+		}
+		k := r.Form.Get(CSRF_KEY)
+		if k == "" {
+			ctx.ReportRedirect("/", 0, "Invalid Request", "", w, r)
+			return
+		}
+		chkres, err := ctx.SessionInterface.VerifySessionFull(
+			ctx.LoginInfo.UserName,
+			ctx.LoginInfo.UserSessionId,
+			k,
+		)
+		if err != nil {
+			ctx.ReportInternalError(fmt.Sprintf("Internal error while CSRF token check: %s\n", err), w, r)
+			return
+		}
+		if !chkres {
+			ctx.ReportRedirect("/", 0, "Invalid Request", "", w, r)
+			return
+		}
+		f(ctx, w, r)
+	}
+}
+
 func ValidRepositoryNameRequired(s string) Middleware {
 	return func(f HandlerFunc) HandlerFunc {
 		return func(ctx *RouterContext, w http.ResponseWriter, r *http.Request) {

@@ -75,7 +75,7 @@ func bindAdminEditUserSSHController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /admin/user/{username}/ssh/{keyName}/edit", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			LoginRequired, AdminRequired,
+			LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {		un := r.PathValue("username")
@@ -139,7 +139,7 @@ func bindAdminEditUserSSHController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /admin/user/{username}/ssh", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			LoginRequired, AdminRequired,
+			LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

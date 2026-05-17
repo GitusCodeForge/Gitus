@@ -94,7 +94,7 @@ func bindIssueController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /repo/{repoName}/issue/new", UseMiddleware(
 		[]Middleware{Logged, ValidRepositoryNameRequired("repoName"),
-			LoginRequired, ValidPOSTRequestRequired,
+			LoginRequired, CSRFCheck, ValidPOSTRequestRequired,
 			UseLoginInfo, GlobalVisibility,
 			ErrorGuard,
 		}, ctx,
@@ -169,7 +169,7 @@ func bindIssueController(ctx *RouterContext) {
 	http.HandleFunc("POST /repo/{repoName}/issue/{id}", UseMiddleware(
 		[]Middleware{Logged, ValidRepositoryNameRequired("repoName"),
 			ValidPOSTRequestRequired,
-			UseLoginInfo, GlobalVisibility,
+			UseLoginInfo, CSRFCheck, GlobalVisibility,
 			ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

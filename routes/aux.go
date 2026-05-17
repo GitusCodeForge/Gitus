@@ -16,6 +16,8 @@ func LogIfError(err error) {
 	}
 }
 
+const CSRF_KEY = "__csrf_token"
+
 // go don't have ufcs so i'll have to suffer.
 func WithLog(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +68,7 @@ func CheckUserSession(ctx *RouterContext, r *http.Request) (bool, error) {
 	s, err := r.Cookie(COOKIE_KEY_SESSION)
 	if err == http.ErrNoCookie { return false, nil }
 	if err != nil { return false, err }
-	res, err := ctx.SessionInterface.VerifySession(un, s.Value)
+	res, err := ctx.SessionInterface.VerifySessionExist(un, s.Value)
 	if err != nil { return false, err }
 	return res, nil
 }
@@ -84,6 +86,8 @@ func GenerateLoginInfoModel(ctx *RouterContext, r *http.Request) (*templates.Log
 			UserName: "",
 			UserFullName: "",
 			UserEmail: "",
+			UserSessionId: "",
+			UserCSRFToken: "",
 			IsOwner: false,
 			IsSettingMember: false,
 			IsAdmin: false,
@@ -98,20 +102,24 @@ func GenerateLoginInfoModel(ctx *RouterContext, r *http.Request) (*templates.Log
 			UserName: "",
 			UserFullName: "",
 			UserEmail: "",
+			UserSessionId: "",
+			UserCSRFToken: "",
 			IsOwner: false,
 			IsSettingMember: false,
 			IsAdmin: false,
 			IsSuperAdmin: false,
 		}, nil
 	}
-	res, err := ctx.SessionInterface.VerifySession(un, s.Value)
+	session, err := ctx.SessionInterface.RetrieveSessionByKey(un, s.Value)
 	if err != nil { return nil, err }
-	if !res {
+	if session == nil {
 		return &templates.LoginInfoModel{
 			LoggedIn: loggedIn,
 			UserName: "",
 			UserFullName: "",
 			UserEmail: "",
+			UserSessionId: "",
+			UserCSRFToken: "",
 			IsOwner: false,
 			IsSettingMember: false,
 			IsAdmin: false,
@@ -121,10 +129,12 @@ func GenerateLoginInfoModel(ctx *RouterContext, r *http.Request) (*templates.Log
 	u, err := ctx.DatabaseInterface.GetUserByName(un)
 	if err != nil { return nil, err }
 	return &templates.LoginInfoModel{
-		LoggedIn: res,
+		LoggedIn: true,
 		UserName: un,
 		UserFullName: u.Title,
 		UserEmail: u.Email,
+		UserCSRFToken: session.CSRFToken,
+		UserSessionId: session.Id,
 		IsOwner: false,
 		IsSettingMember: false,
 		IsAdmin: u.Status == model.ADMIN || u.Status == model.SUPER_ADMIN,

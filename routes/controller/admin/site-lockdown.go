@@ -30,7 +30,7 @@ func bindAdminSiteLockdownController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /admin/site-lockdown", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			LoginRequired, AdminRequired,
+			LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 

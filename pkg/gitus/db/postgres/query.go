@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
-	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
-	"github.com/jackc/pgx/v5"
+	pgx "github.com/jackc/pgx/v5"
 )
 
 func (dbif *PostgresGitusDatabaseInterface) GetUserByName(name string) (*model.GitusUser, error) {

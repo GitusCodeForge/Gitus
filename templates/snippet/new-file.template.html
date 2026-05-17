@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 <!DOCTYPE html>
 <html>
   <head>
@@ -31,6 +32,7 @@
 	<fieldset>
 	  <legend>New File</legend>
 	  <form method="POST" class="snippet-setting">
+		<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 		<table class="field-table">
 		  <tbody>
 			<tr class="field">

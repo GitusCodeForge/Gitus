@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$repoPath := getRepoPath .Repository.Namespace .Repository.Name}}
 <!DOCTYPE html>
 <html>
@@ -36,6 +37,7 @@
 		</div>
 		
 		<form id="repo-setting-form" action="" method="POST">
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 		  <div class="field"><label class="field-label" for="tf-label">Label text:</label>
 			<input name="label" id="tf-label" />
 		  </div>

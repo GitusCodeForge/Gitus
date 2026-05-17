@@ -7,6 +7,8 @@ type LoginInfoModel struct {
 	UserName string
 	UserFullName string
 	UserEmail string
+	UserSessionId string
+	UserCSRFToken string
 	IsOwner bool
 	IsStrictOwner bool
 	IsSettingMember bool

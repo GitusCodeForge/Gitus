@@ -140,7 +140,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 			}
 			
 			ss := session.NewSessionString()
-			err = rc.SessionInterface.RegisterSession(un, ss)
+			_, err = rc.SessionInterface.RegisterSession(un, ss)
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
 				return
@@ -230,7 +230,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 			}
 			
 			ss := session.NewSessionString()
-			err = rc.SessionInterface.RegisterSession(username, ss)
+			_, err = rc.SessionInterface.RegisterSession(username, ss)
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
 				return

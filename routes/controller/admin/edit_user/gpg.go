@@ -82,7 +82,7 @@ func bindAdminEditUserGPGController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("POST /admin/user/{username}/gpg/{keyName}/edit", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, AdminRequired,
+		[]Middleware{Logged, LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
@@ -143,7 +143,7 @@ func bindAdminEditUserGPGController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("POST /admin/user/{username}/gpg", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, AdminRequired,
+		[]Middleware{Logged, LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

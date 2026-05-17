@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 <!DOCTYPE html>
 <html>
   <head>
@@ -25,6 +26,7 @@
 		
 		<form action="" method="POST">
 		  <input type="hidden" name="doc-number" value="{{.DocumentNumber}}" />
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 		  <div class="field">
 			<label class="field-label" for="tf-title">Title:</label>
 			<input id="tf-title" name="title" value="{{.Title}}" />

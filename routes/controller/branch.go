@@ -405,7 +405,7 @@ func bindBranchController(ctx *RouterContext) {
 	http.HandleFunc("POST /repo/{repoName}/branch/{branchName}/{treePath...}", UseMiddleware(
 		[]Middleware{
 			Logged, ValidPOSTRequestRequired,
-			LoginRequired, GlobalVisibility,
+			LoginRequired, CSRFCheck, GlobalVisibility,
 			ValidRepositoryNameRequired("repoName"),
 			ErrorGuard,
 		}, ctx,

@@ -57,7 +57,7 @@ func bindAdminNamespaceListController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("POST /admin/namespace-list", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, AdminRequired,
+		[]Middleware{Logged, LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

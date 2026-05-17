@@ -60,7 +60,7 @@ func bindRepositorySettingController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /repo/{repoName}/setting", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, GlobalVisibility, ErrorGuard,
+			Logged, LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard,
 			ValidRepositoryNameRequired("repoName"),
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
@@ -265,7 +265,7 @@ func bindRepositorySettingController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("POST /repo/{repoName}/setting/member", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{Logged, LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
 			if !model.ValidRepositoryName(rfn) {
@@ -396,7 +396,8 @@ func bindRepositorySettingController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /repo/{repoName}/setting/member/{userName}/edit", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			ValidRepositoryNameRequired("repoName"), UseLoginInfo, LoginRequired,
+			ValidRepositoryNameRequired("repoName"),
+			UseLoginInfo, LoginRequired, CSRFCheck,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
@@ -580,7 +581,10 @@ func bindRepositorySettingController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("POST /repo/{repoName}/setting/label", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{
+			Logged, LoginRequired, CSRFCheck,
+			GlobalVisibility, ErrorGuard,
+		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
 			nsName, repoName, ns, repo, err := ctx.ResolveRepositoryFullName(rfn)
@@ -685,7 +689,10 @@ func bindRepositorySettingController(ctx *RouterContext) {
 	)
 	
 	http.HandleFunc("POST /repo/{repoName}/setting/webhook", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{
+			Logged, LoginRequired, CSRFCheck,
+			GlobalVisibility, ErrorGuard,
+		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
 			if !model.ValidRepositoryName(rfn) {

@@ -1,4 +1,5 @@
- {{$repoName := getRepoName .Repository.Namespace .Repository.Name}}
+{{$csrf_key := "__csrf_token"}}
+{{$repoName := getRepoName .Repository.Namespace .Repository.Name}}
 {{$repoPath := getRepoPath .Repository.Namespace .Repository.Name}}
 <!DOCTYPE html>
 <html>
@@ -22,6 +23,7 @@
 	  {{template "issue/_sidebar" .}}
 	  <div class="main-side">
 		<form class="issue-search-bar" action="" method="GET">
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 		  <div class="issue-page-nav">
 			{{if gt .PageInfo.PageNum 1}}<a href="?q={{.Query}}&s={{.PageInfo.PageSize}}&p={{sub .PageInfo.PageNum 1}}">&lt;&lt;</a>{{end}}
 			{{.PageInfo.PageNum}} / {{.PageInfo.TotalPage}}

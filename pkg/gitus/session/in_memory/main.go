@@ -1,11 +1,12 @@
 package in_memory
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/session"
 	"github.com/GitusCodeForge/Gitus/pkg/tcache"
@@ -53,12 +54,21 @@ func removeFromSet(set string, s string) string {
 	return set[0:i] + set[i+len(ss):]
 }
 
-func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session string) error {
-	key := fmt.Sprintf("%s:%s:session", ssif.config.Session.TablePrefix, name)
+func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session_id string) (*session.GitusSession, error) {
+	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	i, _ := ssif.cache.Get(key)
-	ssif.cache.Register(key, insertSet(i, session), 24*time.Hour)
-	key2 := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, name, session)
-	timestampStr := fmt.Sprintf("%d", time.Now().UnixMilli())
+	ssif.cache.Register(key, insertSet(i, session_id), 24*time.Hour)
+	key2 := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, session_id)
+	timestamp := time.Now().Unix()
+	csrf := auxfuncs.CryptoGenSym(64)
+	s := &session.GitusSession{
+		Username: name,
+		Id: session_id,
+		Timestamp: timestamp,
+		CSRFToken: csrf,
+	}
+	sstr, err := json.Marshal(s)
+	if err != nil { return nil, err }
 	// this is possibly the only case where a sessionid register twice
 	// makes sense:
 	// + we plan to support multiple session, which we may make into
@@ -70,26 +80,24 @@ func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session stri
 	//   *typically* will be, should be plenty enough.
 	// + we still want easy check for each session key instead of
 	//   deserializing the long string every time.
-	ssif.cache.Register(key2, timestampStr, 24*time.Hour)
-	return nil
+	ssif.cache.Register(key2, string(sstr), 24*time.Hour)
+	return s, nil
 }
 
 func (ssif *GitusInMemorySessionStore) RetrieveSession(name string) ([]*session.GitusSession, error) {
-	groupKey := fmt.Sprintf("%s:%s:session", ssif.config.Session.TablePrefix, name)
+	groupKey := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	i, _ := ssif.cache.Get(groupKey)
-	res := make([]*session.GitusSession, 0)
 	newset := ""
-	for k := range strings.SplitSeq(string(i[1:len(i)]), "}{") {
-		kk := fmt.Sprintf("%s:%s", groupKey, k)
+	res := make([]*session.GitusSession, 0)
+	for k := range strings.SplitSeq(string(i[1:]), "}{") {
+		kk := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, k)
 		v, _ := ssif.cache.Get(kk)
+		var r *session.GitusSession
+		err := json.Unmarshal([]byte(v), &r)
+		if err != nil { return nil, err }
 		if v != "" {
-			timestamp, _ := strconv.ParseInt(v, 10, 64)
-			res = append(res, &session.GitusSession{
-				Username: name,
-				Id: k,
-				Timestamp: timestamp,
-			})
-			newset = fmt.Sprintln("%s{%s}", newset, k)
+			res = append(res, r)
+			newset = fmt.Sprintf("%s{%s}", newset, k)
 		}
 	}
 	if newset == "" {
@@ -101,39 +109,61 @@ func (ssif *GitusInMemorySessionStore) RetrieveSession(name string) ([]*session.
 }
 
 func (ssif *GitusInMemorySessionStore) RetrieveSessionByKey(username string, sessionid string) (*session.GitusSession, error) {
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, username, sessionid)
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, sessionid)
 	i, _ := ssif.cache.Get(key)
-	timestamp, _ := strconv.ParseInt(i, 10, 64)
-	return &session.GitusSession{
-		Username: username,
-		Id: sessionid,
-		Timestamp: timestamp,
-	}, nil
-}
-
-func (ssif *GitusInMemorySessionStore) VerifySession(name string, target string) (bool, error) {
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, name, target)
-	i, _ := ssif.cache.Get(key)
-	if i == "" { return false, nil }
-	timestamp, _ := strconv.ParseInt(i, 10, 64)
-	if time.Now().Unix() > timestamp {
-		ssif.cache.Delete(key)
-		return false, nil
-	}
-	return true, nil
+	var r *session.GitusSession
+	err := json.Unmarshal([]byte(i), r)
+	if err != nil { return nil, err }
+	return r, nil
 }
 
 func (ssif *GitusInMemorySessionStore) RevokeSession(username string, target string) error {
 	// NOTE: we don't have transaction semantics here, which could be
 	// a problem down the line.
 	// TODO: attempt to fix this.
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, username, target)
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, target)
 	ssif.cache.Delete(key)
-	sessionSetKey := fmt.Sprintf("%s:%s:session", ssif.config.Session.TablePrefix, username)
+	sessionSetKey := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, username)
 	i, ok := ssif.cache.Get(sessionSetKey)
 	if !ok { return nil }
 	i = removeFromSet(i, target)
 	ssif.cache.Register(sessionSetKey, i, 24*time.Hour)
 	return nil
+}
+
+func (ssif *GitusInMemorySessionStore) VerifySessionExist(name string, target string) (bool, error) {
+	key1 := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
+	s, ok := ssif.cache.Get(key1)
+	if !ok { return false, nil }
+	if !inSet(s, target) { return false, nil }
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, target)
+	i, _ := ssif.cache.Get(key)
+	if i == "" { return false, nil }
+	var r *session.GitusSession
+	err := json.Unmarshal([]byte(i), &r)
+	if err != nil { return false, err }
+	if time.Now().Unix() > r.Timestamp {
+		ssif.cache.Delete(key)
+		return false, nil
+	}
+	return true, nil
+}
+
+func (ssif *GitusInMemorySessionStore) VerifySessionFull(name string, target string, csrf string) (bool, error) {
+	key1 := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
+	s, ok := ssif.cache.Get(key1)
+	if !ok { return false, nil }
+	if !inSet(s, target) { return false, nil }
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, target)
+	i, _ := ssif.cache.Get(key)
+	if i == "" { return false, nil }
+	var r *session.GitusSession
+	err := json.Unmarshal([]byte(i), &r)
+	if err != nil { return false, err }
+	if time.Now().Unix() > r.Timestamp {
+		ssif.cache.Delete(key)
+		return false, nil
+	}
+	return r.CSRFToken == csrf, nil
 }
 

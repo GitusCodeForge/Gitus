@@ -36,7 +36,7 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 	
  	http.HandleFunc("POST /admin/user/{username}/edit", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			LoginRequired, AdminRequired,
+			LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

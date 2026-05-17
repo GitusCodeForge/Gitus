@@ -35,7 +35,7 @@ func bindSettingGPGController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /setting/gpg", UseMiddleware(
 		[]Middleware{
-			Logged, ValidPOSTRequestRequired, LoginRequired,
+			Logged, ValidPOSTRequestRequired, LoginRequired, CSRFCheck,
 			GlobalVisibility,
 			ErrorGuard,
 		}, ctx,
@@ -124,7 +124,7 @@ func bindSettingGPGController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /setting/gpg/{keyName}/edit", UseMiddleware(
 		[]Middleware{
-			Logged, ValidPOSTRequestRequired, LoginRequired,
+			Logged, ValidPOSTRequestRequired, LoginRequired, CSRFCheck,
 			GlobalVisibility,
 			ErrorGuard,
 		}, ctx,

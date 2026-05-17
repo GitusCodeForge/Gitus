@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 <!DOCTYPE html>
 <html>
   <head>
@@ -22,6 +23,7 @@
 
 	  <div class="setting-main main-side">
 		<form action="" method="POST">
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 		  <fieldset>
 			<legend>Mailer Settings</legend>
 			<div>{{.ErrorMsg}}</div>

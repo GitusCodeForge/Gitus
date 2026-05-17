@@ -58,7 +58,8 @@ func bindAdminRRDocEditController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /admin/rrdoc/{n}/edit", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, AdminRequired, ValidPOSTRequestRequired,
+			Logged, LoginRequired, CSRFCheck, AdminRequired,
+			ValidPOSTRequestRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

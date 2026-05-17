@@ -132,7 +132,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 	http.HandleFunc("POST /repo/{repoName}/pull-request/{prid}", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
 			ValidRepositoryNameRequired("repoName"), UseLoginInfo,
-			LoginRequired, GlobalVisibility, ErrorGuard,
+			LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
@@ -306,7 +306,8 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 	http.HandleFunc("POST /repo/{repoName}/pull-request/new", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
 			ValidRepositoryNameRequired("repoName"),
-			UseLoginInfo, LoginRequired, GlobalVisibility, ErrorGuard,
+			UseLoginInfo, LoginRequired, CSRFCheck,
+			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")

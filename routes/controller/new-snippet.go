@@ -21,7 +21,7 @@ func bindNewSnippetController(ctx *RouterContext) {
 	))
 	http.HandleFunc("POST /new/snippet", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			UseLoginInfo, LoginRequired,
+			UseLoginInfo, LoginRequired, CSRFCheck,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

@@ -29,6 +29,15 @@ func GenSym(n int) string {
 	}
 	return string(res)
 }
+/** generating symbols using cryptographically safe RNG... */
+func CryptoGenSym(n int) string {
+	// TODO: implement this properly
+	res := make([]byte, 0)
+	for range n {
+		res = append(res, passchdict[rand.Intn(len(passchdict))])
+	}
+	return string(res)
+}
 
 func ChangeLocationOwner(targetPath string, targetUser *user.User) error {
 	uidInt, _ := strconv.Atoi(targetUser.Uid)

@@ -132,7 +132,8 @@ func bindSnippetController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /snippet/{username}/{name}/setting", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			UseLoginInfo, LoginRequired, GlobalVisibility, ErrorGuard,
+			UseLoginInfo, LoginRequired, CSRFCheck,
+			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			username := r.PathValue("username")
@@ -189,7 +190,7 @@ func bindSnippetController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("POST /snippet/{username}/{name}/setting/new", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{Logged, LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			username := r.PathValue("username")
 			name := r.PathValue("name")
@@ -253,7 +254,7 @@ func bindSnippetController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("POST /snippet/{username}/{name}/setting/edit/{filePath}", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{Logged, LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			username := r.PathValue("username")
 			name := r.PathValue("name")

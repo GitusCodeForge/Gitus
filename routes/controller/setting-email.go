@@ -43,7 +43,7 @@ func bindSettingEmailController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /setting/email", UseMiddleware(
 		[]Middleware{ Logged, ValidPOSTRequestRequired,
-			LoginRequired, GlobalVisibility, ErrorGuard,
+			LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			err := r.ParseForm()

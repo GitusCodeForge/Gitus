@@ -127,7 +127,7 @@ func bindNamespaceController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /s/{namespace}/new-repo", UseMiddleware(
 		[]Middleware{Logged, NormalModeRequired, ValidPOSTRequestRequired,
-			LoginRequired, GlobalVisibility, ErrorGuard,
+			LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			nsName := r.PathValue("namespace")

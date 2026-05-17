@@ -1,16 +1,21 @@
 package memcached
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/session"
 	"github.com/bradfitz/gomemcache/memcache"
 )
+
+/* NOTE(2026.4.16: memcached is a string kv store. here we do things similar
+   to redis but we'll use JSON.
+*/
 
 type GitusMemcachedSessionStore struct {
 	config *gitus.GitusConfig
@@ -63,25 +68,34 @@ func removeFromSet(set []byte, s string) []byte {
 	return []byte(strings.Join(ress, ","))
 }
 
-func (ssif *GitusMemcachedSessionStore) RegisterSession(name string, session string) error {
-	sessionSetKey := fmt.Sprintf("%s:%s:session", ssif.config.Session.TablePrefix, name)
+func (ssif *GitusMemcachedSessionStore) RegisterSession(name string, session_id string) (*session.GitusSession, error) {
+	sessionSetKey := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	i, err := ssif.connection.Get(sessionSetKey)
 	if err != nil {
 		// cache miss is memcached's way of saying the key not found...
-		if err != memcache.ErrCacheMiss { return err }
+		if err != memcache.ErrCacheMiss { return nil, err }
 		i = &memcache.Item{
 			Key: sessionSetKey,
-			Value: []byte(session),
+			Value: []byte(session_id),
 			Flags: 0,
 			Expiration: 0,
 		}
 	} else {
-		i.Value = insertSet(i.Value, session)
+		i.Value = insertSet(i.Value, session_id)
 	}
 	err = ssif.connection.Set(i)
-	if err != nil { return err }
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, name, session)
-	timestampStr := fmt.Sprintf("%d", time.Now().UnixMilli())
+	if err != nil { return nil, err }
+	
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, session_id)
+	csrf := auxfuncs.CryptoGenSym(64)
+	ss := &session.GitusSession{
+		Username: name,
+		Id: session_id,
+		Timestamp: time.Now().UnixMilli(),
+		CSRFToken: csrf,
+	}
+	ssstr, err := json.Marshal(ss)
+	if err != nil { return nil, err }
 	// this is possibly the only case where a sessionid register twice
 	// makes sense:
 	// + we plan to support multiple session, which we may make into
@@ -95,53 +109,70 @@ func (ssif *GitusMemcachedSessionStore) RegisterSession(name string, session str
 	//   deserializing the long string every time.
 	err = ssif.connection.Set(&memcache.Item{
 		Key: key,
-		Value: []byte(timestampStr),
+		Value: ssstr,
 		Flags: 0,
 		Expiration: 0,
 	})
-	if err != nil { return err }
-	return nil
+	if err != nil { return nil, err }
+	return ss, nil
 }
 
 func (ssif *GitusMemcachedSessionStore) RetrieveSession(name string) ([]*session.GitusSession, error) {
-	key := fmt.Sprintf("%s:%s:session", ssif.config.Session.TablePrefix, name)
+	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	i, err := ssif.connection.Get(key)
 	res := make([]*session.GitusSession, 0)
 	if err == memcache.ErrCacheMiss { return res, nil }
 	if err != nil { return nil, err }
 	for k := range strings.SplitSeq(string(i.Value), ",") {
-		kk := fmt.Sprintf("%s:%s", key, k)
+		kk := fmt.Sprintf("%s:session:%s:%s", key, name, k)
 		v, err := ssif.connection.Get(kk)
-		var val string
+		var val []byte
 		if err != nil {
-			val = "0"
+			val = []byte("{}")
 		} else {
-			val = string(v.Value)
+			val = v.Value
 		}
-		timestamp, _ := strconv.ParseInt(val, 10, 64)
-		res = append(res, &session.GitusSession{
-			Username: name,
-			Id: k,
-			Timestamp: timestamp,
-		})
+		var ss *session.GitusSession
+		err = json.Unmarshal(val, ss)
+		if err != nil { return nil, err }
+		ss.Username = name
+		if ss.Id != "" { res = append(res, ss) }
 	}
 	return res, nil
 }
 
 func (ssif *GitusMemcachedSessionStore) RetrieveSessionByKey(username string, sessionid string) (*session.GitusSession, error) {
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, username, sessionid)
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, sessionid)
 	i, err := ssif.connection.Get(key)
+	if err == memcache.ErrCacheMiss { return nil, nil }
 	if err != nil { return nil, err }
-	timestamp, _ := strconv.ParseInt(string(i.Value), 10, 64)
-	return &session.GitusSession{
-		Username: username,
-		Id: sessionid,
-		Timestamp: timestamp,
-	}, nil
+	if len(i.Value) <= 0 { return nil, nil }
+	var ss *session.GitusSession
+	err = json.Unmarshal(i.Value, ss)
+	if err != nil { return nil, err }
+	return ss, nil
 }
 
-func (ssif *GitusMemcachedSessionStore) VerifySession(name string, target string) (bool, error) {
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, name, target)
+func (ssif *GitusMemcachedSessionStore) RevokeSession(username string, target string) error {
+	// NOTE: we don't have transaction semantics here, which could be
+	// a problem down the line.
+	// TODO: attempt to fix this.
+	sessionSetKey := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, username)
+	i, err := ssif.connection.Get(sessionSetKey)
+	if err == memcache.ErrCacheMiss { return nil }
+	if err != nil { return err }
+	i.Value = removeFromSet(i.Value, target)
+	err = ssif.connection.Set(i)
+	if err != nil { return err }
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, target)
+	err = ssif.connection.Delete(key)
+	if err != nil && err != memcache.ErrCacheMiss { return err }
+	return nil
+}
+
+
+func (ssif *GitusMemcachedSessionStore) VerifySessionExist(name string, target string) (bool, error) {
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, target)
 	i, err := ssif.connection.Get(key)
 	if err == memcache.ErrCacheMiss { return false, nil }
 	if err != nil { return false, err }
@@ -149,20 +180,16 @@ func (ssif *GitusMemcachedSessionStore) VerifySession(name string, target string
 	return true, nil
 }
 
-func (ssif *GitusMemcachedSessionStore) RevokeSession(username string, target string) error {
-	// NOTE: we don't have transaction semantics here, which could be
-	// a problem down the line.
-	// TODO: attempt to fix this.
-	key := fmt.Sprintf("%s:%s:session:%s", ssif.config.Session.TablePrefix, username, target)
-	err := ssif.connection.Delete(key)
-	if err != nil && err != memcache.ErrCacheMiss { return err }
-	sessionSetKey := fmt.Sprintf("%s:%s:session", ssif.config.Session.TablePrefix, username)
-	i, err := ssif.connection.Get(sessionSetKey)
-	if err == memcache.ErrCacheMiss { return nil }
-	if err != nil { return err }
-	i.Value = removeFromSet(i.Value, target)
-	err = ssif.connection.Set(i)
-	if err != nil { return err }
-	return nil
+func (ssif *GitusMemcachedSessionStore) VerifySessionFull(username string, session_id string, csrf string) (bool, error) {
+	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, session_id)
+	i, err := ssif.connection.Get(key)
+	if err == memcache.ErrCacheMiss { return false, nil }
+	if err != nil { return false, err }
+	if len(i.Value) <= 0 { return false, nil }
+	var ss *session.GitusSession
+	err = json.Unmarshal(i.Value, ss)
+	if err != nil { return false, err }
+	if ss.CSRFToken != csrf { return false, nil }
+	return true, nil
 }
 

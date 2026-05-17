@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$repoName := .Repository.Name}}
 <!DOCTYPE html>
 <html>
@@ -31,6 +32,7 @@
 		  <legend>Edit Webhook Setting</legend>
 
 		  <form id="repository-setting-form" action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<table class="field-table">
 			  <tbody>
 				<tr class="field">

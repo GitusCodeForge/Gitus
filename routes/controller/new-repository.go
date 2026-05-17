@@ -35,7 +35,7 @@ func bindNewRepositoryController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /new/repo", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			UseLoginInfo, LoginRequired,
+			UseLoginInfo, LoginRequired, CSRFCheck,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

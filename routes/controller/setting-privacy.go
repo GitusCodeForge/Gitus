@@ -29,7 +29,7 @@ func bindSettingPrivacyController(ctx *RouterContext) {
 	
 	http.HandleFunc("POST /setting/privacy", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			LoginRequired, ErrorGuard,
+			LoginRequired, CSRFCheck, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			user, err := rc.DatabaseInterface.GetUserByName(rc.LoginInfo.UserName)

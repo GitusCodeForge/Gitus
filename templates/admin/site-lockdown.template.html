@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 <!DOCTYPE html>
 <html>
   <head>
@@ -27,6 +28,7 @@
 		  <legend>Set to Public Mode</legend>
 		  <div>
 			<form action="" method="POST">
+			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			  <input type="hidden" name="type" value="public" />
 			  <input type="submit" value="Set to Public mode" />
 			</form>
@@ -37,6 +39,7 @@
 		  <legend>Set to Private Mode</legend>
 			<p>Under Private Mode, users cannot visit public namespaces and repositories without login; they cannot clone through HTTP either. All other functionalities work the same.</p>
 			<form action="" method="POST">
+			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			  <input type="hidden" name="type" value="private" />
 			  <label class="field-label" for="ta-private-notice-message">Message:</label>
 			  <textarea name="private-notice-message" id="ta-private-notice-message">{{.PrivateNoticeMessage}}</textarea>
@@ -54,6 +57,7 @@
 			<li>cannot login, unless they are in the Full Access User list.</li>
 		  </ul>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" value="shutdown" />
 			<label class="field-label" for="tf-full-access-user">Full access user:</label>
 			<input class="field-tf" name="full-access-user" id="tf-full-access-user" value="{{htmlEscape .FullAccessUser}}" />
@@ -67,6 +71,7 @@
 		  <legend>Set to Maintenance Mode</legend>
 		  <p>Under Maintenance Mode, all functionalities won't work. This is reserved for administrators who need to perform work directly on the server the instance resides.</p>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" value="maintenance" />
 			
 			<label class="field-label" for="ta-maintenance-notice-message">Message:</label>

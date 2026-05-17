@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$repoName := getRepoName .Repository.Namespace .Repository.Name}}
 {{$repoPath := getRepoPath .Repository.Namespace .Repository.Name}}
 <!DOCTYPE html>
@@ -151,6 +152,7 @@
 		<fieldset>
 		  <legend>Comment</legend>
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="comment" />
 			<div class="field"><textarea name="content" id="content"></textarea></div>
 			<input type="submit" value="Post Comment" />
@@ -158,21 +160,25 @@
 		  {{if not (eq .PullRequest.Status 2)}}
 		  {{if eq .PullRequest.Status 1}}
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="merge-check" />
 			<input type="submit" value="Merge Check" />
 		  </form>
 		  {{if and .PullRequest.MergeCheckResult .PullRequest.MergeCheckResult.Successful}}
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="close-as-merged" />
 			<input type="submit" value="Merge & Close" />
 		  </form>
 		  {{end}}
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="close-as-not-merged" />
 			<input type="submit" value="Close As Not Merged" />
 		  </form>
 		  {{else}}
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="reopen" />
 			<input type="submit" value="Reopen" />
 		  </form>

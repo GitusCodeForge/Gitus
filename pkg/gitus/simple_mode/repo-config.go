@@ -1,9 +1,6 @@
 package simple_mode
 
 import (
-	"encoding/json"
-	"errors"
-	"os"
 	"path"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"

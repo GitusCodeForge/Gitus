@@ -1,4 +1,4 @@
-
+{{$csrf_key := "__csrf_token"}}
 <!DOCTYPE html>
 <html>
   <head>
@@ -28,6 +28,7 @@
 		<fieldset>
 		  <legend>Change info</legend>
 		  <form id="repo-setting-form" action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<table class="field-table">
 			  <tr class="field">
 				<td><label class="field-label" for="s-status">Status:</label></td>

@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$repoName := getRepoName .Repository.Namespace .Repository.Name}}
 {{$repoPath := getRepoPath .Repository.Namespace .Repository.Name}}
 <!DOCTYPE html>
@@ -61,6 +62,7 @@
 		  {{if eq .Stage "branch"}}
 		  {{if and .ProviderBranchList (gt (len .ProviderBranchList) 0)}}
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="receiver-branch" value="{{.ReceiverBranch}}" />
 			<input type="hidden" name="provider-namespace" value="{{.ChosenProviderRepository.Namespace}}" />
 			<input type="hidden" name="provider-name" value="{{.ChosenProviderRepository.Name}}" />

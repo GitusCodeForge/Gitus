@@ -28,7 +28,7 @@ func bindAdminNewUserController(ctx *RouterContext) {
 	http.HandleFunc("POST /admin/new-user", UseMiddleware(
 		[]Middleware{
 			Logged, ValidPOSTRequestRequired,
-			LoginRequired, AdminRequired,
+			LoginRequired, CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

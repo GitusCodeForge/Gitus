@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$repoName := .Repository.Name}}
 <!DOCTYPE html>
 <html>
@@ -30,6 +31,7 @@
 		<fieldset>
 		  <legend>Edit Member</legend>
 		  <form id="namespace-setting-form" action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<table class="field-table">
 			  <tr class="field">
 				<td class="field-label">Username:</td>

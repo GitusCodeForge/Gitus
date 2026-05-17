@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$namespaceName := .Namespace.Name}}
 <!DOCTYPE html>
 <html>
@@ -78,6 +79,7 @@
 		  <div class="error-msg">{{.ErrorMsg.Message}}</div>
 		  {{end}}
 		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<table class="field-table">
 			  <tr class="field">
 				<td><label class="field-label" for="tf-username">Username:</label></td>

@@ -5,20 +5,22 @@ import (
 )
 
 type GitusSession struct {
-	Username string
-	Id string
-	Timestamp int64
+	Username string `json:"username"`
+	Id string `json:"id"`
+	Timestamp int64 `json:"timestamp"`
+	CSRFToken string `json:"csrf_token"`
 }
 
 type GitusSessionStore interface {
 	Install() error
 	Dispose() error
 	IsSessionStoreUsable() (bool, error)
-	RegisterSession(username string, session string) error
+	RegisterSession(username string, session string) (*GitusSession, error)
 	RetrieveSession(username string) ([]*GitusSession, error)
 	RetrieveSessionByKey(username string, session string) (*GitusSession, error)
-	VerifySession(username string, target string) (bool, error)
 	RevokeSession(username string, target string) error
+	VerifySessionExist(username string, target string) (bool, error)
+	VerifySessionFull(username string, session_id string, csrf string) (bool, error)
 }
 
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789"
