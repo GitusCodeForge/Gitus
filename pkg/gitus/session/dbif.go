@@ -1,7 +1,8 @@
 package session
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 )
 
 type GitusSession struct {
@@ -26,8 +27,10 @@ type GitusSessionStore interface {
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789"
 func NewSessionString() string {
 	res := make([]byte, 0)
+	rmax := big.NewInt(int64(len(passchdict)))
 	for range 48 {
-		res = append(res, passchdict[rand.Intn(len(passchdict))])
+		n, _ := rand.Int(rand.Reader, rmax)
+		res = append(res, passchdict[n.Uint64()])
 	}
 	return string(res)
 }

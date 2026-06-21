@@ -1,9 +1,10 @@
 package receipt
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"math/rand/v2"
+	"math/big"
 	"strings"
 	"time"
 )
@@ -30,8 +31,10 @@ type GitusReceiptSystemInterface interface {
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 func NewReceiptId() string {
 	res := make([]byte, 0)
-	for _ = range 48 {
-		res = append(res, passchdict[rand.IntN(len(passchdict))])
+	rmax := big.NewInt(int64(len(passchdict)))
+	for range 48 {
+		n, _ := rand.Int(rand.Reader, rmax)
+		res = append(res, passchdict[n.Uint64()])
 	}
 	return string(res)
 }

@@ -3,20 +3,21 @@ package controller
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"html"
-	"math/rand/v2"
+	"math/big"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/alecthomas/chroma/v2"
 	chromaHtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
-	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
-	"github.com/GitusCodeForge/Gitus/routes"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -240,8 +241,10 @@ func checkUserPassword(ctx *routes.RouterContext, username string, password stri
 
 func newConfirmCode() string {
 	res := make([]byte, 0)
+	rmax := big.NewInt(10)
 	for range 6 {
-		res = append(res, "0123456789"[rand.IntN(10)])
+		n, _ := rand.Int(rand.Reader, rmax)
+		res = append(res, "0123456789"[n.Uint64()])
 	}
 	return string(res)
 }
