@@ -436,6 +436,7 @@ func bindBranchController(ctx *RouterContext) {
 					"Your account doesn't have enough privilege to perform this action.",
 					w, r,
 				)
+				return
 			}
 			// we have to handle the upload-file case carefully since the
 			// file could be big and i do not wish to read a big file into
