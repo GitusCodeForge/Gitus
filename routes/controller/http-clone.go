@@ -8,10 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
-	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
 	. "github.com/GitusCodeForge/Gitus/routes"
 )
@@ -106,10 +108,15 @@ func bindHttpCloneController(ctx *RouterContext) {
 				return
 			}
 			rr := repo.Repository.(*gitlib.LocalGitRepository)
-			p := path.Join(rr.GitDirectoryPath, "info", r.PathValue("p"))
+			p := path.Clean(path.Join(rr.GitDirectoryPath, "info", r.PathValue("p")))
+			chk, err := filepath.Rel(rr.GitDirectoryPath, p)
+			if err != nil || strings.HasPrefix(chk, "..") {
+				ctx.ReportInternalError("Failed to read info/refs", w, r)
+				return
+			}
 			s, err := os.ReadFile(p)
 			if err != nil {
-				ctx.ReportInternalError("Fail to read info/refs", w, r)
+				ctx.ReportInternalError("Failed to read info/refs", w, r)
 				return
 			}
 			w.Write(s)
@@ -246,7 +253,12 @@ func bindHttpCloneController(ctx *RouterContext) {
 			}
 			obj := r.PathValue("obj")
 			rr := repo.Repository.(*gitlib.LocalGitRepository)
-			p := path.Join(rr.GitDirectoryPath, "objects", obj)
+			p := path.Clean(path.Join(rr.GitDirectoryPath, "objects", obj))
+			chk, err := filepath.Rel(rr.GitDirectoryPath, p)
+			if err != nil || strings.HasPrefix(chk, "..") {
+				ctx.ReportNormalError("Failed to read object", w, r)
+				return
+			}
 			s, err := os.ReadFile(p)
 			if os.IsNotExist(err) {
 				ctx.ReportNotFound(rfn, "object", ctx.Config.DepotName, w, r)
