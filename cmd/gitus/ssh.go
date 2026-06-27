@@ -66,6 +66,16 @@ func handleSSHSimpleMode(ctx *routes.RouterContext, username string, keyname str
 	}
 	origCmd := os.Getenv("SSH_ORIGINAL_COMMAND")
 	parsedOrigCmd := shellparse.ParseShellCommand(origCmd)
+	if len(parsedOrigCmd) <= 0 {
+		printGitError("Invalid SSH command")
+		os.Exit(1)
+	}
+	// need to have a guard here or else normal users might get to
+	// execute commands as the git user due to incorrect acl config.
+	if !isValidGitSSHCommand(parsedOrigCmd[0]) {
+		printGitError("Invalid SSH command")
+		os.Exit(1)
+	}
 	isPushingToRemote := parsedOrigCmd[0] == "git-receive-pack"
 	
 	relPath := parsedOrigCmd[len(parsedOrigCmd)-1]
