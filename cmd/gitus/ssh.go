@@ -51,6 +51,10 @@ func parseTargetRepositoryName(ctx *routes.RouterContext, relPath string) (strin
 	return namespaceName, repositoryName
 }
 
+func isValidGitSSHCommand(s string) bool {
+	return (s == "git-upload-pack" || s == "git-receive-pack" || s == "git-upload-archive")
+}
+
 func handleSSHSimpleMode(ctx *routes.RouterContext, username string, keyname string) {
 	if ctx.SSHKeyManagingContext == nil {
 		sshCtx, err := ssh.ToContext(ctx.Config)
@@ -147,6 +151,17 @@ func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) 
 	// one might be tempted to think that one can just pass SSH_ORIGINAL_COMMAND
 	// to exec.Command, but things don't work that way...
 	parsedOrigCmd := shellparse.ParseShellCommand(origCmd)
+	if len(parsedOrigCmd) <= 0 {
+		printGitError("Invalid SSH command")
+		os.Exit(1)
+	}
+	// need to have a guard here or else normal users might get to
+	// execute commands as the git user due to incorrect acl config.
+	if !isValidGitSSHCommand(parsedOrigCmd[0]) {
+		printGitError("Invalid SSH command")
+		os.Exit(1)
+	}
+	
 	isPushingToRemote := parsedOrigCmd[0] == "git-receive-pack"
 	relPath := parsedOrigCmd[len(parsedOrigCmd)-1]
 	namespaceName, repositoryName := parseTargetRepositoryName(ctx, relPath)
