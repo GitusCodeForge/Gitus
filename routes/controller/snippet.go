@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"path"
 	"strconv"
@@ -90,6 +91,15 @@ func bindSnippetController(ctx *RouterContext) {
 			sn, err := rc.DatabaseInterface.GetSnippet(username, name)
 			if err != nil {
 				rc.ReportInternalError(fmt.Sprintf("Failed to get snippet: %s", err), w, r)
+				return
+			}
+			validUser := rc.LoginInfo.UserName == sn.BelongingUser
+			if !validUser {
+				_, ok := sn.SharedUser[rc.LoginInfo.UserName]
+				validUser = ok
+			}
+			if !validUser {
+				rc.ReportForbidden("Not enough privilege", w, r)
 				return
 			}
 			err = sn.RetrieveAllFile(rc.Config.SnippetRoot)
