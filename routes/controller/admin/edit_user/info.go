@@ -67,7 +67,7 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 					rc.ReportNormalError("Invalid request", w, r)
 					return
 				}
-				if !rc.LoginInfo.IsSuperAdmin && model.GitusUserStatus(i) != model.SUPER_ADMIN {
+				if !rc.LoginInfo.IsSuperAdmin && model.GitusUserStatus(i) == model.SUPER_ADMIN {
 					rc.ReportRedirect("/admin/user-list", 0, "Error", "Not enough permission.", w, r)
 					return
 				}
