@@ -32,9 +32,14 @@ func (s *Snippet) FullName() string {
 	return fmt.Sprintf("%s:%s", s.BelongingUser, s.Name)
 }
 
+var ErrInvalidSnippetRelPath = errors.New("Invalid relative path for snippet")
+
 // retrieve file from disk.
 func (s *Snippet) Retrieve(basePath string, filePath string) error {
-	fullPath := path.Join(basePath, s.BelongingUser, s.Name, filePath)
+	fullPath := path.Clean(path.Join(basePath, s.BelongingUser, s.Name, filePath))
+	relCheck, err := filepath.Rel(basePath, fullPath)
+	if err != nil { return ErrInvalidSnippetRelPath }
+	if strings.HasPrefix(relCheck, "..") { return ErrInvalidSnippetRelPath }
 	f, err := os.ReadFile(fullPath)
 	if err != nil { return err }
 	if s.FileList == nil {
@@ -82,10 +87,10 @@ func (s *Snippet) CalculateFileList(basePath string) error {
 func (s *Snippet) SyncFile(basePath string, p string) error {
 	source, ok := s.FileList[p]
 	if !ok { return nil }
-	targetPath := path.Join(basePath, s.BelongingUser, s.Name, p)
+	targetPath := path.Clean(path.Join(basePath, s.BelongingUser, s.Name, p))
 	p, err := filepath.Rel(basePath, targetPath)
-	if err != nil { return errors.New("Invalid location") }
-	if strings.HasPrefix(p, "..") { return errors.New("Invalid location") }
+	if err != nil { return ErrInvalidSnippetRelPath }
+	if strings.HasPrefix(p, "..") { return ErrInvalidSnippetRelPath }
 	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil { return err }
 	f.WriteString(source)
@@ -110,8 +115,11 @@ func (s *Snippet) SetFile(p string, content string) {
 
 func (s *Snippet) DeleteFile(basePath string, p string) error {
 	delete(s.FileList, p)
-	targetPath := path.Join(basePath, s.BelongingUser, s.Name, p)
-	err := os.RemoveAll(targetPath)
+	targetPath := path.Clean(path.Join(basePath, s.BelongingUser, s.Name, p))
+	relCheck, err := filepath.Rel(basePath, targetPath)
+	if err != nil { return ErrInvalidSnippetRelPath }
+	if strings.HasPrefix(relCheck, "..") { return ErrInvalidSnippetRelPath }
+	err = os.RemoveAll(targetPath)
 	if err != nil { return err }
 	return nil
 }
