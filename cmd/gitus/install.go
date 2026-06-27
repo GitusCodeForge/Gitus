@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/big"
+	"crypto/rand"
 	"os"
 	"os/exec"
 	"os/user"
@@ -24,8 +25,10 @@ import (
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%_-"
 func mkpass() string {
 	res := make([]byte, 0)
+	dlen := big.NewInt(int64(len(passchdict)))
 	for range 16 {
-		res = append(res, passchdict[rand.Intn(len(passchdict))])
+		r, _ := rand.Int(rand.Reader, dlen)
+		res = append(res, passchdict[r.Uint64()])
 	}
 	return string(res)
 }
