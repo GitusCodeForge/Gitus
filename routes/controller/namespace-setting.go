@@ -150,6 +150,7 @@ func bindNamespaceSettingController(ctx *RouterContext) {
 					"Your user account seems to not have enough privilege for this action.",
 					w, r,
 				)
+				return
 			}
 			err = rc.DatabaseInterface.HardDeleteNamespaceByName(namespaceName)
 			if err != nil {
