@@ -2,7 +2,9 @@ package auxfuncs
 
 import (
 	"cmp"
-	"math/rand"
+	mrand "math/rand"
+	crand "crypto/rand"
+	"math/big"
 	"os"
 	"os/user"
 	"regexp"
@@ -23,18 +25,20 @@ func SortedKeys[K cmp.Ordered, V any](m map[K]V) ([]K) {
 
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789-_"
 func GenSym(n int) string {
+	// TODO: implement this properly
 	res := make([]byte, 0)
 	for range n {
-		res = append(res, passchdict[rand.Intn(len(passchdict))])
+		res = append(res, passchdict[mrand.Intn(len(passchdict))])
 	}
 	return string(res)
 }
 /** generating symbols using cryptographically safe RNG... */
 func CryptoGenSym(n int) string {
-	// TODO: implement this properly
 	res := make([]byte, 0)
+	dlen := big.NewInt(int64(len(passchdict)))
 	for range n {
-		res = append(res, passchdict[rand.Intn(len(passchdict))])
+		r, _ := crand.Int(crand.Reader, dlen)
+		res = append(res, passchdict[r.Uint64()])
 	}
 	return string(res)
 }
