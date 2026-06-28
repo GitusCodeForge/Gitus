@@ -150,7 +150,7 @@ If this isn't you, you can simply ignore this message.`,
 
 	http.HandleFunc("POST /reset-password/update-password", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			UseLoginInfo, ErrorGuard,
+			CSRFCheck, UseLoginInfo, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			switch rc.Config.GlobalVisibility {

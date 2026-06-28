@@ -30,7 +30,7 @@ func bindLogoutController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("POST /logout", UseMiddleware(
-		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
+		[]Middleware{Logged, UseLoginInfo, CSRFCheck, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
