@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"html/template"
@@ -18,18 +19,27 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
 	dbinit "github.com/GitusCodeForge/Gitus/pkg/gitus/db/init"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	rsinit "github.com/GitusCodeForge/Gitus/pkg/gitus/receipt/init"
 	ssinit "github.com/GitusCodeForge/Gitus/pkg/gitus/session/init"
-	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
-	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/shellparse"
 	"github.com/GitusCodeForge/Gitus/templates"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// it goes like this: since the web installer would be exposed from a
+// vps via binding to 0.0.0.0, we'll put a HTTP Basic auth in front of
+// it. for this we'll generate a one-time password for this. the admin
+// would use this to login and receive a session token via cookie.
+// the one-time password (alongside with the auth http header) would
+// be removed and all auth from here would be based on the session
+// token.
+// TODO: implement that.
 
 type WebInstallerRoutingContext struct {
 	Template *template.Template
@@ -61,6 +71,8 @@ type WebInstallerRoutingContext struct {
 	// plain mode: 1-6-7-8
 	// simple mode: 1-6-8-10
 	// normal mode: 1-2-3-4-5-6-8-9
+	EntryKey string
+	SessionKey string
 	Step int
 	Config *gitus.GitusConfig
 	ConfirmStageReached bool
@@ -75,6 +87,89 @@ func logTemplateError(e error) {
 
 func (ctx *WebInstallerRoutingContext) loadTemplate(name string) *template.Template {
 	return ctx.Template.Lookup(name)
+}
+
+func parseHTTPBasicAuthResponse(s string) (string, string, error) {
+	// s needs to be the raw content from the Authorization header.
+	ss := strings.TrimPrefix(s, "Basic")
+	ss = strings.TrimSpace(ss)
+	d, err := base64.StdEncoding.DecodeString(ss)
+	if err != nil { return "", "", err }
+	dr := strings.Split(string(d), ":")
+	if len(dr) != 2 { return "", "", errors.New("Invalid basic authorization format") }
+	return dr[0], dr[1], nil
+}
+
+const WEBINSTALLER_COOKIE_KEY_SESSION = "wi_session"
+func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ctx.EntryKey == "" && ctx.SessionKey == "" {
+			ctx.EntryKey = auxfuncs.CryptoGenSym(12)
+			log.Printf("Entry key missing. New entry key: %s\n", ctx.EntryKey)
+			w.Header().Add("WWW-Authenticate", "Basic realm=\"webinstaller\"")
+			w.WriteHeader(401)
+			return
+		}
+		// no session exists - create session
+		if ctx.EntryKey != "" && ctx.SessionKey == "" {
+			// check auth header
+			rawup := r.Header.Get("Authorization")
+			var u string = ""
+			var p string = ""
+			var err error
+			if rawup != "" {
+				u, p, err = parseHTTPBasicAuthResponse(rawup)
+				log.Println(u, p, err)
+				if err != nil {
+					w.WriteHeader(400)
+					fmt.Fprint(w, "Failed to parse entry key. Please try again.")
+					return
+				}
+			}
+			if (u != "gitus" || p != ctx.EntryKey) {
+				w.Header().Add("WWW-Authenticate", "Basic realm=\"webinstaller\"")
+				w.WriteHeader(401)
+				return
+			}
+			ctx.EntryKey = ""
+			ctx.SessionKey = auxfuncs.CryptoGenSym(16)
+			w.Header().Add("Set-Cookie", (&http.Cookie{
+				Name: WEBINSTALLER_COOKIE_KEY_SESSION,
+				Value: ctx.SessionKey,
+				Path: "/",
+				MaxAge: 3600,
+				HttpOnly: true,
+				Secure: true,
+				SameSite: http.SameSiteLaxMode,
+			}).String())
+			f(w, r)
+			return
+		}
+		// session exists - check session
+		if ctx.EntryKey == "" && ctx.SessionKey != "" {
+			s, err := r.Cookie(WEBINSTALLER_COOKIE_KEY_SESSION)
+			if err != nil || s.Value != ctx.SessionKey {
+				// no cookie / invalid session key
+				w.WriteHeader(403)
+				fmt.Fprint(w, "Invalid session key. Please stop the web installer and try again.")
+				return
+			}
+			f(w, r)
+			return
+		}
+		if ctx.EntryKey != "" && ctx.SessionKey != "" {
+			ctx.EntryKey = ""
+			s, err := r.Cookie(WEBINSTALLER_COOKIE_KEY_SESSION)
+			if err != nil || s.Value != ctx.SessionKey {
+				// no cookie / invalid session key
+				w.WriteHeader(403)
+				fmt.Fprint(w, "Invalid session key. Please stop the web installer and try again.")
+				return
+			}
+			f(w, r)
+			return
+		}
+	}
 }
 
 func withLog(f http.HandlerFunc) http.HandlerFunc {
@@ -100,20 +195,20 @@ func (ctx *WebInstallerRoutingContext) reportRedirect(target string, timeout int
 }
 
 func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
-	http.HandleFunc("GET /", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/start").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
+	})))
 	
-	http.HandleFunc("GET /step1", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step1", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step1").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step1", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step1", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step1", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -134,15 +229,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		case gitus.OP_MODE_SIMPLE:
 			foundAt(w, "/step6")
 		}
-	}))
+	})))
 	
-	http.HandleFunc("GET /step2", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step2", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step2").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step2", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step2", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step2", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -159,15 +254,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}
 
  		foundAt(w, "/step3")
-	}))
+	})))
 	
-	http.HandleFunc("GET /step3", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step3", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step3").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step3", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step3", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step3", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -188,16 +283,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			DatabaseNumber: int(i),
 		}
 		foundAt(w, "/step4")
-	}))
-
+	})))
 	
-	http.HandleFunc("GET /step4", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step4", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step4").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step4", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step4", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step4", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -217,15 +311,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			Password: strings.TrimSpace(r.Form.Get("mailer-password")),
 		}
 		foundAt(w, "/step5")
-	}))
+	})))
 	
-	http.HandleFunc("GET /step5", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step5", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step5").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step5", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step5", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step5", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -241,15 +335,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			TablePrefix: strings.TrimSpace(r.Form.Get("receipt-system-table-prefix")),
 		}
 		foundAt(w, "/step6")
-	}))
+	})))
 	
-	http.HandleFunc("GET /step6", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step6", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step6").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step6", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step6", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step6", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -273,15 +367,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			return
 		}
 		foundAt(w, next)
-	}))
+	})))
 	
-	http.HandleFunc("GET /step7", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step7", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step7").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step7", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step7", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step1", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -296,15 +390,15 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			ctx.Config.IgnoreRepository = append(ctx.Config.IgnoreRepository, k)
 		}
 		foundAt(w, "/step8")
-	}))
+	})))
 	
-	http.HandleFunc("GET /step8", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step8", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step8").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 		}))
-	}))
-	http.HandleFunc("POST /step8", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step8", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step8", 0, "Invalid Request", "The request is of an invalid form. Please try again. " + err.Error(), w)
@@ -353,15 +447,14 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		case gitus.OP_MODE_NORMAL:
 			foundAt(w, "/step9")
 		}
-	}))
+	})))
 
-	http.HandleFunc("GET /step9", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step9", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step9").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 		}))
-	}))
-
-	http.HandleFunc("POST /step9", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step9", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step9", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -375,15 +468,14 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.ConfirmCodeManager.Type = strings.TrimSpace(r.Form.Get("type"))
 		ctx.Config.ConfirmCodeManager.DefaultTimeoutMinute = int(i)
 		foundAt(w, "/confirm")
-	}))
+	})))
 	
-	http.HandleFunc("GET /step10", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /step10", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		logTemplateError(ctx.loadTemplate("webinstaller/step10").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 		}))
-	}))
-	
-	http.HandleFunc("POST /step10", withLog(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	http.HandleFunc("POST /step10", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			ctx.reportRedirect("/step10", 0, "Invalid Request", "The request is of an invalid form. Please try again.", w)
@@ -392,18 +484,18 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		rootssh := strings.TrimSpace(r.Form.Get("root-ssh"))
 		ctx.RootSSHKey = rootssh
 		foundAt(w, "/confirm")
-	}))
+	})))
 	
-	http.HandleFunc("GET /confirm", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /confirm", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		ctx.ConfirmStageReached = true
 		logTemplateError(ctx.loadTemplate("webinstaller/confirm").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 			ConfirmStageReached: ctx.ConfirmStageReached,
 			RootSSHKey: ctx.RootSSHKey,
 		}))
-	}))
+	})))
 
-	http.HandleFunc("GET /install", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /install", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `<!DOCTYPE html>
 <html>
   <head>
@@ -1025,7 +1117,7 @@ exit 0
 				return true
 			}() { goto leave }
 		}
-		
+
 		fmt.Fprint(w, "<p>Done! <a href=\"./finish\">Go to the next step.</a></p>")
 		goto footer
 
@@ -1042,14 +1134,14 @@ exit 0
     </footer>
   </body>
 </html>`)
-	}))
+	})))
 	
-	http.HandleFunc("GET /finish", withLog(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /finish", withLoginGuard(ctx, withLog(func(w http.ResponseWriter, r *http.Request) {
 		
 		logTemplateError(ctx.loadTemplate("webinstaller/finish").Execute(w, &templates.WebInstallerTemplateModel{
 			Config: ctx.Config,
 		}))
-	}))
+	})))
 }
 
 func WebInstaller() {
@@ -1073,10 +1165,15 @@ func WebInstaller() {
 	server := &http.Server{
 		Addr: fmt.Sprintf("0.0.0.0:%d", portNum),
 	}
+	entryKey := auxfuncs.CryptoGenSym(12)
 	bindAllWebInstallerRoutes(&WebInstallerRoutingContext{
+		EntryKey: entryKey,
 		Template: masterTemplate,
 		Config: &gitus.GitusConfig{},
 	})
+	log.Println("Please use these credentials for login when asked:")
+	log.Println("Username: gitus")
+	log.Printf("Password: %s\n", entryKey)
 	go func() {
 		log.Printf("Trying to serve at %s:%d\n", "0.0.0.0", portNum)
 		err := server.ListenAndServe()
