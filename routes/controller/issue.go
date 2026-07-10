@@ -22,6 +22,13 @@ func bindIssueController(ctx *RouterContext) {
 			nsName, repoName, ns, repo, err := rc.ResolveRepositoryFullName(rfn)
 			rc.LoginInfo.IsOwner = ns.Owner == rc.LoginInfo.UserName || repo.Owner == rc.LoginInfo.UserName
 			rc.LoginInfo.IsStrictOwner = repo.Owner == rc.LoginInfo.UserName
+			nsPriv := ns.ACL.GetUserPrivilege(rc.LoginInfo.UserName)
+			repoPriv := repo.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName)
+			isMember := nsPriv != nil || repoPriv != nil
+			if (repo.Status == model.REPO_NORMAL_PRIVATE) && !rc.LoginInfo.IsAdmin && !rc.LoginInfo.IsOwner && !isMember {
+				rc.ReportNotFound(repoName, "Repository", "", w, r)
+				return
+			}
 			q := strings.TrimSpace(r.URL.Query().Get("q"))
 			pStr := strings.TrimSpace(r.URL.Query().Get("p"))
 			sStr := strings.TrimSpace(r.URL.Query().Get("s"))

@@ -24,13 +24,20 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
-			_, _, _, s, err := rc.ResolveRepositoryFullName(rfn)
+			_, repoName, ns, s, err := rc.ResolveRepositoryFullName(rfn)
 			if err == ErrNotFound {
 				rc.ReportNotFound(rfn, "Repository", "Depot", w, r)
 				return
 			}
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
+			nsPriv := ns.ACL.GetUserPrivilege(rc.LoginInfo.UserName)
+			repoPriv := s.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName)
+			isMember := nsPriv != nil || repoPriv != nil
+			if (s.Status == model.REPO_NORMAL_PRIVATE) && !rc.LoginInfo.IsAdmin && !rc.LoginInfo.IsOwner && !isMember {
+				rc.ReportNotFound(repoName, "Repository", "", w, r)
 				return
 			}
 			q := strings.TrimSpace(r.URL.Query().Get("q"))
