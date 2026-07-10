@@ -105,6 +105,20 @@
 		</table>
 	  </div>
 	  <div class="field">
+		<label class="field-label" for="jwt-secret">JWT Secret</label>
+		{{if or (eq .Config.OperationMode "plain") (eq .Config.OperationMode "simple")}}
+		<p>This field is skipped since you've chosen to activate Plain Mode or Simple Mode.</p>
+		{{else}}
+		<p class="field-description">This field controls the value of the JWT secret, which is used for authentication in webhook result reporting and other features.<br /><i>This field is optional. The web installer would generate one for you if you leave it blank.</i></p>
+		<table>
+		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
+		  <tbody>
+			<tr><td class="field-sub-label"><label for="jwt-secret">jwtSecret</label><br />(JWT secret)</td><td><input name="jwt-secret" /></td></tr>
+		  </tbody>
+		</table>
+		{{end}}
+	  </div>
+	  <div class="field">
 		<label class="field-label" for="depot-name">User Management Related</label>
 		{{if or (eq .Config.OperationMode "plain") (eq .Config.OperationMode "simple")}}
 		<p>This field is skipped since you've chosen to activate Plain Mode or Simple Mode.</p>

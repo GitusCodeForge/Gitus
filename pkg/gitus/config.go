@@ -168,6 +168,9 @@ type GitusConfig struct {
 	// the message that would get displayed when people try to log in w/
 	// a configured ssh public key.
 	NoInteractiveShellMessage string `json:"noSshLoginMessage"`
+
+	// JWT secret.
+	JWTSecret string `json:"jwtSecret"`
 }
 
 const (
@@ -455,6 +458,7 @@ func CreateConfigFile(p string) error {
 			BackgroundColor: "white",
 		},
 		NoInteractiveShellMessage: "Direct shell access is forbidden on this host.",
+		JWTSecret: "",
 	}, "", "    ")
 	if err != nil { return err }
 	f.Write(marshalRes)

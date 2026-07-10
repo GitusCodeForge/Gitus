@@ -439,6 +439,10 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			return
 		}
 		ctx.Config.MaxRequestInSecond = maxr
+		ctx.Config.JWTSecret = r.Form.Get("jwt-secret")
+		if ctx.Config.JWTSecret == "" {
+			ctx.Config.JWTSecret = auxfuncs.CryptoGenSym(16)
+		}
 		switch ctx.Config.OperationMode {
 		case gitus.OP_MODE_PLAIN:
 			foundAt(w, "/confirm")
