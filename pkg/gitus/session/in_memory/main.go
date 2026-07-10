@@ -1,6 +1,7 @@
 package in_memory
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -164,6 +165,7 @@ func (ssif *GitusInMemorySessionStore) VerifySessionFull(name string, target str
 		ssif.cache.Delete(key)
 		return false, nil
 	}
-	return r.CSRFToken == csrf, nil
+	if subtle.ConstantTimeCompare([]byte(r.CSRFToken), []byte(csrf)) == 0 { return false, nil }
+	return true, nil
 }
 

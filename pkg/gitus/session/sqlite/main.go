@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -131,14 +132,16 @@ func (ss *GitusSqliteSessionStore) VerifySessionExist(name string, target string
 	return (len(s) > 0), nil
 }
 
-
 func (ss *GitusSqliteSessionStore) VerifySessionFull(username string, session string, csrf string) (bool, error) {
-	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT 1 FROM %ssession WHERE user_name = ? AND value = ? AND csrf = ?", ss.config.Session.TablePrefix))
+	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT reg_timestamp, csrf FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix))
 	if err != nil { return false, err }
-	s := ""
-	err = stmt.QueryRow(username, session, csrf).Scan(&s)
-	if err == sql.ErrNoRows { return false, nil }
+	r := stmt.QueryRow(username, csrf)
+	if r.Err() != nil { return false, r.Err() }
+	var timestamp int64
+	var sessionCsrf string
+	err = r.Scan(&timestamp, &csrf)
 	if err != nil { return false, err }
-	return (len(s) > 0), nil
+	if subtle.ConstantTimeCompare([]byte(sessionCsrf), []byte(csrf)) == 0 { return false, nil }
+	return true, nil
 }
 

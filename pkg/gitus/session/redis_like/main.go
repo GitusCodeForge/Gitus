@@ -2,6 +2,7 @@ package redis_like
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"strconv"
 	"time"
@@ -166,7 +167,7 @@ func (ssif *GitusRedisLikeSessionStore) VerifySessionFull(name string, session_i
 	if cmd2.Err() != nil { return false, cmd2.Err() }
 	r2, err := cmd2.Result()
 	if err != nil { return false, err }
-	if r2 != csrf { return false, nil }
+	if subtle.ConstantTimeCompare([]byte(r2), []byte(csrf)) == 0 { return false, nil }
 	return true, nil
 }
 

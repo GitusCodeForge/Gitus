@@ -1,6 +1,7 @@
 package memcached
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -189,7 +190,7 @@ func (ssif *GitusMemcachedSessionStore) VerifySessionFull(username string, sessi
 	var ss *session.GitusSession
 	err = json.Unmarshal(i.Value, ss)
 	if err != nil { return false, err }
-	if ss.CSRFToken != csrf { return false, nil }
+	if subtle.ConstantTimeCompare([]byte(ss.CSRFToken), []byte(csrf)) == 0 { return false, nil }
 	return true, nil
 }
 
