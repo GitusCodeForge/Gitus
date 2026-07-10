@@ -472,7 +472,7 @@ func bindRepositorySettingController(ctx *RouterContext) {
 		},
 	))
 	
-	http.HandleFunc("POST /repo/{repoName}/setting/member/{username}/delete", UseMiddleware(
+	http.HandleFunc("GET /repo/{repoName}/setting/member/{username}/delete", UseMiddleware(
 		[]Middleware{
 			Logged, LoginRequired, AdminRequired, ErrorGuard,
 		}, ctx,

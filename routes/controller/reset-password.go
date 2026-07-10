@@ -131,7 +131,7 @@ If this isn't you, you can simply ignore this message.`,
 				rc.ReportRedirect("/", 5, "Receipt Expired", "The receipt you've received has passed its validity time limit. Please go through the process again.", w, r)
 				return
 			}
-			if len(re.Command) != 1 || re.Command[0] != receipt.RESET_PASSWORD {
+			if len(re.Command) != 2 || re.Command[0] != receipt.RESET_PASSWORD {
 				rc.ReceiptSystem.CancelReceipt(rid)
 				rc.ReportRedirect("/", 5, "Invalid Receipt", "The receipt you've provided is invalid. Please try again.", w, r)
 				return
@@ -175,7 +175,7 @@ If this isn't you, you can simply ignore this message.`,
 				rc.ReportRedirect("/", 5, "Receipt Expired", "The receipt you've received has passed its validity time limit. Please go through the process again.", w, r)
 				return
 			}
-			if len(re.Command) != 1 || re.Command[0] != receipt.RESET_PASSWORD {
+			if len(re.Command) != 2 || re.Command[0] != receipt.RESET_PASSWORD {
 				rc.ReceiptSystem.CancelReceipt(rid)
 				rc.ReportRedirect("/", 5, "Invalid Receipt", "The receipt you've provided is invalid. Please try again.", w, r)
 				return

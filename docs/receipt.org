@@ -19,3 +19,5 @@ two main kinds of actions that would be triggered by a returned receipt would be
   )
 #+end_src
 
+for receipt command's internal format see `pkg/gitus/receipt/rsif.go`.
+
