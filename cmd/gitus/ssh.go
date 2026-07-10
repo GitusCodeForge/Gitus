@@ -191,16 +191,58 @@ func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) 
 		printGitError(fmt.Sprintf("Failed while reading namespace: %s.", err.Error()))
 		os.Exit(1)
 	}
-	if r.Owner != username && ns.Owner != username {
-		aclt, ok := r.AccessControlList.ACL[username]
-		if !ok {
-			aclt, ok = ns.ACL.ACL[username]
-			if !ok {
-				printGitError("Not enough permission.")
-				os.Exit(1)
-			}
+	// public visibility + public repo + clone: yes
+	// public visibility + public repo + push: ns push / repo push
+	// public visibility + internal repo + clone: user
+	// public visibility + internal repo + push: ns push / repo push
+	// public visibility + limited repo + clone: ns any / repo any
+	// public visibility + limited repo + push: ns push / repo push
+	// public visibility + private repo + clone: repo any
+	// public visibility + private repo + push: repo push
+	// private visibility + public/internal repo + clone: user
+	// private visibility + public/internal repo + push: ns push / repo push
+	// private visibility + limited repo + clone: ns any / repo any
+	// private visibility + limited repo + push: ns push / repo push
+	// private visibility + private repo + clone: repo any
+	// private visibility + private repo + push: repo push
+	// shutdown visibility + any repo + clone/push: reject
+	// maintenance visibility + any repo + clone/push: reject
+	
+	// user check is to check if the key is used by any user.
+	// when we reach here we are in public/private visibility and the repo
+	// is not archived (i.e. push is allowed).
+	isPublicRepo := r.Status == model.REPO_NORMAL_PUBLIC
+	isInternalRepo := r.Status == model.REPO_INTERNAL
+	isLimitedRepo := r.Status == model.REPO_LIMITED
+	isPrivateRepo := r.Status == model.REPO_NORMAL_PRIVATE
+	nsACLCheck := ns.ACL.GetUserPrivilege(ctx.LoginInfo.UserName)
+	isNSOwner := ns.Owner == username
+	isRepoOwner := r.Owner == username
+	isNSAny := isNSOwner || (nsACLCheck != nil)
+	isNSPush := isNSOwner || (isNSAny && nsACLCheck.PushToRepository)
+	repoACLCheck := r.AccessControlList.GetUserPrivilege(ctx.LoginInfo.UserName)
+	isRepoAny := isRepoOwner || (repoACLCheck != nil)
+	isRepoPush := isRepoOwner || (isRepoAny && repoACLCheck.PushToRepository)
+	if isPushingToRemote && (isPublicRepo || isInternalRepo || isLimitedRepo) {
+		if !isNSPush && !isRepoPush {
+			printGitError("Not enough permission.")
+			os.Exit(1)
 		}
-		if !aclt.PushToRepository && isPushingToRemote {
+	}
+	if !isPushingToRemote && isLimitedRepo {
+		if !isNSAny && !isRepoAny {
+			printGitError("Not enough permission.")
+			os.Exit(1)
+		}
+	}
+	if isPushingToRemote && isPrivateRepo {
+		if !isRepoPush {
+			printGitError("Not enough permission.")
+			os.Exit(1)
+		}
+	}
+	if !isPushingToRemote && isPrivateRepo {
+		if !isRepoAny {
 			printGitError("Not enough permission.")
 			os.Exit(1)
 		}
@@ -225,3 +267,4 @@ func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) 
 	}
 	os.Exit(0)
 }
+

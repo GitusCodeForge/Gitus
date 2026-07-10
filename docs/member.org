@@ -22,6 +22,6 @@ namespace should have a 3-tier visibility system:
 + is the repo/namespace's owner;
 + listed in the repo/namespace's acl.
 
-membership of a namespace does not imply the membership of the repositories within. if a repository has been set to limited and a user is set in namespace acl but not the acl of that repository, that user is not seen as a member of that repository and is thus unable to see the repository.
+membership of a namespace does not imply the membership of the repositories within. if a repository has been set to private and a user is set in namespace acl but not the acl of that repository, that user is not seen as a member of that repository and is thus unable to see the repository.
 
   
