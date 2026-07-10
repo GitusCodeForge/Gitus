@@ -28,7 +28,7 @@ func bindVerifyEmailController(ctx *routes.RouterContext) {
 				rc.ReportRedirect("/", 5, "Receipt Expired", "The receipt you've received has passed its validity time limit. Please go through the process again.", w, r)
 				return
 			}
-			if re.Command[0] != receipt.VERIFY_EMAIL && len(re.Command) != 3 {
+			if len(re.Command) != 3 || re.Command[0] != receipt.VERIFY_EMAIL {
 				rc.ReceiptSystem.CancelReceipt(rid)
 				rc.ReportRedirect("/", 5, "Invalid Receipt", "The receipt you've provided is invalid. Please try again.", w, r)
 				return
