@@ -68,8 +68,23 @@ func bindAdminReceiptListController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("GET /admin/receipt/{rid}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/admin/receipt/{rid}/delete", r.PathValue("rid")),
+				"Delete User",
+				fmt.Sprintf("Click the following button to delete receipt <code>%s</code>", r.PathValue("rid")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /admin/receipt/{rid}/delete", UseMiddleware(
 		[]Middleware{Logged, LoginRequired, AdminRequired,
-			GlobalVisibility, ErrorGuard,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {		rid := r.PathValue("rid")
 			err := rc.ReceiptSystem.CancelReceipt(rid)

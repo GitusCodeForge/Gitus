@@ -59,6 +59,21 @@ func bindAdminRegistrationRequestController(ctx *RouterContext) {
 			Logged, LoginRequired, AdminRequired, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/admin/reg-request/%s/approve", r.PathValue("absid")),
+				"Approve User Registration",
+				fmt.Sprintf("Click the following button to approve the registration request of user <code>%s</code>", r.PathValue("absid")),
+				"Approve",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /admin/reg-request/{absid}/approve", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, CSRFCheck, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			absidStr := r.PathValue("absid")
 			absid, err := strconv.ParseInt(absidStr, 10, 64)
 			if err != nil {
@@ -124,6 +139,21 @@ We wish you all the best in your future endeavours.
 	http.HandleFunc("GET /admin/reg-request/{absid}/disapprove", UseMiddleware(
 		[]Middleware{
 			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/admin/reg-request/%s/disapprove", r.PathValue("absid")),
+				"Disapprove User Registration",
+				fmt.Sprintf("Click the following button to disapprove the registration request of user <code>%s</code>", r.PathValue("absid")),
+				"Disapprove",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /admin/reg-request/{absid}/disapprove", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, CSRFCheck, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			

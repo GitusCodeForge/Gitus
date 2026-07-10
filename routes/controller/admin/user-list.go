@@ -53,10 +53,25 @@ func bindAdminUserListController(ctx *RouterContext) {
 			}))
 		},
 	))
-
+	
 	http.HandleFunc("GET /admin/user/{username}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/admin/user/{username}/delete", r.PathValue("username")),
+				"Delete User",
+				fmt.Sprintf("Click the following button to delete user <code>%s</code>", r.PathValue("username")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /admin/user/{username}/delete", UseMiddleware(
 		[]Middleware{Logged, LoginRequired, AdminRequired,
-			GlobalVisibility, ErrorGuard,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			un := r.PathValue("username")

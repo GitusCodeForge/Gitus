@@ -78,8 +78,23 @@ func bindSettingGPGController(ctx *RouterContext) {
 	
 	http.HandleFunc("GET /setting/gpg/{keyName}/delete", UseMiddleware(
 		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/setting/gpg/{keyName}/delete", r.PathValue("keyName")),
+				"Delete GPG Key",
+				fmt.Sprintf("Click the following button to delete GPG key <code>%s</code>", r.PathValue("keyName")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /setting/gpg/{keyName}/delete", UseMiddleware(
+		[]Middleware{
 			Logged, LoginRequired,
-			GlobalVisibility,
+			CSRFCheck, GlobalVisibility,
 			ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request){

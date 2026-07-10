@@ -111,10 +111,30 @@ We wish you all the best in your future endeavours.
 	
 	http.HandleFunc("GET /setting/email/primary", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, GlobalVisibility, ErrorGuard,
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			email := r.URL.Query().Get("email")
+			e := r.URL.Query().Get("email")
+			ctx.ReportSingleButtonCallback(
+				"/setting/email/primary",
+				"Set Primary Email",
+				fmt.Sprintf("Click the following button to confirm setting email <code>%s</code> as primary", e),
+				"Delete",
+				map[string]string{
+					"email": r.URL.Query().Get("email"),
+				},
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /setting/email/primary", UseMiddleware(
+		[]Middleware{
+			Logged, ValidPOSTRequestRequired,
+			LoginRequired,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			email := r.FormValue("email")
 			if len(email) <= 0 {
 				rc.ReportRedirect("/setting/email", 3, "Invalid Request", "This email is not associated with your user account.", w, r)
 				return
@@ -145,7 +165,26 @@ We wish you all the best in your future endeavours.
 	
 	http.HandleFunc("GET /setting/email/delete", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, GlobalVisibility,
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			e := r.URL.Query().Get("email")
+			ctx.ReportSingleButtonCallback(
+				"/setting/email/delete",
+				"Delete Email",
+				fmt.Sprintf("Click the following button to delete email <code>%s</code>", e),
+				"Delete",
+				map[string]string{
+					"email": r.URL.Query().Get("email"),
+				},
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /setting/email/delete", UseMiddleware(
+		[]Middleware{
+			Logged, ValidPOSTRequestRequired, LoginRequired,
+			CSRFCheck, GlobalVisibility,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			err := r.ParseForm()
@@ -153,7 +192,7 @@ We wish you all the best in your future endeavours.
 				rc.ReportNormalError("Invalid request", w, r)
 				return
 			}
-			email := r.URL.Query().Get("email")
+			email := r.FormValue("email")
 			if len(email) <= 0 {
 				rc.ReportRedirect("/setting/email", 3, "Invalid Request", "This email is not associated with your user account.", w, r)
 				return
@@ -167,3 +206,28 @@ We wish you all the best in your future endeavours.
 		},
 	))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -128,8 +128,23 @@ func bindNamespaceSettingController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("GET /s/{namespace}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/s/{namespace}/delete", r.PathValue("namespace")),
+				"Delete Namespace",
+				fmt.Sprintf("Click the following button to delete namespace <code>%s</code>", r.PathValue("namespace")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /s/{namespace}/delete", UseMiddleware(
 		[]Middleware{Logged, UseLoginInfo, LoginRequired,
-			GlobalVisibility, ErrorGuard,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			namespaceName := r.PathValue("namespace")
@@ -289,9 +304,29 @@ func bindNamespaceSettingController(ctx *RouterContext) {
 		},
 	))
 
+	
 	http.HandleFunc("GET /s/{namespace}/member/{username}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			// TODO: add owner/member check
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/s/{namespace}/member/{username}/delete",
+					r.PathValue("namespace"),
+					r.PathValue("username"),
+				),
+				"Delete Member",
+				fmt.Sprintf("Click the following button to delete user <code>%s</code> from namespace <code>%s</code>", r.PathValue("username"), r.PathValue("namespace")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /s/{namespace}/member/{username}/delete", UseMiddleware(
 		[]Middleware{Logged, UseLoginInfo, LoginRequired,
-			GlobalVisibility, ErrorGuard,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		},
 		ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

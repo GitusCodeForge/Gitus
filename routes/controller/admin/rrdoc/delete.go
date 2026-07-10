@@ -10,13 +10,37 @@ import (
 
 	. "github.com/GitusCodeForge/Gitus/routes"
 )
-	
 
 func bindAdminRRDocDeleteController(ctx *RouterContext) {
 	http.HandleFunc("GET /admin/rrdoc/{n}/delete", UseMiddleware(
 		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			n, err := strconv.ParseInt(r.PathValue("n"), 10, 32)
+			if err != nil {
+				rc.ReportNotFound("Required", "document", "instance", w, r)
+				return
+			}
+			if len(rc.Config.ReadingRequiredDocument) < int(n) {
+				rc.ReportNotFound("Required", "document", "instance", w, r)
+				return
+			}
+			p := rc.Config.ReadingRequiredDocument[int(n)-1]
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/admin/rrdoc/{n}/delete", r.PathValue("n")),
+				"Delete RRDoc",
+				fmt.Sprintf("Click the following button to delete user registration document number %s: <code>%s</code>", r.PathValue("n"), p),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /admin/rrdoc/{n}/delete", UseMiddleware(
+		[]Middleware{
 			Logged, LoginRequired, AdminRequired,
-			GlobalVisibility, ErrorGuard,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			n, err := strconv.ParseInt(r.PathValue("n"), 10, 32)

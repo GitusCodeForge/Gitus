@@ -146,7 +146,22 @@ func bindRepositorySettingController(ctx *RouterContext) {
 
 	http.HandleFunc("GET /repo/{repoName}/delete", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, GlobalVisibility, ErrorGuard,
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/repo/{repoName}/delete", r.PathValue("repoName")),
+				"Delete Repository",
+				fmt.Sprintf("Click the following button to delete repository <code>%s</code>", r.PathValue("repoName")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /repo/{repoName}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard,
 			ValidRepositoryNameRequired("repoName"),
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
@@ -457,11 +472,28 @@ func bindRepositorySettingController(ctx *RouterContext) {
 		},
 	))
 	
-	http.HandleFunc("GET /repo/{repoName}/setting/member/{username}/delete", UseMiddleware(
-		[]Middleware{Logged, ValidRepositoryNameRequired("repoName"),
-			UseLoginInfo, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+	http.HandleFunc("POST /repo/{repoName}/setting/member/{username}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			fmt.Println("xxx")
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/repo/%s/setting/member/%s/delete",
+					r.PathValue("repoName"),
+					r.PathValue("username"),
+				),
+				"Delete Repository Member",
+				fmt.Sprintf("Click the following button to delete user <code>%s</code> from repository <code>%s</code>", r.PathValue("username"), r.PathValue("repoName")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /repo/{repoName}/setting/member/{username}/delete", UseMiddleware(
+		[]Middleware{Logged, ValidRepositoryNameRequired("repoName"), ValidPOSTRequestRequired,
+			UseLoginInfo, LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
 			nsName, repoName, ns, repo, err := ctx.ResolveRepositoryFullName(rfn)
 			if err != nil {
@@ -536,7 +568,29 @@ func bindRepositorySettingController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("GET /repo/{repoName}/setting/label/{label}/delete", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{
+			Logged, LoginRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			// TODO: add owner/member guard
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/repo/%s/setting/label/%s/delete",
+					r.PathValue("repoName"),
+					r.PathValue("label"),
+				),
+				"Delete Label",
+				fmt.Sprintf("Click the following button to delete label <code>%s</code> from repository <code>%s</code>", r.PathValue("label"), r.PathValue("repoName")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /repo/{repoName}/setting/label/{label}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, ValidPOSTRequestRequired,
+			CSRFCheck, GlobalVisibility, ErrorGuard
+		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
 			nsName, repoName, ns, repo, err := ctx.ResolveRepositoryFullName(rfn)

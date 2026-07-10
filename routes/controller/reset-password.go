@@ -42,7 +42,7 @@ func bindResetPasswordController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /reset-password/request", UseMiddleware(
 		[]Middleware{Logged, ValidPOSTRequestRequired,
-			UseLoginInfo, ErrorGuard,
+			CSRFCheck, UseLoginInfo, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 		switch rc.Config.GlobalVisibility {

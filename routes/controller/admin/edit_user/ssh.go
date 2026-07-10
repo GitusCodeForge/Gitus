@@ -106,7 +106,27 @@ func bindAdminEditUserSSHController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("GET /admin/user/{username}/ssh/{keyname}/delete", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, AdminRequired,
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/admin/user/%s/ssh/%s/delete",
+					r.PathValue("username"),
+					r.PathValue("keyname"),
+				),
+				"Delete SSH Key",
+				fmt.Sprintf("Click the following button to delete key named <code>%s</code> from user <code>%s</code>", r.PathValue("keyname"), r.PathValue("username")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /admin/user/{username}/ssh/{keyname}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, ValidPOSTRequestRequired,
+			CSRFCheck, AdminRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

@@ -295,7 +295,29 @@ func bindSnippetController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("GET /snippet/{username}/{name}/setting/delete/{filePath}", UseMiddleware(
-		[]Middleware{Logged, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/snippet/%s/%s/setting/delete/%s",
+					r.PathValue("username"),
+					r.PathValue("name"),
+					r.PathValue("filePath"),
+				),
+				"Delete Snippet File",
+				fmt.Sprintf("Click the following button to delete file <code>%s</code> from snippet %s", r.PathValue("filePath"), r.PathValue("name")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /snippet/{username}/{name}/setting/delete/{filePath}", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, ValidPOSTRequestRequired,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
+		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			username := r.PathValue("username")
 			name := r.PathValue("name")

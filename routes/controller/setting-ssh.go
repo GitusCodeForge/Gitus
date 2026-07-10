@@ -107,8 +107,23 @@ func bindSettingSSHController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("GET /setting/ssh/{keyName}/delete", UseMiddleware(
+		[]Middleware{
+			Logged, LoginRequired, AdminRequired, ErrorGuard,
+		}, ctx,
+		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			ctx.ReportSingleButtonCallback(
+				fmt.Sprintf("/setting/ssh/{keyName}/delete", r.PathValue("keyName")),
+				"Delete SSH Key",
+				fmt.Sprintf("Click the following button to delete SSH key <code>%s</code>", r.PathValue("keyName")),
+				"Delete",
+				nil,
+				w, r,
+			)
+		},
+	))
+	http.HandleFunc("POST /setting/ssh/{keyName}/delete", UseMiddleware(
 		[]Middleware{Logged, UseLoginInfo, LoginRequired,
-			GlobalVisibility, ErrorGuard,
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			un := rc.LoginInfo.UserName
