@@ -122,10 +122,12 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 	}
 	if repo.WebHookConfig.Secret == "" {
 		printGitError("Empty secret is not allowed; please check your repository config.")
+		return
 	}
 	reqUuid := uuid.New()
 	reportUuid := uuid.New()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
+		"jti": reportUuid.String(),
 		"iat": time.Now().Unix(),
 		"exp": time.Now().Add(12 * time.Hour),
 		"nonce": nonce.Int64(),
