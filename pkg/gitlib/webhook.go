@@ -57,7 +57,7 @@ fi
 			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
 			exit 1
 	    else
-			aegis web-hooks send "%s" "$refname" "$newrev_type" "$oldrev" "$newrev"
+			gitus web-hooks send "%s" "$refname" "$newrev_type" "$oldrev" "$newrev"
 		fi
 		;;
 	refs/tags/*,delete)
@@ -66,7 +66,7 @@ fi
 			echo "*** Deleting a tag is not allowed in this repository" >&2
 			exit 1
 		else
-			aegis web-hooks send "%s" "$refname" "$newrev_type" "$oldrev" "$newrev"
+			gitus web-hooks send "%s" "$refname" "$newrev_type" "$oldrev" "$newrev"
 		fi
 		;;
 	refs/tags/*,tag)
@@ -77,7 +77,7 @@ fi
 			echo "*** Modifying a tag is not allowed in this repository." >&2
 			exit 1
 		else
-			aegis web-hooks send "%s" "$refname" "$newrev_type" "$oldrev"  "$newrev"
+			gitus web-hooks send "%s" "$refname" "$newrev_type" "$oldrev"  "$newrev"
 		fi
 		;;
 	refs/heads/*,commit)
@@ -86,7 +86,7 @@ fi
 			echo "*** Creating a branch is not allowed in this repository" >&2
 			exit 1
 		else
-			aegis web-hooks send "%s" "$refname" "$newrev_type" "$oldrev"  "$newrev"
+			gitus web-hooks send "%s" "$refname" "$newrev_type" "$oldrev"  "$newrev"
 		fi
 		;;	refs/heads/*,delete)
 		# delete branch
@@ -94,7 +94,7 @@ fi
 			echo "*** Deleting a branch is not allowed in this repository" >&2
 			exit 1
 		else
-			aegis web-hooks send "%s" "$refname" "$newrev_type" "$oldrev"  "$newrev"
+			gitus web-hooks send "%s" "$refname" "$newrev_type" "$oldrev"  "$newrev"
 		fi
 		;;
 	refs/remotes/*,commit)

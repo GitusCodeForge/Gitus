@@ -24,7 +24,7 @@ func bindWebhookResultReportController(ctx *RouterContext) {
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			body := model.WebhookResult{}
 			b := new(bytes.Buffer)
-			_, err := io.Copy(b, r.Response.Body)
+			_, err := io.Copy(b, r.Body)
 			if err != nil {
 				w.WriteHeader(500)
 				fmt.Fprintf(w, "Failed to read request body: %s", err)
@@ -60,9 +60,14 @@ func bindWebhookResultReportController(ctx *RouterContext) {
 				fmt.Fprintf(w, "Failed to verify JWT: %s", err)
 				return
 			}
-			token, err := jwt.Parse(p[0], func(token *jwt.Token) (any, error) {
+			if repo.WebHookConfig.Secret == "" {
+				w.WriteHeader(400)
+				fmt.Fprintf(w, "Empty secret is not allowed; please check your repository config.")
+				return
+			}
+			token, err := jwt.Parse(p[1], func(token *jwt.Token) (any, error) {
 				return repo.WebHookConfig.Secret, nil
-			}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+			}, jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Alg()}))
 			if err != nil {
 				w.WriteHeader(500)
 				fmt.Fprintf(w, "Failed to validate JWT: %s", err)
