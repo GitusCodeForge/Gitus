@@ -178,7 +178,7 @@ func bindRepositoryController(ctx *RouterContext) {
 				// minimal as possible, but i'm not ready to make a whole
 				// markdown-to-html renderer, at least not yet.
 				readmeString = string(markdown.ToHTML([]byte(readmeString), nil, nil))
-				readmeString = bluemonday.UGCPolicy().Sanitize(readmeString)
+				readmeString = bluemonday.StrictPolicy().Sanitize(readmeString)
 			case ".org":
 				// NOTE: due to go-org having no documentations and I can't see
 				// a way to inject prefix into the rendering process, we might
@@ -187,13 +187,13 @@ func bindRepositoryController(ctx *RouterContext) {
 				doc := org.New().Parse(strings.NewReader(readmeString), "")
 				out, err := doc.Write(org.NewHTMLWriter())
 				if err != nil {
-					readmeString = bluemonday.UGCPolicy().Sanitize(readmeString)
+					readmeString = bluemonday.StrictPolicy().Sanitize(readmeString)
 					readmeString = fmt.Sprintf("<pre class=\"repo-readme\">>%s</pre>", readmeString)
 				} else {
-					readmeString = bluemonday.UGCPolicy().Sanitize(out)
+					readmeString = bluemonday.StrictPolicy().Sanitize(out)
 				}
 			default:
-				readmeString = bluemonday.UGCPolicy().Sanitize(readmeString)
+				readmeString = bluemonday.StrictPolicy().Sanitize(readmeString)
 				readmeString = fmt.Sprintf("<pre>%s</pre>", readmeString)
 			}
 			// resolve branch comparison info...
