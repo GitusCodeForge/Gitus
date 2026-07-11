@@ -29,7 +29,7 @@ func ResetAdmin(ctx *routes.RouterContext) {
 		fmt.Printf("Failed to read password while resetting admin: %s\n", err.Error())
 		return
 	}
-	hashedS, err := bcrypt.GenerateFromPassword(s, bcrypt.DefaultCost)
+	hashedS, err := bcrypt.GenerateFromPassword(s, ctx.Config.PasswordHashStrength)
 	if err != nil {
 		fmt.Printf("Failed to hash password with bcrypt while resetting admin: %s\n", err.Error())
 		return

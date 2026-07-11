@@ -197,7 +197,7 @@ If this isn't you, you can simply ignore this message.`,
 				)
 				return
 			}
-			newPassHashBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+			newPassHashBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), ctx.Config.PasswordHashStrength)
 			if err != nil {
 				rc.ReportNormalError(
 					fmt.Sprintf("Internal error: %s", err.Error()),

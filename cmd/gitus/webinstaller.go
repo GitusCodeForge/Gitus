@@ -443,6 +443,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		if ctx.Config.JWTSecret == "" {
 			ctx.Config.JWTSecret = auxfuncs.CryptoGenSym(16)
 		}
+		ctx.Config.PasswordHashStrength = 16
 		switch ctx.Config.OperationMode {
 		case gitus.OP_MODE_PLAIN:
 			foundAt(w, "/confirm")

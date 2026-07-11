@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"math/big"
-	"crypto/rand"
 	"os"
 	"os/exec"
 	"os/user"
@@ -430,7 +430,7 @@ func InstallGitus(ctx routes.RouterContext) {
 			if err != nil { log.Panic(err) }
 		}
 		userPassword := mkpass()
-		r, err := bcrypt.GenerateFromPassword([]byte(userPassword), bcrypt.DefaultCost)
+		r, err := bcrypt.GenerateFromPassword([]byte(userPassword), ctx.Config.PasswordHashStrength)
 		if err != nil {
 			log.Panicf("Failed to generate password: %s\n", err.Error())
 		}

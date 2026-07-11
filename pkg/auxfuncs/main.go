@@ -122,4 +122,7 @@ func IsPotentiallyLocalAddress(addr string) bool {
 	ip := net.ParseIP(addr)
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || CGNAT.Contains(ip)
 }
+func IntMaxOf(a int, b int) int {
+	if a > b { return a } else { return b }
+}
 

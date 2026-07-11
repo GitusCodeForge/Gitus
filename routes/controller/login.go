@@ -91,7 +91,7 @@ func bindLoginController(ctx *RouterContext) {
 
 			if u.TFAConfig.Email.Enable {
 				confirmCode := newConfirmCode()
-				tempKey, err := bcrypt.GenerateFromPassword([]byte(u.PasswordHash+confirmCode), bcrypt.DefaultCost)
+				tempKey, err := bcrypt.GenerateFromPassword([]byte(u.PasswordHash+confirmCode), ctx.Config.PasswordHashStrength)
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to process generated confirmation code: %s.", err), w, r)
 					return

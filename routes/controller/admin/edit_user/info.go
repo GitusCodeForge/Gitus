@@ -105,7 +105,7 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 					}))
 					return
 				}
-				newpwh, err := bcrypt.GenerateFromPassword([]byte(r.Form.Get("new-password")), bcrypt.DefaultCost)
+				newpwh, err := bcrypt.GenerateFromPassword([]byte(r.Form.Get("new-password")), ctx.Config.PasswordHashStrength)
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to hash password: %s", err.Error()), w, r)
 					return

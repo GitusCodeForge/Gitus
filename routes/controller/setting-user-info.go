@@ -137,7 +137,7 @@ func bindSettingController(ctx *RouterContext) {
 					ctx.ReportInternalError(err.Error(), w, r)
 					return
 				}
-				newpwh, err := bcrypt.GenerateFromPassword([]byte(r.Form.Get("new-password")), bcrypt.DefaultCost)
+				newpwh, err := bcrypt.GenerateFromPassword([]byte(r.Form.Get("new-password")), ctx.Config.PasswordHashStrength)
 				if err != nil {
 					ctx.ReportInternalError(err.Error(), w, r)
 					return

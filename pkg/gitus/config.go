@@ -169,8 +169,16 @@ type GitusConfig struct {
 	// a configured ssh public key.
 	NoInteractiveShellMessage string `json:"noSshLoginMessage"`
 
+	// ====================================================================
+	// configs below this line are advanced configs.
+	// these configs are not meant to be exposed to the UI unless the admins
+	// know what they're doing.
+	
 	// JWT secret.
 	JWTSecret string `json:"jwtSecret"`
+
+	// password hashing strength
+	PasswordHashStrength int `json:"passwordHashStrength"`
 }
 
 const (
@@ -459,6 +467,7 @@ func CreateConfigFile(p string) error {
 		},
 		NoInteractiveShellMessage: "Direct shell access is forbidden on this host.",
 		JWTSecret: "",
+		PasswordHashStrength: 16,
 	}, "", "    ")
 	if err != nil { return err }
 	f.Write(marshalRes)

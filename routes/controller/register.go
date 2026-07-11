@@ -86,7 +86,7 @@ func bindRegisterController(ctx *RouterContext) {
 			}
 			
 			password := r.Form.Get("password")
-			passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), ctx.Config.PasswordHashStrength)
 			if err != nil {
 				rc.ReportInternalError(fmt.Sprintf("Failed to hash the provided password: %s. Please try again.", err.Error()), w, r)
 				return
