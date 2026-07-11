@@ -1169,6 +1169,9 @@ func WebInstaller() {
 
 	server := &http.Server{
 		Addr: fmt.Sprintf("0.0.0.0:%d", portNum),
+		ReadTimeout: 30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout: 120 * time.Second,
 	}
 	entryKey := auxfuncs.CryptoGenSym(12)
 	bindAllWebInstallerRoutes(&WebInstallerRoutingContext{

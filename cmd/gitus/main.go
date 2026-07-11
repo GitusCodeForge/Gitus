@@ -250,6 +250,9 @@ func main() {
 	http.Handle("GET /static/", http.StripPrefix("/static/", routes.WithLogHandler(fs)))
 	server := &http.Server{
 		Addr: fmt.Sprintf("%s:%d", config.BindAddress, config.BindPort),
+		ReadTimeout: 30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout: 120 * time.Second,
 	}
 
 	context.RateLimiter = routes.NewRateLimiter(config)
