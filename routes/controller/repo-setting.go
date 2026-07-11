@@ -2,13 +2,15 @@ package controller
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 )
@@ -589,7 +591,7 @@ func bindRepositorySettingController(ctx *RouterContext) {
 	http.HandleFunc("POST /repo/{repoName}/setting/label/{label}/delete", UseMiddleware(
 		[]Middleware{
 			Logged, LoginRequired, ValidPOSTRequestRequired,
-			CSRFCheck, GlobalVisibility, ErrorGuard
+			CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
@@ -787,7 +789,7 @@ func bindRepositorySettingController(ctx *RouterContext) {
 			allowEdit := (repoPriv != nil && repoPriv.EditWebHooks) || (nsPriv != nil && nsPriv.EditWebHooks)
 			if !rc.LoginInfo.IsAdmin && !isRepoOwner && !isNsOwner && !allowEdit {
 				ctx.ReportRedirect(fmt.Sprintf("/repo/%s", rfn), 0,
-					"Not enouhg privilege",
+					"Not enough privilege",
 					"Your user account seems to not have enough privilege for this action.",
 					w, r,
 				)
@@ -797,8 +799,55 @@ func bindRepositorySettingController(ctx *RouterContext) {
 			enableWebhook := len(r.Form.Get("enable")) > 0
 			repo.WebHookConfig.Enable = enableWebhook
 			repo.WebHookConfig.PayloadType = "json"
-			repo.WebHookConfig.Secret = strings.TrimSpace(r.Form.Get("secret"))
-			repo.WebHookConfig.TargetURL = strings.TrimSpace(r.Form.Get("target-url"))
+			repo.WebHookConfig.Secret = strings.TrimSpace(repo.WebHookConfig.Secret)
+			if len(repo.WebHookConfig.Secret) <= 16 {
+				repo.WebHookConfig.Secret = auxfuncs.CryptoGenSym(24)
+			}
+			{
+				u, e := url.Parse(strings.TrimSpace(r.Form.Get("target-url")))
+				if e != nil {
+					ctx.ReportRedirect(
+						fmt.Sprintf("/repo/%s/setting/webhook", rfn), 0,
+						"Invalid webhook URL",
+						"You've entered an invalid URL for webhook. Please try again.",
+						w, r,
+					)
+					return
+				}
+				if u.Scheme != "http" && u.Scheme != "https" {
+					ctx.ReportRedirect(
+						fmt.Sprintf("/repo/%s/setting/webhook", rfn), 0,
+						"Invalid webhook URL",
+						"You've entered an invalid URL for webhook. Please try again.",
+						w, r,
+					)
+					return
+				}
+				ips, e := net.LookupIP(u.Hostname())
+				if e != nil {
+					ctx.ReportRedirect(
+						fmt.Sprintf("/repo/%s/setting/webhook", rfn), 0,
+						"Cannot resolve webhook URL host",
+						fmt.Sprintf("The server failed to resolve host %s. Please choose a different address.", u.Hostname()),
+						w, r,
+					)
+					return
+				}
+				for _, ip := range ips {
+					if auxfuncs.IsPotentiallyLocalAddress(ip.String()) {
+						if !ctx.LoginInfo.IsSuperAdmin {
+							ctx.ReportRedirect(
+								fmt.Sprintf("/repo/%s/setting/webhook", rfn), 0,
+								"Not enough privilege",
+								"Your user account seems to not have enough privilege for this action.",
+								w, r,
+							)
+							return
+						}
+					}
+				}
+				repo.WebHookConfig.TargetURL = u.String()
+			}
 			err = rc.DatabaseInterface.UpdateRepositoryInfo(repo.Namespace, repo.Name, repo)
 			if err != nil {
 				rc.ReportInternalError(fmt.Sprintf("Failed to update repository info: %s", err), w, r)

@@ -2,9 +2,10 @@ package auxfuncs
 
 import (
 	"cmp"
-	mrand "math/rand"
 	crand "crypto/rand"
 	"math/big"
+	mrand "math/rand"
+	"net"
 	"os"
 	"os/user"
 	"regexp"
@@ -108,5 +109,17 @@ func EncodeCSV(a []string) string {
 		pre = pre[:len(pre)-1] + "\\" + pre[len(pre)-1:]
 	}
 	return pre
+}
+
+var CGNAT = &net.IPNet{
+	IP: net.ParseIP("100.64.0.0"),
+	Mask: net.CIDRMask(10, 32),
+}
+func IsPotentiallyLocalIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || CGNAT.Contains(ip)
+}
+func IsPotentiallyLocalAddress(addr string) bool {
+	ip := net.ParseIP(addr)
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || CGNAT.Contains(ip)
 }
 

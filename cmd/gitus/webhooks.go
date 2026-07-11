@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"net/http"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
-	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -220,6 +224,37 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 		},
 	}
 	var req *http.Request
+	d := &net.Dialer{
+		Control: func(network string, address string, c syscall.RawConn) error {
+			host, _, _ := net.SplitHostPort(address)
+			if auxfuncs.IsPotentiallyLocalAddress(host) {
+				if owner.Status != model.SUPER_ADMIN {
+					return errors.New("Failed to call webhook due to not enough privilege; please check your configuration.")
+				}
+			}
+			return nil
+		},
+	}
+	c := &http.Client{
+		Transport: &http.Transport{
+			DialContext: d.DialContext,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			for _, k := range via {
+				if auxfuncs.IsPotentiallyLocalAddress(k.Host) {
+					if owner.Status != model.SUPER_ADMIN {
+						return errors.New("Failed to call webhook due to not enough privilege; please check your configuration")
+					}
+				}
+			}
+			if auxfuncs.IsPotentiallyLocalAddress(req.Host) {
+				if owner.Status != model.SUPER_ADMIN {
+					return errors.New("Failed to call webhook due to not enough privilege; please check your configuration")
+				}
+			}
+			return nil
+		},
+	}
 	switch repo.WebHookConfig.PayloadType {
 	case "json":
 		payloadJson, err := json.Marshal(payload)
@@ -235,7 +270,7 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 	}
 	req.Header.Add("Authentication", fmt.Sprintf("Bearer webhook-jwt-%s", tokenStr))
 	req.Header.Add("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		printGitError(fmt.Sprintf("Failed while sending HTTP POST request: %s", err))
 		return
