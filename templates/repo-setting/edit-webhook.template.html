@@ -30,7 +30,7 @@
 
 		<fieldset>
 		  <legend>Edit Webhook Setting</legend>
-
+		  <p><i>(PLEASE NOTE THAT webhook secret could be changed due to the old one not being long enough; please remember to update the receiving side of the webhook request with the newest secret.)</i></p>
 		  <form id="repository-setting-form" action="" method="POST">
 			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<table class="field-table">
@@ -41,7 +41,7 @@
 				</tr>
 				<tr class="field">
 				  <td><label class="field-label" for="tf-secret">Secret:</label></td>
-				  <td><input class="field-tf" name="secret" id="tf-secret" value="{{.Repository.WebHookConfig.Secret}}" /></td>
+				  <td><p class="field-tf" name="secret" id="tf-secret">{{.Repository.WebHookConfig.Secret}}</p></td>
 				</tr>
 				<tr class="field">
 				  <td><label class="field-label" for="tf-target-url">Target URL:</label></td>
