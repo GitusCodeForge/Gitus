@@ -27,6 +27,14 @@ func UseMiddleware(w []Middleware, ctx *RouterContext, f HandlerFunc) http.Handl
 	for i >= 0 { res = w[i](res); i -= 1; }
 	return func(w http.ResponseWriter, r *http.Request) {
 		rc := ctx.NewLocal()
+		// security headers...
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'")
+		scheme := r.Header.Get("X-Forwarded-Proto")
+		if r.TLS != nil || scheme == "https" {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
 		res(rc, w, r);
 	}
 }
