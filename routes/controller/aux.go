@@ -241,10 +241,10 @@ func checkUserPassword(ctx *routes.RouterContext, username string, password stri
 
 func newConfirmCode() string {
 	res := make([]byte, 0)
-	rmax := big.NewInt(10)
+	rmax := big.NewInt(8)
 	for range 6 {
 		n, _ := rand.Int(rand.Reader, rmax)
-		res = append(res, "0123456789"[n.Uint64()])
+		res = append(res, "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"[n.Uint64()])
 	}
 	return string(res)
 }
