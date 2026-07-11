@@ -92,11 +92,10 @@ func bindAdminRegistrationRequestController(ctx *RouterContext) {
 			}
 			if rc.Config.EmailConfirmationRequired {
 				email := regreq.Email
-				command := make([]string, 4)
+				command := make([]string, 3)
 				command[0] = receipt.CONFIRM_REGISTRATION
 				command[1] = regreq.Username
 				command[2] = email
-				command[3] = regreq.PasswordHash
 				rid, err := rc.ReceiptSystem.IssueReceipt(24*60, command)
 				if err != nil {
 					rc.ReportInternalError(err.Error(), w, r)

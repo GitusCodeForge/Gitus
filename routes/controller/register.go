@@ -91,31 +91,53 @@ func bindRegisterController(ctx *RouterContext) {
 				rc.ReportInternalError(fmt.Sprintf("Failed to hash the provided password: %s. Please try again.", err.Error()), w, r)
 				return
 			}
+
+			var succeedMsg string
+			passwordHashStr := string(passwordHash)
+			newUserStatus := model.NORMAL_USER
+			if rc.Config.DefaultNewUserStatus != 0 {
+				newUserStatus = rc.Config.DefaultNewUserStatus
+			}
 			
-			succeedMsg := "Registered. You can now log in."
-			if rc.Config.ManualApproval {
-				err = rc.DatabaseInterface.InsertRegistrationRequest(userName, email, string(passwordHash), strings.TrimSpace(r.Form.Get("reason")))
+			if rc.Config.ManualApproval || newUserStatus == model.NORMAL_USER_APPROVAL_NEEDED {
+				err = rc.DatabaseInterface.InsertRegistrationRequest(userName, email, passwordHashStr, strings.TrimSpace(r.Form.Get("reason")))
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to submit registration request: %s. Please contact the site owner.", err.Error()), w, r)
 					return
-				} else {
-					msg := "Your registration request has been submitted. "
-					if rc.Config.EmailConfirmationRequired {
-						msg += " You will receive the confirmation email after the administrators approved your request."
-					} else {
-						msg += " Your account would be usable after the administrators approved your request."
-					}
-					rc.ReportRedirect("/", 0, "Request Submitted", msg, w, r)
+				}
+				_, err = rc.DatabaseInterface.RegisterUser(userName, email, passwordHashStr, model.NORMAL_USER_APPROVAL_NEEDED)
+				if err != nil {
+					LogTemplateError(rc.LoadTemplate("registration").Execute(w, &templates.RegistrationTemplateModel{
+						Config: rc.Config,
+						LoginInfo: nil,
+						ErrorMsg: fmt.Sprintf("Error while registering: %s. Please try again.", err.Error()),
+					}))
 					return
 				}
+				msg := "Your registration request has been submitted. "
+				if rc.Config.EmailConfirmationRequired {
+					msg += " You will receive the confirmation email after the administrators approved your request."
+				} else {
+					msg += " Your account would be usable after the administrators approved your request."
+				}
+				rc.ReportRedirect("/", 0, "Request Submitted", msg, w, r)
+				return
 			}
 			
-			if rc.Config.EmailConfirmationRequired {
-				command := make([]string, 4)
+			if rc.Config.EmailConfirmationRequired || newUserStatus == model.NORMAL_USER_CONFIRM_NEEDED {
+				_, err = rc.DatabaseInterface.RegisterUser(userName, email, passwordHashStr, model.NORMAL_USER_CONFIRM_NEEDED)
+				if err != nil {
+					LogTemplateError(rc.LoadTemplate("registration").Execute(w, &templates.RegistrationTemplateModel{
+						Config: rc.Config,
+						LoginInfo: nil,
+						ErrorMsg: fmt.Sprintf("Error while registering: %s. Please try again.", err.Error()),
+					}))
+					return
+				}
+				command := make([]string, 3)
 				command[0] = receipt.CONFIRM_REGISTRATION
 				command[1] = userName
 				command[2] = email
-				command[3] = string(passwordHash)
 				rid, err := rc.ReceiptSystem.IssueReceipt(24*60, command)
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to issue receipt for registration: %s", err.Error()), w, r)
@@ -140,53 +162,53 @@ We wish you all the best in your future endeavours.
 					err = rc.Mailer.SendPlainTextMail(email, title, body)
 				}()
 				succeedMsg = "A confirmation email has been sent to the email address you have specified. Please proceed from there."
-			} else {
-				status := model.NORMAL_USER
-				if rc.Config.DefaultNewUserStatus != 0 {
-					status = rc.Config.DefaultNewUserStatus
-				}
-				_, err = rc.DatabaseInterface.RegisterUser(userName, email, string(passwordHash), status)
-				if err != nil {
-					LogTemplateError(rc.LoadTemplate("registration").Execute(w, &templates.RegistrationTemplateModel{
-						Config: rc.Config,
-						LoginInfo: nil,
-						ErrorMsg: fmt.Sprintf("Error while registering: %s. Please try again.", err.Error()),
-					}))
-					return
-				}
-				if rc.Config.UseNamespace {
-					if status == model.NORMAL_USER {
-						_, err = rc.DatabaseInterface.RegisterNamespace(userName, userName)
-						if err != nil {
-							rc.ReportInternalError(
-								fmt.Sprintf("Failed at registering namespace %s. Please contact site admin for this issue.", err.Error()),
-								w, r,
-							)
-							return
-						}
+				rc.ReportRedirect("/", 0, "Request Submitted", succeedMsg, w, r)
+				return
+			}
+			
+			_, err = rc.DatabaseInterface.RegisterUser(userName, email, passwordHashStr, newUserStatus)
+			if err != nil {
+				LogTemplateError(rc.LoadTemplate("registration").Execute(w, &templates.RegistrationTemplateModel{
+					Config: rc.Config,
+					LoginInfo: nil,
+					ErrorMsg: fmt.Sprintf("Error while registering: %s. Please try again.", err.Error()),
+				}))
+				return
+			}
+			if rc.Config.UseNamespace {
+				if newUserStatus == model.NORMAL_USER {
+					_, err = rc.DatabaseInterface.RegisterNamespace(userName, userName)
+					if err != nil {
+						rc.ReportInternalError(
+							fmt.Sprintf("Failed at registering namespace %s. Please contact site admin for this issue.", err.Error()),
+							w, r,
+						)
+						return
 					}
-					if len(rc.Config.DefaultNewUserNamespace) > 0 {
-						ns, err := rc.DatabaseInterface.GetNamespaceByName(rc.Config.DefaultNewUserNamespace)
-						if err != nil {
-							rc.ReportInternalError(
-								fmt.Sprintf("Failed at getting default new user namespace: %s. Please contact site admin for this issue.", err.Error()),
-								w, r,
-							)
-							return
-						}
-						ns.ACL.ACL[userName] = &model.ACLTuple{
-							AddMember: false,
-							DeleteMember: false,
-							EditMember: false,
-							EditInfo: false,
-							AddRepository: true,
-							PushToRepository: false,
-							ArchiveRepository: false,
-							DeleteRepository: false,
-							EditHooks: false,
-							EditWebHooks: false,
-						}
-						err = rc.DatabaseInterface.UpdateNamespaceInfo(ns.Name, ns)
+				}
+				if len(rc.Config.DefaultNewUserNamespace) > 0 {
+					ns, err := rc.DatabaseInterface.GetNamespaceByName(rc.Config.DefaultNewUserNamespace)
+					if err != nil {
+						rc.ReportInternalError(
+							fmt.Sprintf("Failed at getting default new user namespace: %s. Please contact site admin for this issue.", err.Error()),
+							w, r,
+						)
+						return
+					}
+					ns.ACL.ACL[userName] = &model.ACLTuple{
+						AddMember: false,
+						DeleteMember: false,
+						EditMember: false,
+						EditInfo: false,
+						AddRepository: true,
+						PushToRepository: false,
+						ArchiveRepository: false,
+						DeleteRepository: false,
+						EditHooks: false,
+						EditWebHooks: false,
+					}
+					err = rc.DatabaseInterface.UpdateNamespaceInfo(ns.Name, ns)
+					if err != nil {
 						rc.ReportInternalError(
 							fmt.Sprintf("Failed when updating namespace info: %s. Please contact site admin for this issue.", err.Error()),
 							w, r,
@@ -195,6 +217,7 @@ We wish you all the best in your future endeavours.
 					}
 				}
 			}
+			succeedMsg = "Registration complete. You can now login."
 			loginInfo, _ := GenerateLoginInfoModel(ctx, r)
 			LogTemplateError(rc.LoadTemplate("error").Execute(w, &templates.ErrorTemplateModel{
 				Config: rc.Config,

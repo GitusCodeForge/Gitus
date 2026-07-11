@@ -96,7 +96,7 @@ func (r *Receipt) Expired() bool {
 }
 
 const (
-	// confirm-registration,{username},{email},{passwordHash}
+	// confirm-registration,{username},{email}
 	CONFIRM_REGISTRATION = "confirm-registration"
 	// reset-password,{username}
 	RESET_PASSWORD = "reset-password"

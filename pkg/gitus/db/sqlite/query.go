@@ -3140,10 +3140,10 @@ WHERE rowid = ?
 	err = r.Scan(&username, &email, &passwordHash)
 	if err != nil { return err }
 	if dbif.config.EmailConfirmationRequired {
-		_, err = dbif.RegisterUser(username, email, passwordHash, model.NORMAL_USER_CONFIRM_NEEDED)
+		err = dbif.UpdateUserStatus(username, model.NORMAL_USER_CONFIRM_NEEDED)
 		if err != nil { return err }
 	} else {
-		_, err = dbif.RegisterUser(username, email, passwordHash, model.NORMAL_USER)
+		err = dbif.UpdateUserStatus(username, model.NORMAL_USER)
 		if err != nil { return err }
 	}
 	tx, err := dbif.connection.Begin()
