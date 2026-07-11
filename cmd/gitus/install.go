@@ -45,11 +45,11 @@ func whereIs(cmdname string) (string, error) {
 func createOtherOwnedFile(p string, uids string, gids string) error {
 	uid, _ := strconv.Atoi(uids)
 	gid, _ := strconv.Atoi(gids)
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		if os.IsExist(err) {
 			os.Remove(p)
-			f, err = os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			f, err = os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 			if err != nil { return err }
 		} else {
 			return err

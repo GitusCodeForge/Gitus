@@ -101,13 +101,13 @@ func ToContext(cfg *gitus.GitusConfig) (*SSHKeyManagingContext, error) {
 }
 
 func (ctx *SSHKeyManagingContext) Sync() error {
-	f, err := os.OpenFile(ctx.keyFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(ctx.keyFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil { return err }
 	defer f.Close()
 	quotedConfig := shellparse.Quote(ctx.configFilePath)
 	for userName, pack := range ctx.Managed {
 		for keyName, key := range pack {
-			_, err := fmt.Fprintf(f, "command=\"gitus -config \\\"%s\\\" ssh %s %s\" %s", quotedConfig, userName, keyName, key)
+			_, err := fmt.Fprintf(f, "command=\"gitus -config \\\"%s\\\" ssh %s %s\" %s", quotedConfig, userName, shellparse.Quote(keyName), key)
 			if err != nil { return err }
 			_, err = f.WriteString("\n")
 			if err != nil { return err }

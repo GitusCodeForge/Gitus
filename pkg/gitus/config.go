@@ -386,7 +386,7 @@ func CreateConfigFile(p string) error {
 	f, err := os.OpenFile(
 		p,
 		os.O_CREATE|os.O_EXCL|os.O_WRONLY|os.O_TRUNC,
-		0644,
+		0600,
 	)
 	if err != nil { return err }
 	defer f.Close()
@@ -575,7 +575,7 @@ func (cfg *GitusConfig) Sync() error {
 	if err != nil && !os.IsNotExist(err) { return err }
 	var f *os.File
 	if os.IsNotExist(err) {
-		f, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		f, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	} else {
 		f, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, st.Mode())
 	}

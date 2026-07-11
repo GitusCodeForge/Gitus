@@ -1107,7 +1107,7 @@ exit 0
 				// setting up authorized_keys file
 				authorizedKeysPath := path.Join(ctx.GitUserHome, ".ssh", "authorized_keys")
 				keyEntry := fmt.Sprintf("command=\"gitus -config %s ssh admin master_key\" %s", shellparse.Quote(configFullPath), ctx.RootSSHKey)
-				keyFile, err := os.OpenFile(authorizedKeysPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+				keyFile, err := os.OpenFile(authorizedKeysPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 				if err != nil {
 					fmt.Fprintf(w, "<p>Failed to create authorized_keys file: %s</p>", err)
 					return false
