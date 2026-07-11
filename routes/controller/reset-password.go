@@ -214,6 +214,7 @@ If this isn't you, you can simply ignore this message.`,
 				return
 			}
 			rc.ReceiptSystem.CancelReceipt(rid)
+			rc.SessionInterface.RevokeAllSession(targetUserName)
 			rc.ReportRedirect("/login", 3, "Password Updated", "Your password has been updated.", w, r)
 		},
 	))

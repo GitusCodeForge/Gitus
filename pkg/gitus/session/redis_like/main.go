@@ -142,6 +142,32 @@ func (ssif *GitusRedisLikeSessionStore) RevokeSession(username string, target st
 	return nil
 }
 
+func (ssif *GitusRedisLikeSessionStore) RevokeAllSession(username string) error {
+	// NOTE (for people who're unfamiliar with redis): *SCAN commands (as
+	// told by Redis's documentations) does not guarantee the number of
+	// values and you "should not consider the iteration complete as long
+	// as the returned cursor is not zero".
+	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, username)
+	lastCursor := uint64(0)
+	for {
+		cmd := ssif.connection.HScan(context.TODO(), key, uint64(lastCursor), "*", 0)
+		keys, cursor, err := cmd.Result()
+		if err != nil { return err }
+		i := 0
+		lenk := len(keys)
+		for i < lenk {
+			sk := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, keys[i])
+			cmd2 := ssif.connection.Del(context.TODO(), sk)
+			if cmd2.Err() != nil { return cmd2.Err() }
+		}
+		if cursor == 0 { break}
+		lastCursor = cursor
+	}
+	cmd := ssif.connection.Del(context.TODO(), key)
+	if cmd.Err() != nil { return cmd.Err() }
+	return nil
+}
+
 func (ssif *GitusRedisLikeSessionStore) VerifySessionExist(name string, target string) (bool, error) {
 	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	cmd := ssif.connection.HGet(context.TODO(), key, target)
@@ -170,4 +196,22 @@ func (ssif *GitusRedisLikeSessionStore) VerifySessionFull(name string, session_i
 	if subtle.ConstantTimeCompare([]byte(r2), []byte(csrf)) == 0 { return false, nil }
 	return true, nil
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

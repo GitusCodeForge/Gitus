@@ -111,6 +111,7 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 					return
 				}
 				rc.DatabaseInterface.UpdateUserPassword(un, string(newpwh))
+				rc.SessionInterface.RevokeAllSession(un)
 			}
 			rc.ReportRedirect(fmt.Sprintf("/admin/user/%s/edit", un), 3, "Updated", "Your setting for this user has been updated.", w, r)
 		},

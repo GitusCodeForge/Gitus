@@ -20,6 +20,7 @@ type GitusSessionStore interface {
 	RetrieveSession(username string) ([]*GitusSession, error)
 	RetrieveSessionByKey(username string, session string) (*GitusSession, error)
 	RevokeSession(username string, target string) error
+	RevokeAllSession(username string) error
 	VerifySessionExist(username string, target string) (bool, error)
 	VerifySessionFull(username string, session_id string, csrf string) (bool, error)
 }

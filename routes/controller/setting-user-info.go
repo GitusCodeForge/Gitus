@@ -144,6 +144,7 @@ func bindSettingController(ctx *RouterContext) {
 				}
 				ctx.DatabaseInterface.UpdateUserPassword(targetUsername, string(newpwh))
 			}
+			ctx.SessionInterface.RevokeAllSession(targetUsername)
 			LogTemplateError(ctx.LoadTemplate("setting/user-info").Execute(w, templates.SettingUserInfoTemplateModel{
 				User: user,
 				Config: ctx.Config,

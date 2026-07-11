@@ -171,6 +171,24 @@ func (ssif *GitusMemcachedSessionStore) RevokeSession(username string, target st
 	return nil
 }
 
+func (ssif *GitusMemcachedSessionStore) RevokeAllSession(username string) error {
+	// NOTE: we don't have transaction semantics here, which could be
+	// a problem down the line.
+	// TODO: attempt to fix this.
+	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, username)
+	i, err := ssif.connection.Get(key)
+	if err == memcache.ErrCacheMiss { return nil }
+	if err != nil { return err }
+	for k := range strings.SplitSeq(string(i.Value), ",") {
+		kk := fmt.Sprintf("%s:session:%s:%s", key, username, k)
+		err := ssif.connection.Delete(kk)
+		if err != nil && err != memcache.ErrCacheMiss { return err }
+	}
+	err = ssif.connection.Delete(key)
+	if err != nil && err != memcache.ErrCacheMiss { return err }
+	return nil
+}
+
 
 func (ssif *GitusMemcachedSessionStore) VerifySessionExist(name string, target string) (bool, error) {
 	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, target)
@@ -193,4 +211,44 @@ func (ssif *GitusMemcachedSessionStore) VerifySessionFull(username string, sessi
 	if subtle.ConstantTimeCompare([]byte(ss.CSRFToken), []byte(csrf)) == 0 { return false, nil }
 	return true, nil
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

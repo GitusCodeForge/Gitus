@@ -122,6 +122,18 @@ func (ss *GitusSqliteSessionStore) RevokeSession(username string, target string)
 	return nil
 }
 
+func (ss *GitusSqliteSessionStore) RevokeAllSession(username string) error {
+	tx, err := ss.connection.Begin()
+	if err != nil { return err }
+	stmt, err := tx.Prepare(fmt.Sprintf("DELETE FROM %ssession WHERE user_name = ?", ss.config.Session.TablePrefix))
+	if err != nil { tx.Rollback(); return err }
+	_, err = stmt.Exec(username)
+	if err != nil { tx.Rollback(); return err }
+	err = tx.Commit();
+	if err != nil { tx.Rollback(); return err }
+	return nil
+}
+
 func (ss *GitusSqliteSessionStore) VerifySessionExist(name string, target string) (bool, error) {
 	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT 1 FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix))
 	if err != nil { return false, err }

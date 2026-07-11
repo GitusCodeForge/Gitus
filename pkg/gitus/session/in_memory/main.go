@@ -132,6 +132,17 @@ func (ssif *GitusInMemorySessionStore) RevokeSession(username string, target str
 	return nil
 }
 
+func (ssif *GitusInMemorySessionStore) RevokeAllSession(username string) error {
+	groupKey := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, username)
+	i, _ := ssif.cache.Get(groupKey)
+	for k := range strings.SplitSeq(string(i[1:]), "}{") {
+		kk := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, k)
+		ssif.cache.Delete(kk)
+	}
+	ssif.cache.Delete(groupKey)
+	return nil
+}
+
 func (ssif *GitusInMemorySessionStore) VerifySessionExist(name string, target string) (bool, error) {
 	key1 := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	s, ok := ssif.cache.Get(key1)
