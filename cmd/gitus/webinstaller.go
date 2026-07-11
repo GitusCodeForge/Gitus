@@ -795,7 +795,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 				}
 			}
 			userPassword := mkpass()
-			r, err := bcrypt.GenerateFromPassword([]byte(userPassword), bcrypt.DefaultCost)
+			r, err := bcrypt.GenerateFromPassword([]byte(userPassword), ctx.Config.PasswordHashStrength)
 			if err != nil {
 				fmt.Fprintf(w, "<p>Failed to generate password: %s</p>", err.Error())
 				return false

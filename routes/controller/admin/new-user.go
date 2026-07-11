@@ -39,7 +39,7 @@ func bindAdminNewUserController(ctx *RouterContext) {
 			}
 			email := r.Form.Get("email")
 			password := r.Form.Get("password")
-			passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), ctx.Config.PasswordHashStrength)
 			if err != nil {
 				LogTemplateError(rc.LoadTemplate("admin/new-user").Execute(w, templates.AdminConfigTemplateModel{
 					Config: rc.Config,
