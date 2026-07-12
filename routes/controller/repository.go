@@ -161,7 +161,6 @@ func bindRepositoryController(ctx *RouterContext) {
 					obj, err = rr.ReadObject(item.Hash)
 					if err != nil { continue }
 					if !gitlib.IsBlobObject(obj) { continue }
-					obj, err = rr.ReadObject(item.Hash)
 					readmeType = path.Ext(item.Name)
 					readmeString = string(obj.(*gitlib.BlobObject).Data)
 				}

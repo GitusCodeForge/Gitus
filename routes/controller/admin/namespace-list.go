@@ -18,7 +18,7 @@ func bindAdminNamespaceListController(ctx *RouterContext) {
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			i, err := rc.DatabaseInterface.CountAllUser()
+			i, err := rc.DatabaseInterface.CountAllNamespace()
 			p := r.URL.Query().Get("p")
 			if len(p) <= 0 { p = "1" }
 			s := r.URL.Query().Get("s")

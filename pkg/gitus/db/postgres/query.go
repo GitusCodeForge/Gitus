@@ -1557,7 +1557,7 @@ WHERE repo_namespace = $1 AND repo_name = $2
 	var t time.Time
 	var author, title, content string
 	for stmt.Next() {
-		err = stmt.Scan(&absid, &ns, &name, &id, &t, &author, &title, &content, &status)
+		err = stmt.Scan(&absid, &id, &t, &author, &title, &content, &status)
 		if err != nil { return nil, err }
 		res = append(res, &model.Issue{
 			IssueAbsId: absid,
@@ -1615,7 +1615,7 @@ WHERE repo_namespace = $1 AND repo_name = $2
 	err := stmt.Scan(&res)
 	if err == pgx.ErrNoRows { return 0, db.ErrEntityNotFound }
 	if err != nil { return 0, err }
-	return 0, nil
+	return res, nil
 }
 
 // filterType: 0 - all, 1 - open, 2 - closed, 3 - solved, 4 - discarded
@@ -1722,7 +1722,7 @@ SELECT COUNT(*) FROM %s_issue WHERE repo_namespace = $1 AND repo_name = $2
 	if err != nil { return 0, err }
 	defer tx.Rollback(ctx2)
 	t := time.Now()
-	_, err = dbif.pool.Exec(ctx2, fmt.Sprintf(`
+	_, err = tx.Exec(ctx2, fmt.Sprintf(`
 INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `, pfx), ns, name, newid, t, author, title, content, model.ISSUE_OPENED, 0)
@@ -2527,7 +2527,7 @@ SELECT pull_request_absid, author_username, pull_request_id, title, receiver_bra
 FROM %s_pull_request
 WHERE receiver_namespace = $1 AND receiver_name = $2 %s AND title LIKE $3 ESCAPE $4
 ORDER BY pull_request_timestamp DESC LIMIT $5 OFFSET $6
-`, pfx, statusClause), namespace, name, pat, "\\", pageSize, pageNum*pageNum)
+`, pfx, statusClause), namespace, name, pat, "\\", pageSize, pageNum*pageSize)
 		if err != nil { return nil, err }
 	} else {
 		stmt, err = dbif.pool.Query(ctx, fmt.Sprintf(`
@@ -2800,7 +2800,7 @@ ORDER BY timestamp DESC LIMIT $2 OFFSET $3
 	var email, passwordHash, reason string
 	var timestamp time.Time
 	for stmt.Next() {
-		err = stmt.Scan(&absid, &username, &email, &passwordHash, &reason, &timestamp)
+		err = stmt.Scan(&absid, &email, &passwordHash, &reason, &timestamp)
 		if err != nil { return nil, err }
 		res = append(res, &model.RegistrationRequest{
 			AbsId: absid,
