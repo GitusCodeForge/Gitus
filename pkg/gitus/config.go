@@ -169,6 +169,9 @@ type GitusConfig struct {
 	// a configured ssh public key.
 	NoInteractiveShellMessage string `json:"noSshLoginMessage"`
 
+	// max session lifetime (seconds)
+	MaxSessionLifetime int `json:"maxSessionLifetime"`
+
 	// ====================================================================
 	// configs below this line are advanced configs.
 	// these configs are not meant to be exposed to the UI unless the admins
@@ -465,6 +468,7 @@ func CreateConfigFile(p string) error {
 			ForegroundColor: "black",
 			BackgroundColor: "white",
 		},
+		MaxSessionLifetime: 7 * 24 * 60 * 60,
 		NoInteractiveShellMessage: "Direct shell access is forbidden on this host.",
 		JWTSecret: "",
 		PasswordHashStrength: 16,

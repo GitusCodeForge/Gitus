@@ -439,6 +439,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			return
 		}
 		ctx.Config.MaxRequestInSecond = maxr
+		ctx.Config.MaxSessionLifetime = 7 * 24 * 60 * 60
 		ctx.Config.JWTSecret = r.Form.Get("jwt-secret")
 		if ctx.Config.JWTSecret == "" {
 			ctx.Config.JWTSecret = auxfuncs.CryptoGenSym(16)

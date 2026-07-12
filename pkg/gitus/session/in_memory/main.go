@@ -61,11 +61,13 @@ func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session_id s
 	ssif.cache.Register(key, insertSet(i, session_id), 24*time.Hour)
 	key2 := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, session_id)
 	timestamp := time.Now().Unix()
+	tExp := timestamp + int64(ssif.config.MaxSessionLifetime)
 	csrf := auxfuncs.CryptoGenSym(64)
 	s := &session.GitusSession{
 		Username: name,
 		Id: session_id,
 		Timestamp: timestamp,
+		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
 	}
 	sstr, err := json.Marshal(s)
@@ -97,8 +99,13 @@ func (ssif *GitusInMemorySessionStore) RetrieveSession(name string) ([]*session.
 		err := json.Unmarshal([]byte(v), &r)
 		if err != nil { return nil, err }
 		if v != "" {
-			res = append(res, r)
-			newset = fmt.Sprintf("%s{%s}", newset, k)
+			if time.Now().Unix() >= r.ExpireTimestamp {
+				ssif.cache.Delete(kk)
+				continue
+			} else {
+				res = append(res, r)
+				newset = fmt.Sprintf("%s{%s}", newset, k)
+			}
 		}
 	}
 	if newset == "" {
@@ -115,6 +122,10 @@ func (ssif *GitusInMemorySessionStore) RetrieveSessionByKey(username string, ses
 	var r *session.GitusSession
 	err := json.Unmarshal([]byte(i), r)
 	if err != nil { return nil, err }
+	if time.Now().Unix() >= r.ExpireTimestamp {
+		ssif.cache.Delete(key)
+		return nil, nil
+	}
 	return r, nil
 }
 
@@ -154,7 +165,7 @@ func (ssif *GitusInMemorySessionStore) VerifySessionExist(name string, target st
 	var r *session.GitusSession
 	err := json.Unmarshal([]byte(i), &r)
 	if err != nil { return false, err }
-	if time.Now().Unix() > r.Timestamp {
+	if time.Now().Unix() > r.ExpireTimestamp {
 		ssif.cache.Delete(key)
 		return false, nil
 	}
@@ -172,7 +183,7 @@ func (ssif *GitusInMemorySessionStore) VerifySessionFull(name string, target str
 	var r *session.GitusSession
 	err := json.Unmarshal([]byte(i), &r)
 	if err != nil { return false, err }
-	if time.Now().Unix() > r.Timestamp {
+	if time.Now().Unix() > r.ExpireTimestamp {
 		ssif.cache.Delete(key)
 		return false, nil
 	}

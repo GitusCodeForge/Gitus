@@ -9,6 +9,7 @@ type GitusSession struct {
 	Username string `json:"username"`
 	Id string `json:"id"`
 	Timestamp int64 `json:"timestamp"`
+	ExpireTimestamp int64 `json:"expireTimestamp"`
 	CSRFToken string `json:"csrf_token"`
 }
 

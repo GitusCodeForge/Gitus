@@ -89,10 +89,13 @@ func (ssif *GitusMemcachedSessionStore) RegisterSession(name string, session_id 
 	
 	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, session_id)
 	csrf := auxfuncs.CryptoGenSym(64)
+	t := time.Now().Unix()
+	tExp := t + int64(ssif.config.MaxSessionLifetime)
 	ss := &session.GitusSession{
 		Username: name,
 		Id: session_id,
-		Timestamp: time.Now().UnixMilli(),
+		Timestamp: t,
+		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
 	}
 	ssstr, err := json.Marshal(ss)
@@ -121,6 +124,7 @@ func (ssif *GitusMemcachedSessionStore) RegisterSession(name string, session_id 
 func (ssif *GitusMemcachedSessionStore) RetrieveSession(name string) ([]*session.GitusSession, error) {
 	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	i, err := ssif.connection.Get(key)
+	iSet := i.Value
 	res := make([]*session.GitusSession, 0)
 	if err == memcache.ErrCacheMiss { return res, nil }
 	if err != nil { return nil, err }
@@ -136,9 +140,19 @@ func (ssif *GitusMemcachedSessionStore) RetrieveSession(name string) ([]*session
 		var ss *session.GitusSession
 		err = json.Unmarshal(val, ss)
 		if err != nil { return nil, err }
+		if time.Now().Unix() >=  ss.ExpireTimestamp {
+			iSet = removeFromSet(iSet, k)
+			ssif.connection.Delete(kk)
+			continue
+		}
 		ss.Username = name
 		if ss.Id != "" { res = append(res, ss) }
 	}
+	// NOTE: this (together w/ the removeFromSet call) is meant to be
+	// an automated bookkeeping action...
+	// TODO: check if this is actually safe
+	i.Value = iSet
+	ssif.connection.Set(i)
 	return res, nil
 }
 
@@ -151,6 +165,10 @@ func (ssif *GitusMemcachedSessionStore) RetrieveSessionByKey(username string, se
 	var ss *session.GitusSession
 	err = json.Unmarshal(i.Value, ss)
 	if err != nil { return nil, err }
+	if time.Now().Unix() >= ss.ExpireTimestamp {
+		ssif.connection.Delete(key)
+		return nil, nil
+	}
 	return ss, nil
 }
 
@@ -196,6 +214,13 @@ func (ssif *GitusMemcachedSessionStore) VerifySessionExist(name string, target s
 	if err == memcache.ErrCacheMiss { return false, nil }
 	if err != nil { return false, err }
 	if len(i.Value) <= 0 { return false, nil }
+	var ss *session.GitusSession
+	err = json.Unmarshal(i.Value, ss)
+	if err != nil { return false, err }
+	if time.Now().Unix() >= ss.ExpireTimestamp {
+		ssif.connection.Delete(key)
+		return false, nil
+	}
 	return true, nil
 }
 
@@ -208,6 +233,10 @@ func (ssif *GitusMemcachedSessionStore) VerifySessionFull(username string, sessi
 	var ss *session.GitusSession
 	err = json.Unmarshal(i.Value, ss)
 	if err != nil { return false, err }
+	if time.Now().Unix() >= ss.ExpireTimestamp {
+		ssif.connection.Delete(key)
+		return false, nil
+	}
 	if subtle.ConstantTimeCompare([]byte(ss.CSRFToken), []byte(csrf)) == 0 { return false, nil }
 	return true, nil
 }

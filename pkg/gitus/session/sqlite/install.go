@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS %ssession (
     user_name TEXT,
     value TEXT,
     reg_timestamp INTEGER,
+    expire_timestamp INTEGER,
     csrf TEXT
 )`, ss.config.Session.TablePrefix))
 	if err != nil { return err }
