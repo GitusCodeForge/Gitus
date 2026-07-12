@@ -78,6 +78,10 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 					return
 				}
 			case "password":
+				if !rc.LoginInfo.IsSuperAdmin && user.Status == model.SUPER_ADMIN {
+					rc.ReportRedirect("/admin/user-list", 0, "Error", "Not enough permission.", w, r)
+					return
+				}
 				// we will have confirm check at the frontend; this is
 				// here for the people who disabled javascript.
 				if r.Form.Get("new-password") != r.Form.Get("confirm-new-password") {
@@ -88,19 +92,6 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 						ErrorMsg: struct{Type string; Message string}{
 							Type: r.Form.Get("type"),
 							Message: "New password mismatch",
-						},
-					}))
-					return
-				}
-				err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(r.Form.Get("old-password")))
-				if err == bcrypt.ErrMismatchedHashAndPassword {
-					LogTemplateError(rc.LoadTemplate("setting-user-info").Execute(w, templates.AdminUserEditTemplateModel{
-						User: user,
-						Config: rc.Config,
-						LoginInfo: rc.LoginInfo,
-						ErrorMsg: struct{Type string; Message string}{
-							Type: r.Form.Get("type"),
-							Message: "Wrong old password",
 						},
 					}))
 					return
