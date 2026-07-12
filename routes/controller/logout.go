@@ -58,7 +58,7 @@ func bindLogoutController(ctx *RouterContext) {
 				MaxAge: -1,
 				HttpOnly: true,
 				Secure: true,
-				SameSite: http.SameSiteDefaultMode,
+				SameSite: http.SameSiteLaxMode,
 			}).String())
 			w.Header().Add("Set-Cookie", (&http.Cookie{
 				Name: COOKIE_KEY_USERNAME,
@@ -67,7 +67,7 @@ func bindLogoutController(ctx *RouterContext) {
 				MaxAge: -1,
 				HttpOnly: true,
 				Secure: true,
-				SameSite: http.SameSiteDefaultMode,
+				SameSite: http.SameSiteLaxMode,
 			}).String())
 			FoundAt(w, "/")
 		},

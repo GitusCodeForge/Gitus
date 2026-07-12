@@ -124,7 +124,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 					MaxAge: 600,
 					HttpOnly: true,
 					Secure: true,
-					SameSite: http.SameSiteDefaultMode,
+					SameSite: http.SameSiteLaxMode,
 				}).String())
 				w.Header().Add("Set-Cookie", (&http.Cookie{
 					Name: COOKIE_KEY_TEMP_KEY,
@@ -133,7 +133,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 					MaxAge: 600,
 					HttpOnly: true,
 					Secure: true,
-					SameSite: http.SameSiteDefaultMode,
+					SameSite: http.SameSiteLaxMode,
 				}).String())
 				FoundAt(w, "/login/confirm")
 				return
@@ -153,7 +153,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				MaxAge: 3600,
 				HttpOnly: true,
 				Secure: true,
-				SameSite: http.SameSiteDefaultMode,
+				SameSite: http.SameSiteLaxMode,
 			}).String())
 			w.Header().Add("Set-Cookie", (&http.Cookie{
 				Name: "username",
@@ -162,7 +162,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				MaxAge: 3600,
 				HttpOnly: true,
 				Secure: true,
-				SameSite: http.SameSiteDefaultMode,
+				SameSite: http.SameSiteLaxMode,
 			}).String())
 			callbackURL := strings.TrimSpace(r.Form.Get("login-callback"))
 			if callbackURL == "" { callbackURL = "/" }
@@ -243,7 +243,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				MaxAge: 3600,
 				HttpOnly: true,
 				Secure: true,
-				SameSite: http.SameSiteDefaultMode,
+				SameSite: http.SameSiteLaxMode,
 			}).String())
 			w.Header().Add("Set-Cookie", (&http.Cookie{
 				Name: "username",
@@ -252,7 +252,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				MaxAge: 3600,
 				HttpOnly: true,
 				Secure: true,
-				SameSite: http.SameSiteDefaultMode,
+				SameSite: http.SameSiteLaxMode,
 			}).String())
 			FoundAt(w, "/")
 		},
