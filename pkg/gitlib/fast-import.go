@@ -2,11 +2,24 @@ package gitlib
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var REGEX_VALID_BRANCH_NAME = regexp.MustCompile("^[A-Za-z0-9._/-]+$")
+func validBranchName(s string) bool {
+	return REGEX_VALID_BRANCH_NAME.MatchString(s)
+}
+
+var REGEX_VALID_FILE_PATH = regexp.MustCompile("^[A-Za-z0-9._/-]+$")
+func validFilePath(s string) bool {
+	return REGEX_VALID_FILE_PATH.MatchString(s)
+}
 
 func (gr *LocalGitRepository) AddFileToRepoString(
 	branchName string, filePath string,
@@ -15,6 +28,24 @@ func (gr *LocalGitRepository) AddFileToRepoString(
 	commitMessage string,
 	content string,
 ) (string, error) {
+	if !validBranchName(branchName) {
+		return "", errors.New("Invalid branch name")
+	}
+	if strings.Contains(filePath, "\n") || !filepath.IsLocal(filepath.Clean(filePath)) {
+		return "", errors.New("Invalid file path")
+	}
+	if strings.Contains(authorName, "\n") {
+		return "", errors.New("Invalid author name")
+	}
+	if strings.Contains(authorEmail, "\n") {
+		return "", errors.New("Invalid author email")
+	}
+	if strings.Contains(committerName, "\n") {
+		return "", errors.New("Invalid committer name")
+	}
+	if strings.Contains(committerEmail, "\n") {
+		return "", errors.New("Invalid committer email")
+	}
 	err := gr.SyncBranch(branchName)
 	if err != nil { return "", err }
 	_, ok := gr.BranchIndex[branchName]
@@ -80,6 +111,24 @@ func (gr *LocalGitRepository) AddFileToRepoReader(
 	commitMessage string,
 	content io.Reader, contentSize int64,
 ) (string, error) {
+	if !validBranchName(branchName) {
+		return "", errors.New("Invalid branch name")
+	}
+	if strings.Contains(treePath, "\n") || !filepath.IsLocal(filepath.Clean(treePath)) {
+		return "", errors.New("Invalid file path")
+	}
+	if strings.Contains(authorName, "\n") {
+		return "", errors.New("Invalid author name")
+	}
+	if strings.Contains(authorEmail, "\n") {
+		return "", errors.New("Invalid author email")
+	}
+	if strings.Contains(committerName, "\n") {
+		return "", errors.New("Invalid committer name")
+	}
+	if strings.Contains(committerEmail, "\n") {
+		return "", errors.New("Invalid committer email")
+	}
 	err := gr.SyncBranch(branchName)
 	if err != nil { return "", err }
 	_, ok := gr.BranchIndex[branchName]
@@ -149,6 +198,26 @@ func (gr *LocalGitRepository) AddMultipleFileToRepoString(
 	commitMessage string,
 	content map[string]string,
 ) (string, error){
+	if !validBranchName(branchName) {
+		return "", errors.New("Invalid branch name")
+	}
+	for k, _ := range content {
+		if strings.Contains(k, "\n") || !filepath.IsLocal(filepath.Clean(k)) {
+			return "", errors.New("Invalid file path")
+		}
+	}
+	if strings.Contains(authorName, "\n") {
+		return "", errors.New("Invalid author name")
+	}
+	if strings.Contains(authorEmail, "\n") {
+		return "", errors.New("Invalid author email")
+	}
+	if strings.Contains(committerName, "\n") {
+		return "", errors.New("Invalid committer name")
+	}
+	if strings.Contains(committerEmail, "\n") {
+		return "", errors.New("Invalid committer email")
+	}
 	err := gr.SyncBranch(branchName)
 	if err != nil { return "", err }
 	_, ok := gr.BranchIndex[branchName]
