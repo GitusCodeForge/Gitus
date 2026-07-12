@@ -182,9 +182,75 @@ func (gr LocalGitRepository) Merge(remote string, remoteBranch string, localBran
 	cmd4 := exec.Command("git", "update-ref", localBranchFullName, commitId)
 	cmd4.Dir = gr.GitDirectoryPath
 	cmd4.Stderr = buf
-	err = cmd3.Run()
+	err = cmd4.Run()
 	if err != nil { return fmt.Errorf("Failed while update-ref: %s; %s", err.Error(), buf.String()) }
 	return nil
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
