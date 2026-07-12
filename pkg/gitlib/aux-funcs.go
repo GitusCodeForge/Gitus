@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"regexp"
 )
 
 func intToHex16(i int) string {
@@ -128,5 +129,18 @@ func hexStringToBytes(s string) []byte {
 		i += 2
 	}
 	return res
+}
+
+var REGEX_HEX_STRING = regexp.MustCompile("^[0-9a-fA-F]+$")
+func IsValidSHA1(s string) bool {
+	return REGEX_HEX_STRING.MatchString(s) && len(s) == 40
+}
+
+func IsValidSHA256(s string) bool {
+	return REGEX_HEX_STRING.MatchString(s) && len(s) == 64
+}
+
+func IsValidId(s string) bool {
+	return IsValidSHA1(s) || IsValidSHA256(s)
 }
 

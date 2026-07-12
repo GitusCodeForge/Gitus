@@ -141,7 +141,24 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 		printGitError(fmt.Sprintf("Failed to get repository: %s", err))
 		return
 	}
-	cmd := exec.Command("git", "rev-list", newRev, "^"+oldRev)
+	// NOTE: it's okay to check newRev and oldRev are object ids here.
+	// currently (2026.7.12) the following flow is used:
+	//     + repo set up webhook; a git update hook is prepared.
+	//     + when remote receives things via git-receive-pack, it
+	//       calls the update hook with refname, old id and new id
+	//       in that order. see https://git-scm.com/docs/git-receive-pack#_update_hook
+	//     + the prepared update hook calls the `github webhook` command
+	//     + that command calls this function passing in the arguments
+	// so newRev and oldRev must be object ids.
+	if !gitlib.IsValidId(oldRev) {
+		printGitError("Invalid old revision id")
+		return
+	}
+	if !gitlib.IsValidId(newRev) {
+		printGitError("Invalid new revision id")
+		return
+	}
+	cmd := exec.Command("git", "rev-list", newRev, "^"+oldRev, "--")
 	cmd.Dir = repo.Repository.(*gitlib.LocalGitRepository).GitDirectoryPath
 	stdoutBuf := new(bytes.Buffer)
 	cmd.Stdout = stdoutBuf
