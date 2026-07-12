@@ -3,3 +3,6 @@
 templates/templates.go
 templates/models.go
 gitus-config*.json
+*.db
+aegis
+gitus
