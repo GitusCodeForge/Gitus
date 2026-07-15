@@ -247,7 +247,14 @@ func main() {
 	templates.UnpackStaticFileTo(staticPrefix)
 	var fs = http.FileServer(http.Dir(staticPrefix))
 	http.Handle("GET /favicon.ico", routes.WithLogHandler(fs))
-	http.Handle("GET /static/", http.StripPrefix("/static/", routes.WithLogHandler(fs)))
+	http.Handle("GET /static/", http.StripPrefix("/static/",
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf(" %s %s %s\n", r.RemoteAddr, r.Method, r.URL.Path)
+			// TODO: add this to config as an advanced config option.
+			w.Header().Add("Cache-Control", "public, max-age=3600")
+			fs.ServeHTTP(w, r)
+		}),
+	))
 	server := &http.Server{
 		Addr: fmt.Sprintf("%s:%d", config.BindAddress, config.BindPort),
 		ReadTimeout: 30 * time.Second,
