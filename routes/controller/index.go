@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"html"
+	"log"
 	"net/http"
 	"strings"
 
@@ -44,7 +45,14 @@ func bindIndexController(ctx *RouterContext) {
 				}))
 				return
 			} else if rc.Config.FrontPage.Type == "all/namespace" {
-				FoundAt(w, "/all/namespace")
+				if rc.Config.UseNamespace {
+					FoundAt(w, "/all/namespace")
+				} else {
+					log.Println("Inconsistency: all/namespace front page but instance does not support namespaces. config changed to all/repository.")
+					rc.Config.FrontPage.Type = "all/repository"
+					rc.Config.Sync()
+					FoundAt(w, "/all/repo")
+				}
 			} else if rc.Config.FrontPage.Type == "all/repository" {
 				FoundAt(w, "/all/repo")
 			} else if rc.Config.FrontPage.Type == "namespace" {
