@@ -43,7 +43,7 @@ func bindHttpCloneController(ctx *RouterContext) {
 				return
 			}
 			if ctx.Config.GlobalVisibility != gitus.GLOBAL_VISIBILITY_PUBLIC {
-				ctx.ReportForbidden("", w, r)
+				ctx.ReportForbidden("Service currently unavailable in this form", w, r)
 				return
 			}
 			rfn := r.PathValue("repoName")
@@ -67,10 +67,15 @@ func bindHttpCloneController(ctx *RouterContext) {
 			isNamespacePublic := ns.Status == model.NAMESPACE_NORMAL_PUBLIC
 			isRepoPublic := repo.Status == model.REPO_NORMAL_PUBLIC
 			isRepoArchived := repo.Status == model.REPO_ARCHIVED
-			if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
-				w.WriteHeader(404)
-				fmt.Fprint(w, "404 Not Found")
-				return
+			if !ctx.Config.IsInPlainMode() {
+				// NOTE: plain mode ns/repo visibility is not controlled via this route
+				// but by the "ignored namespace" / "ignored repository" config which
+				// should've already been accounted for by all the .Resolve* methods.
+				if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
+					w.WriteHeader(404)
+					fmt.Fprint(w, "404 Not Found")
+					return
+				}
 			}
 			// see docs/http-clone.org.
 			if (r.URL.Query().Has("service") && allowV2) {
@@ -171,10 +176,8 @@ func bindHttpCloneController(ctx *RouterContext) {
 			protocol := r.Header.Get("Git-Protocol")
 			if protocol == "" { protocol = "version=2" }
 			cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_PROTOCOL=%s", protocol))
-			buf := new(bytes.Buffer)
-			cmd.Stdout = buf
+			cmd.Stdout = w
 			cmd.Run()
-			io.Copy(w, buf)
 		}))
 	http.HandleFunc("GET /repo/{repoName}/HEAD", UseMiddleware(
 		[]Middleware{ Logged }, ctx,
@@ -246,10 +249,15 @@ func bindHttpCloneController(ctx *RouterContext) {
 			isNamespacePublic := ns.Status == model.NAMESPACE_NORMAL_PUBLIC
 			isRepoPublic := repo.Status == model.REPO_NORMAL_PUBLIC
 			isRepoArchived := repo.Status == model.REPO_ARCHIVED
-			if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
-				w.WriteHeader(404)
-				w.Write([]byte("404 Not Found"))
-				return
+			if !ctx.Config.IsInPlainMode() {
+				// NOTE: plain mode ns/repo visibility is not controlled via this route
+				// but by the "ignored namespace" / "ignored repository" config which
+				// should've already been accounted for by all the .Resolve* methods.
+				if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
+					w.WriteHeader(404)
+					fmt.Fprint(w, "404 Not Found")
+					return
+				}
 			}
 			obj := r.PathValue("obj")
 			rr := repo.Repository.(*gitlib.LocalGitRepository)

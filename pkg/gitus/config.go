@@ -385,6 +385,14 @@ func (cfg *GitusConfig) IsInPlainMode() bool {
 	return cfg.OperationMode == OP_MODE_PLAIN
 }
 
+func (cfg *GitusConfig) IsInNormalMode() bool {
+	return cfg.OperationMode == OP_MODE_NORMAL
+}
+
+func (cfg *GitusConfig) IsInSimpleMode() bool {
+	return cfg.OperationMode == OP_MODE_SIMPLE
+}
+
 func CreateConfigFile(p string) error {
 	f, err := os.OpenFile(
 		p,
