@@ -60,7 +60,7 @@
 
 	  <div class="field">
 		<label class="field-label" for="no-interactive-shell-message">"No Interactive Shell" Message</label>
-		{{if and (not (eq .Config.OperationMode "forge")) (not (eq .Config.OperationMode "simple"))}}
+		{{if and (not (eq .Config.OperationMode "forge")) (not (eq .Config.OperationMode "host"))}}
 		<p>You have chosen the operation mode "{{.Config.OperationMode}}", which does not support SSH at all, thus no need for this feature.</p>
 		{{else}}
 		<table>

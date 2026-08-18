@@ -6,27 +6,27 @@ import (
 )
 
 const (
-	SIMPLE_MODE_VISIBILITY_PUBLIC = "public"
-	SIMPLE_MODE_VISIBILITY_PRIVATE = "private"
-	SIMPLE_MODE_PERM_ALLOW = "allow"
-	SIMPLE_MODE_PERM_DISALLOW = "disallow"
-	SIMPLE_MODE_ACTION_BRANCH_PUSH = "commit"
-	SIMPLE_MODE_ACTION_BRANCH_DELETE = "delete"
-	SIMPLE_MODE_ACTION_TAG_UNANNONATED = "commit"
-	SIMPLE_MODE_ACTION_TAG_DELETE = "delete"
-	SIMPLE_MODE_ACTION_TAG_ADD = "tag"
+	HOST_MODE_VISIBILITY_PUBLIC = "public"
+	HOST_MODE_VISIBILITY_PRIVATE = "private"
+	HOST_MODE_PERM_ALLOW = "allow"
+	HOST_MODE_PERM_DISALLOW = "disallow"
+	HOST_MODE_ACTION_BRANCH_PUSH = "commit"
+	HOST_MODE_ACTION_BRANCH_DELETE = "delete"
+	HOST_MODE_ACTION_TAG_UNANNONATED = "commit"
+	HOST_MODE_ACTION_TAG_DELETE = "delete"
+	HOST_MODE_ACTION_TAG_ADD = "tag"
 )
 
-type SimpleModeNamespaceConfig struct {
+type HostModeNamespaceConfig struct {
 	Namespace struct {
 		Title string `json:"title"`
 		Description string `json:"description"`
 		Visibility string `json:"visibility"`
 	} `json:"namespace"`
-	RepositoryList map[string]*SimpleModeRepositoryConfig
+	RepositoryList map[string]*HostModeRepositoryConfig
 }
 
-type SimpleModeUserACL struct {
+type HostModeUserACL struct {
 	Default string `json:"default"`
 	Push string `json:"push"`
 	Pull string `json:"pull"`
@@ -34,30 +34,30 @@ type SimpleModeUserACL struct {
 	// Pattern map[string][]string `json:"patterns"`
 }
 
-type SimpleModeRepositoryConfig struct {
+type HostModeRepositoryConfig struct {
 	Repository struct {
 		Description string `json:"description"`
 		Visibility string `json:"visibility"`
 	} `json:"repo"`
 	Hooks map[string]string `json:"hooks"`
-	Users map[string]*SimpleModeUserACL `json:"users"`
+	Users map[string]*HostModeUserACL `json:"users"`
 }
 
-type SimpleModeConfigCache map[string]*SimpleModeNamespaceConfig
+type HostModeConfigCache map[string]*HostModeNamespaceConfig
 
-func ReadRepositoryConfigFromFile(filePath string) (*SimpleModeRepositoryConfig, error) {
+func ReadRepositoryConfigFromFile(filePath string) (*HostModeRepositoryConfig, error) {
 	s, err := os.ReadFile(filePath)
 	if err != nil { return nil, err }
-	var res SimpleModeRepositoryConfig
+	var res HostModeRepositoryConfig
 	err = json.Unmarshal(s, &res)
 	if err != nil { return nil, err }
 	return &res, nil
 }
 
-func ReadNamespaceConfigFromFile(filePath string) (*SimpleModeNamespaceConfig, error) {
+func ReadNamespaceConfigFromFile(filePath string) (*HostModeNamespaceConfig, error) {
 	s, err := os.ReadFile(filePath)
 	if err != nil { return nil, err }
-	var res SimpleModeNamespaceConfig
+	var res HostModeNamespaceConfig
 	err = json.Unmarshal(s, &res)
 	if err != nil { return nil, err }
 	return &res, nil

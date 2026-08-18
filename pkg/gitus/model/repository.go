@@ -63,9 +63,9 @@ type Repository struct {
 	ForkOriginName string `json:"forkOriginName"`
 	RepoLabelList []string `json:"labelList"`
 	WebHookConfig *WebHookConfig `json:"webHookConfig"`
-	// used in simple mode only.
+	// used in host mode only.
 	Visibility string `json:"visibility"`
-	Users map[string]*SimpleModeUserACL `json:"users"`
+	Users map[string]*HostModeUserACL `json:"users"`
 }
 
 func ParseWebHookConfig(s string) (*WebHookConfig, error) {

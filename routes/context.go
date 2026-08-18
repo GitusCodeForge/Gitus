@@ -38,7 +38,7 @@ type RouterContext struct {
 	LastError error
 	RateLimiter *RateLimiter
 	ConfirmCodeManager confirm_code.GitusConfirmCodeManager
-	SimpleModeConfigCache model.SimpleModeConfigCache
+	HostModeConfigCache model.HostModeConfigCache
 }
 
 func (ctx RouterContext) LoadTemplate(name string) *template.Template {
@@ -245,7 +245,7 @@ func (ctx *RouterContext) ResolveRepositoryFullName(str string) (string, string,
 	var ok bool
 	var err error
 	var ns *model.Namespace
-	if ctx.Config.IsInBrowseOnlyMode() || ctx.Config.OperationMode == gitus.OP_MODE_SIMPLE {
+	if ctx.Config.IsInBrowseOnlyMode() || ctx.Config.IsInHostMode() {
 		ns, ok = ctx.GitNamespaceList[namespaceName]
 		if !ok {
 			err := ctx.SyncAllNamespacePlain()

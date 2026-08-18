@@ -21,8 +21,8 @@
 		<p class="field-description">Gitus supports 3 different operation mode.:
 		  <ul>
 			<li>Browse-Only Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
-			<li>Simple Mode: User and repository managements are done by updating special repositories similar to Gitolite. Clone/push through SSH is enabled.</li>
-			<li>Normal Mode: All features enabled (other than the ones you choose to not enable). </li>
+			<li>Host Mode: User and repository managements are done by updating special repositories similar to Gitolite. Clone/push through SSH is enabled.</li>
+			<li>Forge Mode: All features enabled (other than the ones you choose to not enable). </li>
 		  </ul>
 		</p>
 		<table>
@@ -53,8 +53,8 @@
 		<label class="field-label">Database Config</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
-		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
+		{{else if eq .Config.OperationMode "host"}}
+		<p>This field is skipped because you've chosen to enable Host Mode.</p>
 		{{else}}
 		<p><a href="/step2">Go back and change this setting</a></p>
 		<p class="field-description">This is the main database configuration.</p>
@@ -105,8 +105,8 @@
 		<label class="field-label">Session Config</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
-		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
+		{{else if eq .Config.OperationMode "host"}}
+		<p>This field is skipped because you've chosen to enable Host Mode.</p>
 		{{else}}
 		<p><a href="/step3">Go back and change this setting</a></p>
 		<p class="field-description">This is used to store certain relatively short-lived info, e.g. user's login status.</p>
@@ -166,8 +166,8 @@
 		<label class="field-label">Mailer Config</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
-		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
+		{{else if eq .Config.OperationMode "host"}}
+		<p>This field is skipped because you've chosen to enable Host Mode.</p>
 		{{else}}
 		<p><a href="/step4">Go back and change this setting</a></p>
 		<p class="field-description">This is used in cases where the system needs to send an email.</p>
@@ -210,8 +210,8 @@
 		<label class="field-label">Receipt System</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
-		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
+		{{else if eq .Config.OperationMode "host"}}
+		<p>This field is skipped because you've chosen to enable Host Mode.</p>
 		{{else}}
 		<p><a href="/step5">Go back and change this setting</a></p>
 		<p class="field-description">This is used to manage "receipts", which are callbacks sent to user by email when they perform certain actions.</p>
@@ -425,8 +425,8 @@
 		<label class="field-label" for="depot-name">User Management Related</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
-		<p>This field is skipped because you've chosen to enable Simple Mode, in which case user management is done elsewhere.</p>
+		{{else if eq .Config.OperationMode "host"}}
+		<p>This field is skipped because you've chosen to enable Host Mode, in which case user management is done elsewhere.</p>
 		{{else}}
 		<p><a href="/step8">Go back and change this setting</a></p>
 		<p class="field-description">These fields control the behaviour of certain aspects about user management.</p>
@@ -471,8 +471,8 @@
 		<label class="field-label">Confirm Code Manager</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
-		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
+		{{else if eq .Config.OperationMode "host"}}
+		<p>This field is skipped because you've chosen to enable Host Mode.</p>
 		{{else}}
 		<p><a href="/step9">Go back and change this setting</a></p>
 		<p class="field-description">Confirm code is used in two-factor authentication; it's the numerical code (often 6 digits) that would be sent to your email if you've enabled two-factor authentication with email.</p>
@@ -496,9 +496,9 @@
 		<label class="field-label">Root SSH Key</label>
 		{{if eq .Config.OperationMode "browse-only"}}
 		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
-		{{else if eq .Config.OperationMode "simple"}}
+		{{else if eq .Config.OperationMode "host"}}
 		<p><a href="/step10">Go back and change this setting</a></p>
-		<p class="field-description">Simple Mode uses specially designated repositories to manage user keys and repositories. This is to setup the key that allows you to update these designated repositories through SSH.</p>
+		<p class="field-description">Host Mode uses specially designated repositories to manage user keys and repositories. This is to setup the key that allows you to update these designated repositories through SSH.</p>
 		<table>
 		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
 		  <tbody>

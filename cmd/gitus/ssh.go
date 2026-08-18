@@ -55,7 +55,7 @@ func isValidGitSSHCommand(s string) bool {
 	return (s == "git-upload-pack" || s == "git-receive-pack" || s == "git-upload-archive")
 }
 
-func handleSSHSimpleMode(ctx *routes.RouterContext, username string, keyname string) {
+func handleSSHHostMode(ctx *routes.RouterContext, username string, keyname string) {
 	if ctx.SSHKeyManagingContext == nil {
 		sshCtx, err := ssh.ToContext(ctx.Config)
 		if err != nil {
@@ -134,8 +134,8 @@ func handleSSHSimpleMode(ctx *routes.RouterContext, username string, keyname str
 }
 
 func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) {
-	if ctx.Config.OperationMode == gitus.OP_MODE_SIMPLE {
-		handleSSHSimpleMode(ctx, username, keyname)
+	if ctx.Config.IsInHostMode() {
+		handleSSHHostMode(ctx, username, keyname)
 		return
 	}
 	if ctx.Config.IsInBrowseOnlyMode() {

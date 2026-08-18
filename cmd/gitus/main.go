@@ -213,12 +213,12 @@ func main() {
 		case "no-login":
 			fmt.Println(context.Config.NoInteractiveShellMessage)
 			return
-		case "simple-mode":
+		case "host-mode":
 			if len(mainCall) < 3 {
-				fmt.Print(gitlib.ToPktLine("Error format for `gitus simple-mode`."))
+				fmt.Print(gitlib.ToPktLine("Error format for `gitus host-mode`."))
 				return
 			}
-			HandleSimpleMode(&context, mainCall[1], mainCall[2])
+			HandleHostMode(&context, mainCall[1], mainCall[2])
 			return
 		case "web-hooks":
 			if len(mainCall) < 7 {
@@ -315,7 +315,7 @@ func main() {
 		}
 	}
 
-	if context.Config.OperationMode == gitus.OP_MODE_SIMPLE {
+	if context.Config.IsInHostMode() {
 		os.RemoveAll(path.Join(gitUser.HomeDir, "gitus.sock"))
 	}
 	

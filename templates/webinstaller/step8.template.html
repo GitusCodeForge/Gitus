@@ -106,8 +106,8 @@
 	  </div>
 	  <div class="field">
 		<label class="field-label" for="jwt-secret">JWT Secret</label>
-		{{if or (eq .Config.OperationMode "browse-only") (eq .Config.OperationMode "simple")}}
-		<p>This field is skipped since you've chosen to activate Browse-Only Mode or Simple Mode.</p>
+		{{if or (eq .Config.OperationMode "browse-only") (eq .Config.OperationMode "host")}}
+		<p>This field is skipped since you've chosen to activate Browse-Only Mode or Host Mode.</p>
 		{{else}}
 		<p class="field-description">This field controls the value of the JWT secret, which is used for authentication in webhook result reporting and other features.<br /><i>This field is optional. The web installer would generate one for you if you leave it blank.</i></p>
 		<table>
@@ -120,8 +120,8 @@
 	  </div>
 	  <div class="field">
 		<label class="field-label" for="depot-name">User Management Related</label>
-		{{if or (eq .Config.OperationMode "browse-only") (eq .Config.OperationMode "simple")}}
-		<p>This field is skipped since you've chosen to activate Browse-Only Mode or Simple Mode.</p>
+		{{if or (eq .Config.OperationMode "browse-only") (eq .Config.OperationMode "host")}}
+		<p>This field is skipped since you've chosen to activate Browse-Only Mode or Host Mode.</p>
 		{{else}}
 		<p class="field-description">These fields control the behaviour of certain aspects about user management.</p>
 		<table>

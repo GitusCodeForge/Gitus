@@ -378,7 +378,7 @@ func (cfg *GitusConfig) GetRRDocTitle(p string) string {
 
 const (
 	OP_MODE_BROWSE_ONLY = "browse-only"
-	OP_MODE_SIMPLE = "simple"
+	OP_MODE_HOST = "host"
 	OP_MODE_FORGE = "forge"
 )
 
@@ -390,8 +390,8 @@ func (cfg *GitusConfig) IsInForgeMode() bool {
 	return cfg.OperationMode == OP_MODE_FORGE
 }
 
-func (cfg *GitusConfig) IsInSimpleMode() bool {
-	return cfg.OperationMode == OP_MODE_SIMPLE
+func (cfg *GitusConfig) IsInHostMode() bool {
+	return cfg.OperationMode == OP_MODE_HOST
 }
 
 func CreateConfigFile(p string) error {
@@ -601,12 +601,12 @@ func (cfg *GitusConfig) Sync() error {
 	return nil
 }
 
-func (cfg *GitusConfig) ReadNamespaceSimpleModeConfig(name string) (*model.SimpleModeNamespaceConfig, error) {
+func (cfg *GitusConfig) ReadNamespaceHostModeConfig(name string) (*model.HostModeNamespaceConfig, error) {
 	f := path.Join(cfg.GitRoot, "__gitus", "__repo_config", "gitus_sync", name, "config.json")
 	return model.ReadNamespaceConfigFromFile(f)
 }
 
-func (cfg *GitusConfig) ReadRepositorySimpleModeConfig(namespace string, name string) (*model.SimpleModeRepositoryConfig, error) {
+func (cfg *GitusConfig) ReadRepositoryHostModeConfig(namespace string, name string) (*model.HostModeRepositoryConfig, error) {
 	var f string
 	if cfg.UseNamespace {
 		f = path.Join(cfg.GitRoot, "__gitus", "__repo_config", "gitus_sync", namespace, name, "config.json")
@@ -648,10 +648,10 @@ func (cfg *GitusConfig) GetAllRepositoryPlain() ([]*model.Repository, error) {
 			repoName = repoName[:len(repoName)-len(".git")]
 			if len(repoName) <= 0 { continue }
 		}
-		if cfg.OperationMode == OP_MODE_SIMPLE {
-			m, err := cfg.ReadRepositorySimpleModeConfig("", repoName)
+		if cfg.IsInHostMode() {
+			m, err := cfg.ReadRepositoryHostModeConfig("", repoName)
 			if err != nil { continue }
-			if m.Repository.Visibility == model.SIMPLE_MODE_VISIBILITY_PRIVATE {
+			if m.Repository.Visibility == model.HOST_MODE_VISIBILITY_PRIVATE {
 				continue
 			}
 		}
@@ -688,10 +688,10 @@ func (cfg *GitusConfig) GetAllRepositoryByNamespacePlain(ns string) (map[string]
 			repoName = repoName[:len(repoName)-len(".git")]
 			if len(repoName) <= 0 { continue }
 		}
-		if cfg.OperationMode == OP_MODE_SIMPLE {
-			m, err := cfg.ReadRepositorySimpleModeConfig(ns, repoName)
+		if cfg.IsInHostMode() {
+			m, err := cfg.ReadRepositoryHostModeConfig(ns, repoName)
 			if err != nil { continue }
-			if m.Repository.Visibility == model.SIMPLE_MODE_VISIBILITY_PRIVATE {
+			if m.Repository.Visibility == model.HOST_MODE_VISIBILITY_PRIVATE {
 				continue
 			}
 		}
@@ -732,13 +732,13 @@ func (cfg *GitusConfig) GetAllNamespacePlain() (map[string]*model.Namespace, err
 	for _, item := range l {
 		namespaceName := item.Name()
 		if !model.ValidNamespaceName(namespaceName) { continue }
-		if cfg.OperationMode == OP_MODE_BROWSE_ONLY {
+		if cfg.IsInBrowseOnlyMode() {
 			_, shouldIgnore := slices.BinarySearch(cfg.IgnoreNamespace, namespaceName)
 			if shouldIgnore { continue }
-		} else if cfg.OperationMode == OP_MODE_SIMPLE {
-			m, err := cfg.ReadNamespaceSimpleModeConfig(namespaceName)
+		} else if cfg.IsInHostMode() {
+			m, err := cfg.ReadNamespaceHostModeConfig(namespaceName)
 			if err != nil { continue }
-			if m.Namespace.Visibility == model.SIMPLE_MODE_VISIBILITY_PRIVATE {
+			if m.Namespace.Visibility == model.HOST_MODE_VISIBILITY_PRIVATE {
 				continue
 			}
 		}

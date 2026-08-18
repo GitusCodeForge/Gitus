@@ -69,7 +69,7 @@ type WebInstallerRoutingContext struct {
 	// step 9 - confirm code manager setup
 	// step 10 - root ssh key setup
 	// browse-only mode: 1-6-7-8
-	// simple mode: 1-6-8-10
+	// host mode: 1-6-8-10
 	// forge mode: 1-2-3-4-5-6-8-9
 	EntryKey string
 	SessionKey string
@@ -216,7 +216,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}
 		om := strings.TrimSpace(r.Form.Get("operation-mode"))
 		if om == "" {
-			ctx.reportRedirect("/step1", 5, "Invalid Request", "Operation mode must be one of \"browse-only\", \"simple\" and \"forge\"", w)
+			ctx.reportRedirect("/step1", 5, "Invalid Request", "Operation mode must be one of \"browse-only\", \"host\" and \"forge\"", w)
 			return
 		}
 		ctx.Config.OperationMode = om
@@ -226,7 +226,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			foundAt(w, "/step2")
 		case gitus.OP_MODE_BROWSE_ONLY:
 			foundAt(w, "/step6")
-		case gitus.OP_MODE_SIMPLE:
+		case gitus.OP_MODE_HOST:
 			foundAt(w, "/step6")
 		}
 	})))
@@ -420,7 +420,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.FrontPage.FileContent = r.Form.Get("front-page-file-content")
 		ctx.Config.Theme.ForegroundColor = "#000000"
 		ctx.Config.Theme.BackgroundColor = "#ffffff"
-		// NOTE: these options are not used in browse-only mode and simple mode.
+		// NOTE: these options are not used in browse-only mode and host mode.
 		if ctx.Config.OperationMode == gitus.OP_MODE_FORGE {
 			ctx.Config.AllowRegistration = len(strings.TrimSpace(r.Form.Get("allow-registration"))) > 0
 			ctx.Config.EmailConfirmationRequired = len(strings.TrimSpace(r.Form.Get("email-confirmation-required"))) > 0
@@ -448,7 +448,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		switch ctx.Config.OperationMode {
 		case gitus.OP_MODE_BROWSE_ONLY:
 			foundAt(w, "/confirm")
-		case gitus.OP_MODE_SIMPLE:
+		case gitus.OP_MODE_HOST:
 			foundAt(w, "/step10")
 		case gitus.OP_MODE_FORGE:
 			foundAt(w, "/step9")
@@ -860,7 +860,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			return true
 		}() { goto leave }
 
-		if ctx.Config.OperationMode == gitus.OP_MODE_SIMPLE {
+		if ctx.Config.IsInHostMode() {
 			if !func()bool{
 				var nsName string
 				var keyRepoRelPath, configRepoRelPath string
@@ -973,7 +973,7 @@ fi
 			exit 1
 		else
             if [ "$refname" = "refs/heads/master" ]; then
-    			%s -config "%s" simple-mode keys-update "$newrev"
+    			%s -config "%s" host-mode keys-update "$newrev"
             fi
 		fi
 		;;
@@ -1072,7 +1072,7 @@ exit 0
 				err = configRepo.(*gitlib.LocalGitRepository).SaveHook("post-update", fmt.Sprintf(`
 #!/bin/sh
 
-%s -config "%s" simple-mode gitus-sync "%s"
+%s -config "%s" host-mode gitus-sync "%s"
 `, path.Join(ctx.GitUserHome, "git-shell-commands", "gitus"),
 					shellparse.Quote(configFullPath),
 					shellparse.Quote(path.Join(model.GetLocalRepositoryLocalPath(configRepo), "gitus_sync")),
@@ -1083,7 +1083,7 @@ exit 0
 				}
 
 				// setting up gitus_sync.  for the reason why
-				// gitus_sync exists, see docs/simple-mode.org.
+				// gitus_sync exists, see docs/host-mode.org.
 				cmd := exec.Command("git", "clone", ".", "gitus_sync")
 				cmd.Dir = configRepoFullPath
 				err = cmd.Run()

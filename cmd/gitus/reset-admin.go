@@ -13,7 +13,7 @@ import (
 
 func ResetAdmin(ctx *routes.RouterContext) {
 	if ctx.Config.OperationMode != gitus.OP_MODE_FORGE {
-		// TODO: add more info about how to set things up in simple mode.
+		// TODO: add more info about how to set things up in host mode.
 		fmt.Printf("Configuration not in forge mode.")
 		return
 	}
