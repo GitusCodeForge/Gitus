@@ -12,9 +12,9 @@ import (
 )
 
 func ResetAdmin(ctx *routes.RouterContext) {
-	if ctx.Config.OperationMode != gitus.OP_MODE_NORMAL {
+	if ctx.Config.OperationMode != gitus.OP_MODE_FORGE {
 		// TODO: add more info about how to set things up in simple mode.
-		fmt.Printf("Configuration not in normal mode.")
+		fmt.Printf("Configuration not in forge mode.")
 		return
 	}
 	dbif, err := dbinit.InitializeDatabase(ctx.Config)

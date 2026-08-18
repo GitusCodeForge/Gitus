@@ -378,15 +378,15 @@ func (cfg *GitusConfig) GetRRDocTitle(p string) string {
 const (
 	OP_MODE_PLAIN = "plain"
 	OP_MODE_SIMPLE = "simple"
-	OP_MODE_NORMAL = "normal"
+	OP_MODE_FORGE = "forge"
 )
 
 func (cfg *GitusConfig) IsInPlainMode() bool {
 	return cfg.OperationMode == OP_MODE_PLAIN
 }
 
-func (cfg *GitusConfig) IsInNormalMode() bool {
-	return cfg.OperationMode == OP_MODE_NORMAL
+func (cfg *GitusConfig) IsInForgeMode() bool {
+	return cfg.OperationMode == OP_MODE_FORGE
 }
 
 func (cfg *GitusConfig) IsInSimpleMode() bool {

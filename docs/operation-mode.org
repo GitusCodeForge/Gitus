@@ -5,14 +5,14 @@
 |--------+-----------------------+-------------------------------------------------|
 | plain  | config ~useNamespace~ | config ~ignoreNamespace~ and ~ignoreRepository~ |
 | simple | config ~useNamespace~ | special repo                                    |
-| normal | config ~useNamespace~ | db-stored acl                                   |
+| forge  | config ~useNamespace~ | db-stored acl                                   |
 
 
 | mode   | allow push | repo-level perm. | branch-level perm. | webui acl config |
 |--------+------------+------------------+--------------------+------------------|
 | plain  | no         | no               | no                 | no               |
 | simple | yes        | yes              | planned*           | no               |
-| normal | yes        | yes              | planned*           | yes              |
+| forge  | yes        | yes              | planned*           | yes              |
 
 *: currently not implemented but there are plans to implement it
 
@@ -20,7 +20,7 @@
 |--------+-----------------+-----------------------+----------------------------|
 | plain  | not applicable  | not applicable        | "read-only" for everyone   |
 | simple | special repo    | no                    | for solodev or small teams |
-| normal | db              | yes                   | for nearly any usage       |
+| forge  | db              | yes                   | for nearly any usage       |
 
 ** plain mode
 

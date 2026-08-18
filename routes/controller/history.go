@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
@@ -103,7 +102,7 @@ func bindHistoryController(ctx *RouterContext) {
 			}
 			
 			m := make(map[string]string, 0)
-			if ctx.Config.OperationMode == gitus.OP_MODE_NORMAL {
+			if ctx.Config.IsInForgeMode() {
 				for _, k := range h {
 					m[k.AuthorInfo.AuthorEmail] = ""
 					m[k.CommitterInfo.AuthorEmail] = ""

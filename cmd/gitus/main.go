@@ -109,8 +109,8 @@ func main() {
 		MasterTemplate: masterTemplate,
 	}
 
-	// if it's in normal mode we need to setup database.
-	if config.OperationMode == gitus.OP_MODE_NORMAL {
+	// if it's in forge mode we need to setup database.
+	if config.OperationMode == gitus.OP_MODE_FORGE {
 		if dbifNeeded {
 			dbif, err := dbinit.InitializeDatabase(config)
 			if err != nil {
@@ -169,7 +169,7 @@ func main() {
 			context.ConfirmCodeManager = ccm
 		}
 
-		ok, err := normalModeGitusReadyCheck(context)
+		ok, err := forgeModeGitusReadyCheck(context)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "Gitus Ready Check failed: %s\n", err.Error())
 			// NOTE(2026.2.14): deprecation of cli installer

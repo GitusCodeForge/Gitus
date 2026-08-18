@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/routes/controller/admin"
 )
@@ -27,12 +26,12 @@ func InitializeRoute(context *routes.RouterContext) {
 	
 	if context.Config.UseNamespace {
 		bindNamespaceController(context)
-		if context.Config.OperationMode == gitus.OP_MODE_NORMAL {
+		if context.Config.IsInForgeMode() {
 			bindNamespaceSettingController(context)
 		}
 	}
-
-	if context.Config.OperationMode == gitus.OP_MODE_NORMAL {
+	
+	if context.Config.IsInForgeMode() {
 		bindUserController(context)
 		bindLoginController(context)
 		bindLogoutController(context)

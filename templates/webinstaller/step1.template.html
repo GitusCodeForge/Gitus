@@ -20,7 +20,7 @@
 		  <ul>
 			<li>Plain Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
 			<li>Simple Mode: User and repository managements are done by updating special repositories similar to Gitolite. Clone/push through SSH is enabled.</li>
-			<li>Normal Mode: All features enabled (other than the ones you choose to not enable). </li>
+			<li>Forge Mode: All features enabled (other than the ones you choose to not enable). </li>
 		  </ul>
 		</p>
 		<table>
@@ -33,7 +33,7 @@
 				<select name="operation-mode" id="operation-mode">
 				  <option value="plain" {{if eq .Config.OperationMode "plain"}}selected{{end}}>Read-only web frontend (Plain Mode)</option>
 				  <option value="simple" {{if eq .Config.OperationMode "simple"}}selected{{end}}>Simple managed SSH-enabled instance (Simple Mode)</option>
-				  <option value="normal" {{if eq .Config.OperationMode "normal"}}selected{{end}}>Full functionalities enabled (Normal Mode)</option>
+				  <option value="forge" {{if eq .Config.OperationMode "forge"}}selected{{end}}>Full functionalities enabled (Forge Mode)</option>
 				</select>
 			  </td>
 			</tr>

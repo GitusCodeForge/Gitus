@@ -68,7 +68,7 @@
 		{{if .TreeFileList}}
 		<div class="main-side-top">
 		  <div class="file-nav">
-			{{if eq .Config.OperationMode "normal"}}
+			{{if eq .Config.OperationMode "forge"}}
 			{{if and .LoginInfo.IsOwner (eq .RepoHeaderInfo.TypeStr "branch")}}
 			<a href="{{getRepoPath .Repository.Namespace .Repository.Name}}/{{.RepoHeaderInfo.TypeStr}}/{{.RepoHeaderInfo.NodeName}}?new-file">New/Upload</a>
 			{{end}}

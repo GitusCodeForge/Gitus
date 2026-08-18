@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	. "github.com/GitusCodeForge/Gitus/routes"
@@ -24,7 +23,7 @@ func bindNamespaceController(ctx *RouterContext) {
 			var ns *model.Namespace
 			var ok bool
 			var err error
-			if rc.Config.OperationMode != gitus.OP_MODE_NORMAL {
+			if rc.Config.IsInForgeMode() {
 				ns, ok = rc.GitNamespaceList[namespaceName]
 				if !ok {
 					err = rc.SyncAllNamespacePlain()
@@ -95,7 +94,7 @@ func bindNamespaceController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("GET /s/{namespace}/new-repo", UseMiddleware(
-		[]Middleware{Logged, NormalModeRequired, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
+		[]Middleware{Logged, ForgeModeRequired, LoginRequired, GlobalVisibility, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			nsName := r.PathValue("namespace")
 			if !model.ValidNamespaceName(nsName) {
@@ -126,7 +125,7 @@ func bindNamespaceController(ctx *RouterContext) {
 	))
 	
 	http.HandleFunc("POST /s/{namespace}/new-repo", UseMiddleware(
-		[]Middleware{Logged, NormalModeRequired, ValidPOSTRequestRequired,
+		[]Middleware{Logged, ForgeModeRequired, ValidPOSTRequestRequired,
 			LoginRequired, CSRFCheck, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

@@ -7,7 +7,7 @@
 	<a href="{{getNamespacePath $namespaceName}}">{{$namespaceName}}</a>:<a href="{{getRepoPath $namespaceName $repoName}}">{{$repoName}}</a>
   </h1>
   
-  {{if eq .Config.OperationMode "normal"}}
+  {{if eq .Config.OperationMode "forge"}}
   <span class="repo-visibility">{{if eq .Repository.Status 1}}PUBLIC{{else if eq .Repository.Status 2}}PRIVATE{{else if eq .Repository.Status 4}}PUBLIC ARCHIVED{{else if eq .Repository.Status 5}}INTERNAL{{else if eq .Repository.Status 6}}LIMITED{{end}}</span>
   
   {{if .Repository.Owner}}
@@ -42,7 +42,7 @@
 
 <div class="repo-header-nav">
   <a href="{{$repoPath}}">Home</a>
-  {{if and .Config (eq .Config.OperationMode "normal")}}
+  {{if and .Config (eq .Config.OperationMode "forge")}}
   {{if and .LoginInfo (or .LoginInfo.IsOwner .LoginInfo.IsSettingMember .LoginInfo.IsAdmin)}}
   <a href="{{$repoPath}}/setting">Setting</a>
   {{end}}

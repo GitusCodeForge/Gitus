@@ -7,7 +7,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
@@ -207,7 +206,7 @@ func bindTagController(ctx *RouterContext) {
 					)
 					return
 				}
-				if rc.Config.OperationMode == gitus.OP_MODE_NORMAL {
+				if rc.Config.IsInForgeMode() {
 					m, _ = rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
 				}
 				tagInfo.EmailUserMapping = m
@@ -238,7 +237,7 @@ func bindTagController(ctx *RouterContext) {
 				str := string(bobj.Data)
 				coloredStr, err := colorSyntax("", str)
 				if err == nil { str = coloredStr }
-				if rc.Config.OperationMode == gitus.OP_MODE_NORMAL {
+				if rc.Config.IsInForgeMode() {
 					m, _ = rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
 				}
 				tagInfo.EmailUserMapping = m
@@ -281,7 +280,7 @@ func bindTagController(ctx *RouterContext) {
 					TreePath: treePath,
 					TreePathSegmentList: treePathSegmentList,
 				}
-				if rc.Config.OperationMode == gitus.OP_MODE_NORMAL {
+				if rc.Config.IsInForgeMode() {
 					m, _ = rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
 				}
 				commitInfo.EmailUserMapping = m

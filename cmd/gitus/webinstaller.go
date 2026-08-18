@@ -70,7 +70,7 @@ type WebInstallerRoutingContext struct {
 	// step 10 - root ssh key setup
 	// plain mode: 1-6-7-8
 	// simple mode: 1-6-8-10
-	// normal mode: 1-2-3-4-5-6-8-9
+	// forge mode: 1-2-3-4-5-6-8-9
 	EntryKey string
 	SessionKey string
 	Step int
@@ -216,13 +216,13 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}
 		om := strings.TrimSpace(r.Form.Get("operation-mode"))
 		if om == "" {
-			ctx.reportRedirect("/step1", 5, "Invalid Request", "Operation mode must be one of \"plain\", \"simple\" and \"normal\"", w)
+			ctx.reportRedirect("/step1", 5, "Invalid Request", "Operation mode must be one of \"plain\", \"simple\" and \"forge\"", w)
 			return
 		}
 		ctx.Config.OperationMode = om
 		ctx.Config.UseNamespace = len(r.Form.Get("enable-namespace")) > 0
 		switch ctx.Config.OperationMode {
-		case gitus.OP_MODE_NORMAL:
+		case gitus.OP_MODE_FORGE:
 			foundAt(w, "/step2")
 		case gitus.OP_MODE_PLAIN:
 			foundAt(w, "/step6")
@@ -421,7 +421,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.Theme.ForegroundColor = "#000000"
 		ctx.Config.Theme.BackgroundColor = "#ffffff"
 		// NOTE: these options are not used in plain mode and simple mode.
-		if ctx.Config.OperationMode == gitus.OP_MODE_NORMAL {
+		if ctx.Config.OperationMode == gitus.OP_MODE_FORGE {
 			ctx.Config.AllowRegistration = len(strings.TrimSpace(r.Form.Get("allow-registration"))) > 0
 			ctx.Config.EmailConfirmationRequired = len(strings.TrimSpace(r.Form.Get("email-confirmation-required"))) > 0
 			ctx.Config.ManualApproval = len(strings.TrimSpace(r.Form.Get("manual-approval"))) > 0
@@ -450,7 +450,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 			foundAt(w, "/confirm")
 		case gitus.OP_MODE_SIMPLE:
 			foundAt(w, "/step10")
-		case gitus.OP_MODE_NORMAL:
+		case gitus.OP_MODE_FORGE:
 			foundAt(w, "/step9")
 		}
 	})))
@@ -686,7 +686,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}() { goto leave }
 
 		if !func()bool{
-			if ctx.Config.OperationMode != gitus.OP_MODE_NORMAL {
+			if ctx.Config.OperationMode != gitus.OP_MODE_FORGE {
 				return true
 			}
 			fmt.Fprint(w, "<p>Initializing database...</p>")
@@ -714,7 +714,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}() { goto leave }
 		
 		if !func()bool{
-			if ctx.Config.OperationMode != gitus.OP_MODE_NORMAL {
+			if ctx.Config.OperationMode != gitus.OP_MODE_FORGE {
 				return true
 			}
 			fmt.Fprint(w, "<p>Initializing session store...</p>")
@@ -741,7 +741,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}() { goto leave }
 		
 		if !func()bool{
-			if ctx.Config.OperationMode != gitus.OP_MODE_NORMAL {
+			if ctx.Config.OperationMode != gitus.OP_MODE_FORGE {
 				return true
 			}
 			w.Write([]byte("<p>Initializing receipt system...</p>"))
@@ -768,7 +768,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}() { goto leave }
 		
 		if !func()bool{
-			if ctx.Config.OperationMode != gitus.OP_MODE_NORMAL {
+			if ctx.Config.OperationMode != gitus.OP_MODE_FORGE {
 				return true
 			}
 			fmt.Fprint(w, "<p>Setting up admin user.</p>")

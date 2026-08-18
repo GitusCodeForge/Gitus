@@ -72,7 +72,7 @@ func createOtherOwnedDirectory(p string, uids string, gids string) error {
 	return nil
 }
 
-func normalModeGitusReadyCheck(ctx routes.RouterContext) (bool, error) {
+func forgeModeGitusReadyCheck(ctx routes.RouterContext) (bool, error) {
 	dbif := ctx.DatabaseInterface
 	ssif := ctx.SessionInterface
 	cfg := ctx.Config

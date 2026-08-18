@@ -7,7 +7,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
@@ -83,7 +82,7 @@ func bindCommitController(ctx *RouterContext) {
 
 			cobj := gobj.(*gitlib.CommitObject)
 			m := make(map[string]string, 0)
-			if ctx.Config.OperationMode == gitus.OP_MODE_NORMAL {
+			if ctx.Config.IsInForgeMode() {
 				m[cobj.AuthorInfo.AuthorEmail] = ""
 				m[cobj.CommitterInfo.AuthorEmail] = ""
 				rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
