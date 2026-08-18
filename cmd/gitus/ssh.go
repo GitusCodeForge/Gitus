@@ -138,8 +138,8 @@ func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) 
 		handleSSHSimpleMode(ctx, username, keyname)
 		return
 	}
-	if ctx.Config.IsInPlainMode() {
-		printGitError("This instance of Gitus is in Plain Mode which does not allow Git over SSH.")
+	if ctx.Config.IsInBrowseOnlyMode() {
+		printGitError("This instance of Gitus is in Browse-Only Mode which does not allow Git over SSH.")
 		os.Exit(1)
 	}
 	if ctx.Config.GlobalVisibility != gitus.GLOBAL_VISIBILITY_PUBLIC &&

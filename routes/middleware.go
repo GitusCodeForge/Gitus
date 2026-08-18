@@ -167,7 +167,7 @@ func ValidRepositoryNameRequired(s string) Middleware {
 }
 
 func CheckGlobalVisibleToUser(ctx *RouterContext, loginInfo *templates.LoginInfoModel) bool {
-	if ctx.Config.IsInPlainMode() { return true }
+	if ctx.Config.IsInBrowseOnlyMode() { return true }
 	if ctx.Config.IsInForgeMode() && loginInfo == nil { return false }
 	switch ctx.Config.GlobalVisibility {
 	case gitus.GLOBAL_VISIBILITY_PUBLIC: return true

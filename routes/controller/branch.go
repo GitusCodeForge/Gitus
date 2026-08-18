@@ -46,11 +46,11 @@ func bindBranchController(ctx *RouterContext) {
 				rc.ReportNormalError("The repository you have requested isn't a Git repository.", w, r)
 				return
 			}
-			if !rc.Config.IsInPlainMode() {
+			if !rc.Config.IsInBrowseOnlyMode() {
 				rc.LoginInfo.IsOwner = (repo.Owner == rc.LoginInfo.UserName) || (ns.Owner == rc.LoginInfo.UserName)
 			}
 			// reject visit if repo is private & user not logged in or not member.
-			if !ctx.Config.IsInPlainMode() && repo.Status == model.REPO_NORMAL_PRIVATE {
+			if !ctx.Config.IsInBrowseOnlyMode() && repo.Status == model.REPO_NORMAL_PRIVATE {
 				chk := rc.LoginInfo.IsAdmin || rc.LoginInfo.IsOwner
 				if !chk {
 					chk = repo.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName) != nil
@@ -423,7 +423,7 @@ func bindBranchController(ctx *RouterContext) {
 				rc.ReportNormalError("The repository you have requested isn't a Git repository.", w, r)
 				return
 			}
-			if rc.Config.IsInPlainMode() {
+			if rc.Config.IsInBrowseOnlyMode() {
 				FoundAt(w, fmt.Sprintf("/repo/%s/branch/%s/%s", rfn, r.PathValue("branchName"), r.PathValue("treePath")))
 				return
 			}

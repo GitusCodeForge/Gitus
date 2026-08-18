@@ -46,9 +46,9 @@ type WebInstallerRoutingContext struct {
 	// yes, we do share the same object between multiple goroutie,
 	// but i don't think this would be a problem for a simple web
 	// installer.
-	// step 1 - plain mode or non-plain mode?
+	// step 1 - browse-only mode or non-browse-only mode?
 	//          use namespace or not?
-	//          plain mode - goto step [6]
+	//          browse-only mode - goto step [6]
 	// step 2 - database config
 	// step 3 - session config
 	// step 4 - mailer config
@@ -62,13 +62,13 @@ type WebInstallerRoutingContext struct {
 	//          (static assets dir default to be $HOME/gitus-static/)
 	//          bind address & port
 	//          http host name
-	//          ssh host name (disabled if plain mode)
+	//          ssh host name (disabled if browse-only mode)
 	//          allow registration
 	//          email confirmation required
 	//          manual approval
 	// step 9 - confirm code manager setup
 	// step 10 - root ssh key setup
-	// plain mode: 1-6-7-8
+	// browse-only mode: 1-6-7-8
 	// simple mode: 1-6-8-10
 	// forge mode: 1-2-3-4-5-6-8-9
 	EntryKey string
@@ -216,7 +216,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}
 		om := strings.TrimSpace(r.Form.Get("operation-mode"))
 		if om == "" {
-			ctx.reportRedirect("/step1", 5, "Invalid Request", "Operation mode must be one of \"plain\", \"simple\" and \"forge\"", w)
+			ctx.reportRedirect("/step1", 5, "Invalid Request", "Operation mode must be one of \"browse-only\", \"simple\" and \"forge\"", w)
 			return
 		}
 		ctx.Config.OperationMode = om
@@ -224,7 +224,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		switch ctx.Config.OperationMode {
 		case gitus.OP_MODE_FORGE:
 			foundAt(w, "/step2")
-		case gitus.OP_MODE_PLAIN:
+		case gitus.OP_MODE_BROWSE_ONLY:
 			foundAt(w, "/step6")
 		case gitus.OP_MODE_SIMPLE:
 			foundAt(w, "/step6")
@@ -355,7 +355,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.GitConfig.HTTPCloneProtocol.V1Dumb = len(strings.TrimSpace(r.Form.Get("git-http-clone-enable-v1-dumb"))) > 0
 		ctx.Config.GitConfig.HTTPCloneProtocol.V2 = len(strings.TrimSpace(r.Form.Get("git-http-clone-enable-v2"))) > 0
 		next := ""
-		if ctx.Config.IsInPlainMode() {
+		if ctx.Config.IsInBrowseOnlyMode() {
 			next = "/step7"
 		} else {
 			next = "/step8"
@@ -420,7 +420,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.FrontPage.FileContent = r.Form.Get("front-page-file-content")
 		ctx.Config.Theme.ForegroundColor = "#000000"
 		ctx.Config.Theme.BackgroundColor = "#ffffff"
-		// NOTE: these options are not used in plain mode and simple mode.
+		// NOTE: these options are not used in browse-only mode and simple mode.
 		if ctx.Config.OperationMode == gitus.OP_MODE_FORGE {
 			ctx.Config.AllowRegistration = len(strings.TrimSpace(r.Form.Get("allow-registration"))) > 0
 			ctx.Config.EmailConfirmationRequired = len(strings.TrimSpace(r.Form.Get("email-confirmation-required"))) > 0
@@ -446,7 +446,7 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		}
 		ctx.Config.PasswordHashStrength = 16
 		switch ctx.Config.OperationMode {
-		case gitus.OP_MODE_PLAIN:
+		case gitus.OP_MODE_BROWSE_ONLY:
 			foundAt(w, "/confirm")
 		case gitus.OP_MODE_SIMPLE:
 			foundAt(w, "/step10")

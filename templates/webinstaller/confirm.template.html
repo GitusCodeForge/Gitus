@@ -20,7 +20,7 @@
 		<p><a href="/step1">Go back and change this setting</a></p>
 		<p class="field-description">Gitus supports 3 different operation mode.:
 		  <ul>
-			<li>Plain Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
+			<li>Browse-Only Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
 			<li>Simple Mode: User and repository managements are done by updating special repositories similar to Gitolite. Clone/push through SSH is enabled.</li>
 			<li>Normal Mode: All features enabled (other than the ones you choose to not enable). </li>
 		  </ul>
@@ -51,8 +51,8 @@
 
 	  <div class="field">
 		<label class="field-label">Database Config</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
 		{{else}}
@@ -103,8 +103,8 @@
 	  
 	  <div class="field">
 		<label class="field-label">Session Config</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
 		{{else}}
@@ -164,8 +164,8 @@
 	  
 	  <div class="field">
 		<label class="field-label">Mailer Config</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
 		{{else}}
@@ -208,8 +208,8 @@
 	  
 	  <div class="field">
 		<label class="field-label">Receipt System</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
 		{{else}}
@@ -288,7 +288,7 @@
 
 	  <div class="field">
 		<label class="field-label" for="ignore-namespace">Ignore Namespace</label>
-		{{if eq .Config.OperationMode "plain"}}
+		{{if eq .Config.OperationMode "browse-only"}}
 		{{if .Config.UseNamespace}}
 		<p><a href="/step7">Go back and change this setting</a></p>
 		<p class="field-description">All namespaces specified here will not be shown to the public. Each name should be separated by a comma <code>,</code> .</p>
@@ -308,13 +308,13 @@
 		<p>This field is skipped because you've choosen to not enable namespace.</p>
 		{{end}}
 		{{else}}
-		<p>This field is skipped because you've choosen to not enable Plain Mode; note that this field would not have any effect when the instance is not in Plain Mode, since in this case the visibility of namespaces are controlled elsewhere.</p>
+		<p>This field is skipped because you've choosen to not enable Browse-Only Mode; note that this field would not have any effect when the instance is not in Browse-Only Mode, since in this case the visibility of namespaces are controlled elsewhere.</p>
 		{{end}}
 	  </div>
 	  
 	  <div class="field">
 		<label class="field-label" for="ignore-repository">Ignore Repository</label>
-		{{if eq .Config.OperationMode "plain"}}
+		{{if eq .Config.OperationMode "browse-only"}}
 		<p><a href="/step7">Go back and change this setting</a></p>
 		<p class="field-description">All repositories should be written in the format of <code>{namespae name}:{repo name}</code>, for example, repository <code>testrepo</code> under namespace <code>testns</code> should be written <code>testns:testrepo</code>. All repositories specified here will not be shown to the public. Each name should be separated by a comma <code>,</code> .</p>
 		<table>
@@ -329,7 +329,7 @@
 		  </tbody>
 		</table>
 		{{else}}
-		<p>This field is skipped because you've choosen to not enable Plain Mode; note that this field would not have any effect when the instance is not in Plain Mode, since in this case the visibility of namespaces are controlled elsewhere.</p>
+		<p>This field is skipped because you've choosen to not enable Browse-Only Mode; note that this field would not have any effect when the instance is not in Browse-Only Mode, since in this case the visibility of namespaces are controlled elsewhere.</p>
 		{{end}}
 	  </div>
 	  
@@ -380,8 +380,8 @@
 	  
 	  <div class="field">
 		<label class="field-label" for="ssh-host-name">SSH Host Name</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else}}
 		<p><a href="/step8">Go back and change this setting</a></p>
 		<p class="field-description">SSH host name. Used as the base for composing SSH Git remote addresses.</p>
@@ -423,8 +423,8 @@
 	  
 	  <div class="field">
 		<label class="field-label" for="depot-name">User Management Related</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p>This field is skipped because you've chosen to enable Simple Mode, in which case user management is done elsewhere.</p>
 		{{else}}
@@ -469,8 +469,8 @@
 	  
 	  <div class="field">
 		<label class="field-label">Confirm Code Manager</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p>This field is skipped because you've chosen to enable Simple Mode.</p>
 		{{else}}
@@ -494,8 +494,8 @@
 
 	  <div class="field">
 		<label class="field-label">Root SSH Key</label>
-		{{if eq .Config.OperationMode "plain"}}
-		<p>This field is skipped because you've chosen to enable Plain Mode.</p>
+		{{if eq .Config.OperationMode "browse-only"}}
+		<p>This field is skipped because you've chosen to enable Browse-Only Mode.</p>
 		{{else if eq .Config.OperationMode "simple"}}
 		<p><a href="/step10">Go back and change this setting</a></p>
 		<p class="field-description">Simple Mode uses specially designated repositories to manage user keys and repositories. This is to setup the key that allows you to update these designated repositories through SSH.</p>

@@ -106,19 +106,20 @@ type GitusConfig struct {
 	BindPort int `json:"bindPort"`
 
 	// namespaces you need gitus to ignore during initial searching.
-	// only valid when plain mode is enabled. (when plain mode is
-	// disabled, all namespaces are visible by public by default,
-	// even if they don't have any public repository and/or member.)
+	// only valid when browse-only mode is enabled. (when browse-only
+	// mode is disabled, all namespaces are visible by public by
+	// default, even if they don't have any public repository and/or
+	// member.)
 	IgnoreNamespace []string `json:"ignoreNamespace"`
 	// repositories you need gitus to ignore during initial searching.
-	// only valid when plain mode is enabled. this option is valid
-	// whether you use namespace or not. when useNamespace is true,
-	// you need to specify the "full name" of the repository ("full
-	// name" i.e. `{namespace}:{repoName}`)
+	// only valid when browse-only mode is enabled. this option is
+	// valid whether you use namespace or not. when useNamespace is
+	// true, you need to specify the "full name" of the repository
+	// ("full name" i.e. `{namespace}:{repoName}`)
 	IgnoreRepository []string `json:"ignoreRepository"`
 
-	// the following database-related options are ignored when plain
-	// mode is enabled,
+	// the following database-related options are ignored when
+	// browse-only mode is enabled,
 	Database GitusDatabaseConfig `json:"database"`
 	Session GitusSessionConfig `json:"session"`
 	Mailer GitusMailerConfig `json:"mailer"`
@@ -142,7 +143,7 @@ type GitusConfig struct {
 	ShutdownMessage string `json:"shutdownMessage"`
 	// shown when the instance is in maintenance mode.
 	MaintenanceMessage string `json:"maintenanceMessage"`
-	// shown when the instance is in plain mode & private mode.
+	// shown when the instance is in browse-only mode & private mode.
 	PrivateNoticeMessage string `json:"privateNoticeMessage"`
 
 	// rate limiter
@@ -376,13 +377,13 @@ func (cfg *GitusConfig) GetRRDocTitle(p string) string {
 }
 
 const (
-	OP_MODE_PLAIN = "plain"
+	OP_MODE_BROWSE_ONLY = "browse-only"
 	OP_MODE_SIMPLE = "simple"
 	OP_MODE_FORGE = "forge"
 )
 
-func (cfg *GitusConfig) IsInPlainMode() bool {
-	return cfg.OperationMode == OP_MODE_PLAIN
+func (cfg *GitusConfig) IsInBrowseOnlyMode() bool {
+	return cfg.OperationMode == OP_MODE_BROWSE_ONLY
 }
 
 func (cfg *GitusConfig) IsInForgeMode() bool {
@@ -406,7 +407,7 @@ func CreateConfigFile(p string) error {
 		GitRoot: "",
 		GitUser: "git",
 		UseNamespace: false,
-		OperationMode: "plain",
+		OperationMode: "browse-only",
 		AllowRegistration: true,
 		EmailConfirmationRequired: true,
 		ManualApproval: true,
@@ -731,7 +732,7 @@ func (cfg *GitusConfig) GetAllNamespacePlain() (map[string]*model.Namespace, err
 	for _, item := range l {
 		namespaceName := item.Name()
 		if !model.ValidNamespaceName(namespaceName) { continue }
-		if cfg.OperationMode == OP_MODE_PLAIN {
+		if cfg.OperationMode == OP_MODE_BROWSE_ONLY {
 			_, shouldIgnore := slices.BinarySearch(cfg.IgnoreNamespace, namespaceName)
 			if shouldIgnore { continue }
 		} else if cfg.OperationMode == OP_MODE_SIMPLE {
@@ -745,7 +746,7 @@ func (cfg *GitusConfig) GetAllNamespacePlain() (map[string]*model.Namespace, err
 		ns, err := model.NewNamespace(namespaceName, p)
 		if err != nil { return nil, err }
 		// (i'm worried that) this might be slow...
-		if cfg.OperationMode == OP_MODE_PLAIN {
+		if cfg.OperationMode == OP_MODE_BROWSE_ONLY {
 			for _, item := range cfg.IgnoreRepository {
 				k := strings.Split(item, ":")
 				if len(k) < 2 { continue }

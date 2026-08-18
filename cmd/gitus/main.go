@@ -188,7 +188,7 @@ func main() {
 	context.GitUserHomeDirectory = gitUser.HomeDir
 
 	// the features of these commands are meaningless in the use case of
-	// plain mode, so the dispatching is done within this if branch.
+	// browse-only mode, so the dispatching is done within this if branch.
 	if len(mainCall) > 0 {
 		switch mainCall[0] {
 		case "install":

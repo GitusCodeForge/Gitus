@@ -18,7 +18,7 @@
 		<label class="field-label" for="operation-mode">Operation Mode</label>
 		<p class="field-description">Gitus supports 3 different operation mode.:
 		  <ul>
-			<li>Plain Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
+			<li>Browse-Only Mode: A simple Git web frontend similar to git-instaweb. Repositories would be readonly (with HTTP).</li>
 			<li>Simple Mode: User and repository managements are done by updating special repositories similar to Gitolite. Clone/push through SSH is enabled.</li>
 			<li>Forge Mode: All features enabled (other than the ones you choose to not enable). </li>
 		  </ul>
@@ -31,7 +31,7 @@
 			<tr><td><label for="operation-mode">operationMode</label></td>
 			  <td>
 				<select name="operation-mode" id="operation-mode">
-				  <option value="plain" {{if eq .Config.OperationMode "plain"}}selected{{end}}>Read-only web frontend (Plain Mode)</option>
+				  <option value="browse-only" {{if eq .Config.OperationMode "browse-only"}}selected{{end}}>Read-only web frontend (Browse-Only Mode)</option>
 				  <option value="simple" {{if eq .Config.OperationMode "simple"}}selected{{end}}>Simple managed SSH-enabled instance (Simple Mode)</option>
 				  <option value="forge" {{if eq .Config.OperationMode "forge"}}selected{{end}}>Full functionalities enabled (Forge Mode)</option>
 				</select>

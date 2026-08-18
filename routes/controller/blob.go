@@ -36,11 +36,11 @@ func bindBlobController(ctx *RouterContext) {
 				ctx.ReportNormalError("The repository you have requested isn't a Git repository.", w, r)
 				return
 			}
-			if !ctx.Config.IsInPlainMode() {
+			if !ctx.Config.IsInBrowseOnlyMode() {
 				rc.LoginInfo.IsOwner = (repo.Owner == rc.LoginInfo.UserName) || (ns.Owner == rc.LoginInfo.UserName)
 				rc.LoginInfo.IsStrictOwner = repo.Owner == rc.LoginInfo.UserName
 			}
-			if !ctx.Config.IsInPlainMode() && repo.Status == model.REPO_NORMAL_PRIVATE {
+			if !ctx.Config.IsInBrowseOnlyMode() && repo.Status == model.REPO_NORMAL_PRIVATE {
 				chk := rc.LoginInfo.IsAdmin || rc.LoginInfo.IsOwner
 				if !chk {
 					chk = repo.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName) != nil

@@ -301,18 +301,18 @@ func gitUserCheck(ctx routes.RouterContext) bool {
 	return true
 }
 
-// NOTE: you shouldn't check for plain mode here (instead - check it
-// at the *caller* side!) since plain mode is fully "passive" and will
-// not involve any database setup.
+// NOTE: you shouldn't check for browse-only mode here (instead -
+// check it at the *caller* side!) since browse-only mode is fully
+// "passive" and will not involve any database setup.
 func InstallGitus(ctx routes.RouterContext) {
 	if len(strings.TrimSpace(ctx.Config.GitUser)) <= 0 {
-		fmt.Printf("Plain mode disabled but empty Git user name... this won't do. We'll assume the name of the Git user is `git`.\n")
+		fmt.Printf("Browse-only mode disabled but empty Git user name... this won't do. We'll assume the name of the Git user is `git`.\n")
 		gitUserName := "git"
 		res := askYesNo("Continue with `git`?")
 		if !res {
 			res = askYesNo("Specify the user name yourself? ")
 			if !res {
-				fmt.Printf("Please config a Git user name, or in the case you only need a frontend like git-instaweb, enable plain mode.\n")
+				fmt.Printf("Please config a Git user name, or in the case you only need a frontend like git-instaweb, enable browse-only mode.\n")
 				return
 			}
 			fmt.Print("Please input the Git user name of choice: ")

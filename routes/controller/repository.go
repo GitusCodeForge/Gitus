@@ -46,7 +46,7 @@ func bindRepositoryController(ctx *RouterContext) {
 			if rc.Config.IsInForgeMode() {
 				rc.LoginInfo.IsOwner = s.Owner == rc.LoginInfo.UserName || ns.Owner == rc.LoginInfo.UserName
 			}
-			if !rc.Config.IsInPlainMode() && s.Status == model.REPO_NORMAL_PRIVATE {
+			if !rc.Config.IsInBrowseOnlyMode() && s.Status == model.REPO_NORMAL_PRIVATE {
 				t := s.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName)
 				if t == nil {
 					t = ns.ACL.GetUserPrivilege(rc.LoginInfo.UserName)

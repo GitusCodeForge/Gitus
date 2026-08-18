@@ -20,7 +20,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
-			if rc.Config.IsInPlainMode() {
+			if rc.Config.IsInBrowseOnlyMode() {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
@@ -90,7 +90,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
-			if rc.Config.IsInPlainMode() {
+			if rc.Config.IsInBrowseOnlyMode() {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
@@ -143,7 +143,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
-			if rc.Config.IsInPlainMode() {
+			if rc.Config.IsInBrowseOnlyMode() {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
@@ -234,7 +234,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
-			if rc.Config.IsInPlainMode() {
+			if rc.Config.IsInBrowseOnlyMode() {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
@@ -318,7 +318,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
-			if rc.Config.IsInPlainMode() {
+			if rc.Config.IsInBrowseOnlyMode() {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}

@@ -67,10 +67,12 @@ func bindHttpCloneController(ctx *RouterContext) {
 			isNamespacePublic := ns.Status == model.NAMESPACE_NORMAL_PUBLIC
 			isRepoPublic := repo.Status == model.REPO_NORMAL_PUBLIC
 			isRepoArchived := repo.Status == model.REPO_ARCHIVED
-			if !ctx.Config.IsInPlainMode() {
-				// NOTE: plain mode ns/repo visibility is not controlled via this route
-				// but by the "ignored namespace" / "ignored repository" config which
-				// should've already been accounted for by all the .Resolve* methods.
+			if !ctx.Config.IsInBrowseOnlyMode() {
+				// NOTE: browse-only mode ns/repo visibility is not
+				// controlled via this route but by the "ignored
+				// namespace" / "ignored repository" config which
+				// should've already been accounted for by all the
+				// .Resolve* methods.
 				if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
 					w.WriteHeader(404)
 					fmt.Fprint(w, "404 Not Found")
@@ -249,8 +251,8 @@ func bindHttpCloneController(ctx *RouterContext) {
 			isNamespacePublic := ns.Status == model.NAMESPACE_NORMAL_PUBLIC
 			isRepoPublic := repo.Status == model.REPO_NORMAL_PUBLIC
 			isRepoArchived := repo.Status == model.REPO_ARCHIVED
-			if !ctx.Config.IsInPlainMode() {
-				// NOTE: plain mode ns/repo visibility is not controlled via this route
+			if !ctx.Config.IsInBrowseOnlyMode() {
+				// NOTE: browse-only mode ns/repo visibility is not controlled via this route
 				// but by the "ignored namespace" / "ignored repository" config which
 				// should've already been accounted for by all the .Resolve* methods.
 				if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
