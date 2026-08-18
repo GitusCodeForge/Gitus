@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+	{{if not (eq .Timeout 0)}}
+	<meta http-equiv="refresh" content="{{.Timeout}}; url={{.RedirectUrl}}" />
+	{{end}}
+    <title>{{.MessageTitle}} :: {{.Config.DepotName}}</title>
+	<link rel="stylesheet" href="/static/style-const-default.css">
+	<link rel="stylesheet" href="/dynamic-asset/style-const-default.css">
+	<link rel="stylesheet" href="/static/style.css">
+	<link rel="stylesheet" href="/static/style-setting.css">
+	<link rel="stylesheet" href="/static/style-namespace-setting.css">
+  </head>
+  <body>
+	<header>
+	  {{template "_header-nav" .}}
+	  <h1 class="header-name" style="margin-bottom: 0">{{.ActionTitle}}</h1>
+	</header>
+	<hr />
+	<main>
+	  <div class="admin-main main-side">
+		<h2>{{.ActionTitle}}</h2>
+		<p>{{.ActionText}}</p>
+		<fieldset id="login-form">
+		  <legend>{{.ActionTitle}}</legend>
+		  <form action="{{.TargetUrl}}" method="POST">
+			{{if .AccompanyingData}}
+			{{range $k, $v = .AccompanyingData}}
+			<input type="hidden" name="{{$k}}" value="{{$v}}" />
+			{{end}}
+			{{end}}
+			<table class="field-table">
+			  <tbody>
+				<tr class="field">
+				  <td></td>
+				  <td><input class="form-submit" type="submit" value="{{.ButtonText}}" /></td>
+				</tr>
+			  </tbody>
+			</table>
+		  </form>
+		</fieldset>
+	  </div>
+	</main>
+	
+	<hr />
+	<footer>
+	  {{template "_footer"}}
+	</footer>
+  </body>
+</html>
+

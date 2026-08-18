@@ -178,7 +178,7 @@ func (ctx *RouterContext) ReportSingleButtonCallback(
 		loginInfoModel, err = GenerateLoginInfoModel(ctx, r)
 		if err != nil { panic(err) }
 	}
-	LogTemplateError(ctx.LoadTemplate("_single-button-callbackk/index").Execute(w, templates.SingleButtonCallbackModel{
+	LogTemplateError(ctx.LoadTemplate("_single-button-callback/index").Execute(w, templates.SingleButtonCallbackModel{
 		Config: ctx.Config,
 		LoginInfo: loginInfoModel,
 		TargetUrl: target,
