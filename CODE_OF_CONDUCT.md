@@ -34,3 +34,19 @@ moderation team empowered to control contributions or project
 direction beyond technical evaluation and code review. Decisions about
 what is included in the project will remain solely merit-based and
 decentralized.
+
+(ADDENDUM: EXEMPT CLAUSES)
+
+BDFL Exempt
+
+For projects that adopts the Benevolent Dictator For Life
+(BDFL) model, BDFL is exempt from all restrictions of the Code. For
+projects that does not explicitly reject the BDFL model, the
+owner/maintainer of the code is assumed to have BDFL status.
+
+Code-of-Conduct Exempt
+
+The development team of projects which adopts the Code retains full
+right to reject any proposal of Code of Conduct change at will.
+
+
