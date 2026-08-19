@@ -18,6 +18,7 @@ type TCache struct {
 	defaultTimeout time.Duration
 	val map[string]*tCacheVal
 	timerPool sync.Pool
+	lock sync.RWMutex
 }
 
 type tCacheTimer struct {
@@ -52,6 +53,8 @@ func NewTCache(d time.Duration) *TCache {
 }
 
 func (tc *TCache) Register(key string, value string, d time.Duration) {
+	tc.lock.Lock()
+	defer tc.lock.Unlock()
 	_, ok := tc.val[key]
 	if ok {
 		tc.val[key].value = value
@@ -70,12 +73,16 @@ func (tc *TCache) Register(key string, value string, d time.Duration) {
 }
 
 func (tc *TCache) Get(key string) (string, bool) {
+	tc.lock.RLock()
+	defer tc.lock.RUnlock()
 	v, ok := tc.val[key]
 	if !ok { return "", ok }
 	return v.value, true
 }
 
 func (tc *TCache) Delete(key string) {
+	tc.lock.Lock()
+	defer tc.lock.Unlock()
 	tm := tc.val[key].timer
 	tm.t.Stop()
 	tc.timerPool.Put(tm)
