@@ -266,6 +266,11 @@ func main() {
 	
 	controller.InitializeRoute(&context)
 
+	ipcServer, err := StartIPCServer(&context)
+	if err != nil {
+		log.Printf("WARNING: IPC server failed to start. Some functionalities might not be working...\nWARNING: %s\n", err.Error())
+	}
+	
 	go func() {
 		log.Printf("Start serving at %s:%d\n", config.BindAddress, config.BindPort)
 		err := server.ListenAndServe()
@@ -274,6 +279,7 @@ func main() {
 		}
 		log.Println("Stopped serving new connections.")
 	}()
+
 
 	// apparently go kills absolutely everything when main returns -
 	// all the goroutines and things would be just gone and not even
@@ -296,7 +302,11 @@ func main() {
 	defer shutdownRelease()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("HTTP shutdown err: %v", err.Error())
+		log.Fatalf("HTTP shutdown err: %s", err.Error())
+	}
+
+	if err := ipcServer.Close(); err != nil {
+		log.Printf("Failed to shutdown socket server: %s\n", err.Error())
 	}
 
 	if context.DatabaseInterface != nil {
@@ -321,4 +331,5 @@ func main() {
 	
 	log.Println("Graceful shutdown complete.")
 }
+
 

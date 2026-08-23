@@ -67,7 +67,7 @@ type GitusConfig struct {
 	// documents that users would have to read and agree to before
 	// registering a new account, e.g. terms of service. if "path"
 	// starts with "http://" or "https://", the path would be rendered
-	// as a link.  if it's not, it would be considered as na relpath to
+	// as a link.  if it's not, it would be considered as an relpath to
 	// `$staticAssetDirectory/rrdoc`, e.g.  "Terms Of Service":
 	// "tos.md" links the file "$static/rrdoc/tos.md" to the title
 	// "Terms Of Service".
@@ -172,6 +172,9 @@ type GitusConfig struct {
 
 	// max session lifetime (seconds)
 	MaxSessionLifetime int `json:"maxSessionLifetime"`
+
+	IPCServer GitusIPCServerConfig `json:"ipcServer"`
+	GlobalCache GitusGlobalCacheConfig `json:"globalCache"`
 
 	// ====================================================================
 	// configs below this line are advanced configs.
@@ -335,6 +338,36 @@ type GitusThemeConfig struct {
 	BackgroundColor string `json:"backgroundColor"`
 }
 
+const IPC_SERVER_TYPE_UNIX = "unix"
+type GitusIPCServerConfig struct {
+	// currently only supports "unix"
+	Type string `json:"type"`
+
+	// only applicable when type is "unix".
+	// if this is relative it's resolved against git user's home directory
+	UnixSocketPath string `json:"unixSocketPath"`
+	properUnixSocketPath string 
+}
+
+type GitusGlobalCacheConfig struct {
+	// currently only support:
+	// + "tcache"
+	// + redis-like dbs: "redis", "keydb", "valkey"
+	//   + "valkey" is not tested, but should work fine.
+	// + "memcached"
+	Type string `json:"type"`
+
+	// used as prefix of keys.
+	StorageTablePrefix string `json:"storageTablePrefix"`
+	// only applicable when type is redis-like or "memcached".
+	// when it's "tcache" it's ignored.
+	StorageHost string `json:"storageHost"`
+	StorageUserName string `json:"storageUserName"`
+	StoragePassword string `json:"storagePassword"`
+	// applicable only when type is redis-like
+	StorageDatabaseNumber int `json:"storageDatabaseNumber"`
+}
+
 // proper http host name. no trailing slash.
 func (cfg *GitusConfig) ProperHTTPHostName() string {
 	// proper http host name. no trailing slash.
@@ -479,6 +512,13 @@ func CreateConfigFile(p string) error {
 		},
 		MaxSessionLifetime: 7 * 24 * 60 * 60,
 		NoInteractiveShellMessage: "Direct shell access is forbidden on this host.",
+		IPCServer: GitusIPCServerConfig{
+			Type: "unix",
+			UnixSocketPath: "gitus.lock",
+		},
+		GlobalCache: GitusGlobalCacheConfig{
+			Type: "tcache",
+		},
 		JWTSecret: "",
 		PasswordHashStrength: 16,
 	}, "", "    ")
