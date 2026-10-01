@@ -20,7 +20,7 @@
 	{{.Name}}
 	{{else}}
 	<a href="{{$rootPath}}/{{$treePath}}{{.Name}}{{if eq .Mode 40000}}/{{end}}">{{.Name}}</a>
-	{{if .LastCommit}}<a class="file-list-item-last-commit" href="{{$repoPath}}/commit/{{.LastCommit.Id}}"}>"{{.LastCommit.CommitMessage}}" @ {{toFuzzyTime .LastCommit.CommitterInfo.Time}}</a>{{end}}
+	{{if .LastCommit}}<a class="file-list-item-last-commit" href="{{$repoPath}}/commit/{{.LastCommit.Id}}"}>"{{firstLine .LastCommit.CommitMessage}}" @ {{toFuzzyTime .LastCommit.CommitterInfo.Time}}</a>{{end}}
 	{{end}}
   </div>
   {{end}}

@@ -7,7 +7,7 @@
 	<tr>
 	  <td><b>Authors</b></td>
 	  <td>@ <span class="author-time commit-author-time">{{toFuzzyTime .Commit.AuthorInfo.Time}} <span class="precise-time">{{toPreciseTime .Commit.AuthorInfo.Time}}</span></span>
-		<ul style="margin: 0">
+		<ul class="author-list commit-author-list">
 		  <li><span class="author-name commit-author-name">{{.Commit.AuthorInfo.AuthorName}}</span>
 			(<span class="author-email commit-author-email"><a href="{{resolveEmailToLink .EmailUserMapping .Commit.AuthorInfo.AuthorEmail}}">{{.Commit.AuthorInfo.AuthorEmail}}</a></span>)</li>
 		  {{range $k := .Commit.CoAuthorInfo}}
@@ -26,7 +26,12 @@
 	  <td><span class="committer-name">{{.Commit.CommitterInfo.AuthorName}}</span>
   (<span class="committer-email"><a href="{{resolveEmailToLink .EmailUserMapping .Commit.AuthorInfo.AuthorEmail}}">{{.Commit.CommitterInfo.AuthorEmail}}</a></span>)
 		@ <span class="committer-time">{{toFuzzyTime .Commit.CommitterInfo.Time}} <span class="precise-time">{{toPreciseTime .Commit.CommitterInfo.Time}}</span></span></td></tr>
-	<tr><td><b>Message</b></td><td><p class="commit-message">{{.Commit.CommitMessage}}</p></td></tr>
+	<tr><td><b>Message</b></td><td>
+		{{if not (strContains (trimSpace .Commit.CommitMessage) "\n")}}
+		<p class="commit-message">{{trimSpace .Commit.CommitMessage}}</p>
+		{{else}}
+		<details class="commit-message"><summary class="commit-message-first-line">{{firstLine .Commit.CommitMessage}}</summary><div class="commit-message-rest-lines">{{range $l := restLines .Commit.CommitMessage}}{{$l}}<br />{{end}}</div></details>
+	    {{end}}</td></tr>
 	{{if gt (len .Commit.Signature) 0}}
 	<tr><td><b>Commit Signature</b></td><td><details><summary>Commit Signature</summary><pre style="overflow:auto">{{.Commit.Signature}}</pre></details></td></tr>
 	{{end}}

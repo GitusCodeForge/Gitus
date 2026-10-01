@@ -52,6 +52,7 @@ func (ctx *RouterContext) NewLocal() *RouterContext {
 		GitUserHomeDirectory: ctx.GitUserHomeDirectory,
 		Config: ctx.Config,
 		MasterTemplate: ctx.MasterTemplate,
+		GlobalCache: ctx.GlobalCache,
 		GitRepositoryList: ctx.GitRepositoryList,
 		GitNamespaceList: ctx.GitNamespaceList,
 		DatabaseInterface: ctx.DatabaseInterface,

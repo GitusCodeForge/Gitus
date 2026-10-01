@@ -1,9 +1,9 @@
 {{define "_tag-info"}}
-{{$repoPath := getRepoPath .RepoName}}
+{{$repoPath := getRepoPath .Repository.Namespace .Repository.Name}}
 <div class="tag-info">
   {{if .Annotated}}
     <b>Tag</b> <a href="{{$repoPath}}/tag/{{.Tag.Id}}">{{.Tag.Id}}</a><br />
-    <b>Tagged Object</b>: <a href="{{getRootPath .RepoName .Tag.TaggedObjType .Tag.TaggedObjId}}">{{.Tag.TaggedObjType}}:{{.Tag.TaggedObjId}}</a><br />
+    <b>Tagged Object</b>: <a href="{{getRootPath .Repository.Namespace .Repository.Name .Tag.TaggedObjType .Tag.TaggedObjId}}">{{.Tag.TaggedObjType}}:{{.Tag.TaggedObjId}}</a><br />
     <b>Tagger</b>: 
     <span class="tagger-name">{{.Tag.TaggerInfo.AuthorName}}</span>
     (<span class="tagger-email"><a href="{{resolveEmailToLink .EmailUserMapping .Tag.TaggerInfo.AuthorEmail}}">{{.Tag.TaggerInfo.AuthorEmail}}</a></span>)

@@ -128,6 +128,13 @@ hr {
 	margin-top: 0;
 	margin-bottom: 0;
 }
+.commit-message-rest-lines {
+	white-space: pre;
+	margin-top: 0;
+	margin-bottom: 0;
+	max-height: 20rem;
+	overflow: auto;
+}
 /* ======================================================== */
 
 /* ======================================================== */
@@ -170,6 +177,14 @@ hr {
 }
 .commit-history-table td:nth-of-type(4) { /* timezone */
 	width: 100q;
+}
+/* ======================================================== */
+
+
+/* ======================================================== */
+/* author list; happens when people use Co-Authored-By. */
+.author-list {
+	margin: 0;
 }
 /* ======================================================== */
 

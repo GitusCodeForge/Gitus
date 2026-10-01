@@ -130,15 +130,27 @@ func parseCommitObject(objid string, f io.Reader) (*CommitObject, error) {
 	for line := range strings.SplitSeq(message, "\n") {
 		r := reCoAuthoredBy.FindStringSubmatch(strings.TrimSpace(line))
 		if len(r) <= 0 { continue }
-		res.CoAuthorInfo = append(res.CoAuthorInfo, AuthorTime{
-			AuthorName: r[1],
-			AuthorEmail: r[2],
-			Time: res.AuthorInfo.Time,
-		})
+		if !_authorTimeAlreadyExists(res.CoAuthorInfo, r[1], r[2]) {
+			res.CoAuthorInfo = append(res.CoAuthorInfo, AuthorTime{
+				AuthorName: r[1],
+				AuthorEmail: r[2],
+				Time: res.AuthorInfo.Time,
+			})
+		}
 	}
 	res.CommitTime = res.CommitterInfo.Time
 	res.rawData = sourceBytes
 	res.Signature = strings.Join(sig, "\n")
 	return &res, nil
+}
+
+func _authorTimeAlreadyExists(authorInfoMap []AuthorTime, authorName string, authorEmail string) bool {
+	for i := range authorInfoMap {
+		item := authorInfoMap[i]
+		if item.AuthorName == authorName && item.AuthorEmail == authorEmail {
+			return true
+		}
+	}
+	return false
 }
 

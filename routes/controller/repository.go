@@ -84,6 +84,7 @@ func bindRepositoryController(ctx *RouterContext) {
 			var isFork bool = false
 			var upstream model.LocalRepository
 			var compareInfo *gitlib.BranchComparisonInfo = nil
+			// var lastCommitIdMap map[string]string
 			if len(s.ForkOriginName) > 0 || len(s.ForkOriginNamespace) > 0 {
 				isFork = true
 			}
@@ -148,6 +149,15 @@ func bindRepositoryController(ctx *RouterContext) {
 				cid, _ := rr.ResolvePathLastCommitId(cobj, item.Name)
 				o, err := rr.ReadObject(strings.TrimSpace(cid))
 				treeObjList[i].LastCommit = o.(*gitlib.CommitObject)
+				// lastCommitIdMap, _ = rr.ResolveLastCommitAtPath(cobj, ".")
+				// // fmt.Println(lastCommitIdMap)
+				// for k, item := range treeObjList {
+				// 	// TODO: find a better way to do this.
+				// 	lastCommitId, ok := lastCommitIdMap[item.Name]
+				// 	if ok {
+				// 		itemCObj, _ := rr.ReadObject(lastCommitId)
+				// 		treeObjList[k].LastCommit = itemCObj.(*gitlib.CommitObject)
+				// 	}
 				if item.Name == "README" || strings.HasPrefix(item.Name, "README.") {
 					// NOTE: this is to make sure that README.md and the like will
 					// always have a higher priority than other README file; some repo

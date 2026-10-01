@@ -3,9 +3,10 @@ package templates
 
 import "strings"
 
-func(s string) string {
+func(s string) []string {
 	a := strings.SplitN(strings.TrimSpace(s), "\n", 2)
-	if len(a) < 2 { return s }
-	return a[0]
+	alen := len(a)
+	if alen < 2 { return nil }
+	return a[1:]
 }
 

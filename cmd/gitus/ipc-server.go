@@ -67,6 +67,10 @@ func StartIPCServer(ctx *routes.RouterContext) (net.Listener, error) {
 	}
 }
 
+const (
+	IPC_COMMAND_UPDATE_GLOBAL_CACHE = 1
+)
+
 func handleIPCServerConnection(ctx *routes.RouterContext, conn net.Conn) {
 	ipcServerLog(fmt.Sprintf("Start handling client: %s", conn.RemoteAddr()))
 	defer conn.Close()
@@ -83,7 +87,7 @@ func handleIPCServerConnection(ctx *routes.RouterContext, conn net.Conn) {
 		ipcServerLog(fmt.Sprintf("Invalid incoming command: %s", s))
 		return
 	}
-	_, err = strconv.Atoi(strings.TrimSpace(c[0]))
+	cmdType, err := strconv.Atoi(strings.TrimSpace(c[0]))
 	if err != nil {
 		ipcServerLog(fmt.Sprintf("Invalid incoming command: %s", s))
 		return
@@ -92,6 +96,14 @@ func handleIPCServerConnection(ctx *routes.RouterContext, conn net.Conn) {
 	if len(vscmd) <= 0 {
 		ipcServerLog(fmt.Sprintf("Invalid incoming command: %s", s))
 		return
+	}
+	switch cmdType {
+	case IPC_COMMAND_UPDATE_GLOBAL_CACHE:
+		// 1:{key},{expiry_second},{value}
+		// key := vscmd[0]
+		// expiryString := vscmd[1]
+		// value := vscmd[2]
+		// ctx.GlobalCache.Write(
 	}
 
 	// TODO: fill in this.
