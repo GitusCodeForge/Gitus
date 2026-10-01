@@ -119,7 +119,6 @@ func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.Ha
 			var err error
 			if rawup != "" {
 				u, p, err = parseHTTPBasicAuthResponse(rawup)
-				log.Println(u, p, err)
 				if err != nil {
 					w.WriteHeader(400)
 					fmt.Fprint(w, "Failed to parse entry key. Please try again.")
@@ -420,6 +419,17 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.FrontPage.FileContent = r.Form.Get("front-page-file-content")
 		ctx.Config.Theme.ForegroundColor = "#000000"
 		ctx.Config.Theme.BackgroundColor = "#ffffff"
+		ctx.Config.GlobalCache.Type = strings.TrimSpace(r.Form.Get("global-cache-type"))
+		ctx.Config.GlobalCache.StorageTablePrefix = strings.TrimSpace(r.Form.Get("global-cache-storage-table-prefix"))
+		ctx.Config.GlobalCache.StorageHost = strings.TrimSpace(r.Form.Get("global-cache-storage-host"))
+		ctx.Config.GlobalCache.StorageUserName = strings.TrimSpace(r.Form.Get("global-cache-storage-user-name"))
+		ctx.Config.GlobalCache.StoragePassword = strings.TrimSpace(r.Form.Get("global-cache-storage-password"))
+		i, err = strconv.ParseInt(strings.TrimSpace(r.Form.Get("global-cache-storage-database-number")), 10, 32)
+		if err != nil {
+			ctx.reportRedirect("/step8", 0, "Invalid Request", "The request is of an invalid form. Please try again." + err.Error(), w)
+			return
+		}
+		ctx.Config.GlobalCache.StorageDatabaseNumber = int(i)
 		// NOTE: these options are not used in browse-only mode and host mode.
 		if ctx.Config.OperationMode == gitus.OP_MODE_FORGE {
 			ctx.Config.AllowRegistration = len(strings.TrimSpace(r.Form.Get("allow-registration"))) > 0

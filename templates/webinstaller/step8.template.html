@@ -105,6 +105,31 @@
 		</table>
 	  </div>
 	  <div class="field">
+		<label class="field-label">Global Cache Type</label>
+		<p class="field-description">Global cache is used to cache certain computation results that would be read often but updated infrequently.</p>
+		<table>
+		  <thead><tr><th>Field</th><th>Value</th></tr></thead>
+		  <tbody>
+			<tr><td class="field-sub-label"><label for="s-global-cache-type">globalCache.type</label><br/>(The type of the global cache.)</td>
+			  <td>
+				<select name="global-cache-type" id="s-global-cache-type">
+				  <option value="in-memory" {{if eq .Config.GlobalCache.Type "in-memory"}}selected{{end}}>In-Memory</option>
+				  <option value="redis" {{if eq .Config.GlobalCache.Type "redis"}}selected{{end}}>Redis</option>
+				  <option value="keydb" {{if eq .Config.GlobalCache.Type "keydb"}}selected{{end}}>KeyDB</option>
+				  <option value="valkey" {{if eq .Config.GlobalCache.Type "valkey"}}selected{{end}}>ValKey</option>
+				  <option value="memcached" {{if eq .Config.GlobalCache.Type "memcached"}}selected{{end}}>Memcached</option>
+				</select>
+			  </td>
+			</tr>
+			<tr><td class="field-sub-label"><label for="tf-global-cache-storage-table-prefix">globalCache.storageTablePrefix</label><br />(Used as prefix of keys. Not used when the type is "In-Memory", since in this case a dedicated cache object is created.)</td><td><input name="global-cache-storage-table-prefix" id="tf-global-cache-storage-table-prefix" value="{{htmlEscape .Config.GlobalCache.StorageTablePrefix}}" /></td></tr>
+			<tr><td class="field-sub-label"><label for="tf-global-cache-storage-host">globalCache.storageHost</label><br />(The hostname of the global cache. Only applicable when the global cache type is Redis-like or Memcached.)</td><td><input name="global-cache-storage-host" id="tf-global-cache-storage-host" value="{{htmlEscape .Config.GlobalCache.StorageHost}}"  /></td></tr>
+			<tr><td class="field-sub-label"><label for="tf-global-cache-storage-user-name">globalCache.userName</label><br />(The user name of the global cache. Only applicable when the global cache type is Redis-like.)</td><td><input name="global-cache-storage-user-name" id="tf-global-cache-storage-user-name" value="{{htmlEscape .Config.GlobalCache.StorageUserName}}"  /></td></tr>
+			<tr><td class="field-sub-label"><label for="tf-global-cache-storage-password">globalCache.password</label><br />(The password of the global cache. Only applicable when the global cache type is Redis-like.)</td><td><input type="password" name="global-cache-storage-password" id="tf-global-cache-storage-password" value="{{htmlEscape .Config.GlobalCache.StoragePassword}}"  /></td></tr>
+			<tr><td class="field-sub-label"><label for="tf-global-cache-storage-database-number">globalCache.storageDatabaseNumber</label><br />(The database number of the global cache. Only applicable when the global cache type is Redis-like.)</td><td><input name="global-cache-storage-database-number" id="tf-global-cache-storage-database-number" value="{{.Config.GlobalCache.StorageDatabaseNumber}}"  /></td></tr>
+		  </tbody>
+		</table>
+	  </div>
+	  <div class="field">
 		<label class="field-label" for="jwt-secret">JWT Secret</label>
 		{{if or (eq .Config.OperationMode "browse-only") (eq .Config.OperationMode "host")}}
 		<p>This field is skipped since you've chosen to activate Browse-Only Mode or Host Mode.</p>

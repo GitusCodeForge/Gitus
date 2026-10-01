@@ -52,13 +52,18 @@ func NewTCache(d time.Duration) *TCache {
 	return res
 }
 
+// `d = -1` registers the kvpair w/o a TTL.
 func (tc *TCache) Register(key string, value string, d time.Duration) {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 	_, ok := tc.val[key]
 	if ok {
 		tc.val[key].value = value
-		tc.val[key].timer.t.Reset(d)
+		if d == -1 {
+			tc.val[key].timer.t.Stop()
+		} else {
+			tc.val[key].timer.t.Reset(d)
+		}
 		return
 	}
 	t := tc.timerPool.Get().(*tCacheTimer)
@@ -68,8 +73,12 @@ func (tc *TCache) Register(key string, value string, d time.Duration) {
 		timeout: d,
 		value: value,
 	}
-	t.t.Reset(d)
-	go tc.timerFunc(t)
+	if d == -1 {
+		t.t.Stop()
+	} else {
+		t.t.Reset(d)
+		go tc.timerFunc(t)
+	}
 }
 
 func (tc *TCache) Get(key string) (string, bool) {

@@ -19,6 +19,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/mail"
 	rsinit "github.com/GitusCodeForge/Gitus/pkg/gitus/receipt/init"
 	ssinit "github.com/GitusCodeForge/Gitus/pkg/gitus/session/init"
+	gcinit "github.com/GitusCodeForge/Gitus/pkg/gitus/global_cache/init"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/ssh"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
@@ -108,6 +109,13 @@ func main() {
 		Config: config,
 		MasterTemplate: masterTemplate,
 	}
+
+	gcif, err := gcinit.InitializeGlobalCache(config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create global cache: %s\n", err.Error())
+		os.Exit(1)
+	}
+	context.GlobalCache = gcif
 
 	// if it's in forge mode we need to setup database.
 	if config.OperationMode == gitus.OP_MODE_FORGE {

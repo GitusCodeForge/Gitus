@@ -20,7 +20,7 @@ func InitializeDatabase(cfg *gitus.GitusConfig) (session.GitusSessionStore, erro
 		return redis_like.NewGitusRedisLikeSessionStore(cfg)
 	case "memcached":
 		return memcached.NewGitusMemcachedSessionStore(cfg)
-	case "in_memory":
+	case "in-memory":
 		return in_memory.NewGitusInMemorySessionStore(cfg)
 	}
 	return nil, db.ErrDatabaseNotSupported

@@ -351,7 +351,7 @@ type GitusIPCServerConfig struct {
 
 type GitusGlobalCacheConfig struct {
 	// currently only support:
-	// + "tcache"
+	// + "in-memory"
 	// + redis-like dbs: "redis", "keydb", "valkey"
 	//   + "valkey" is not tested, but should work fine.
 	// + "memcached"
@@ -360,7 +360,7 @@ type GitusGlobalCacheConfig struct {
 	// used as prefix of keys.
 	StorageTablePrefix string `json:"storageTablePrefix"`
 	// only applicable when type is redis-like or "memcached".
-	// when it's "tcache" it's ignored.
+	// when it's "in-memory" it's ignored.
 	StorageHost string `json:"storageHost"`
 	StorageUserName string `json:"storageUserName"`
 	StoragePassword string `json:"storagePassword"`
@@ -517,7 +517,7 @@ func CreateConfigFile(p string) error {
 			UnixSocketPath: "gitus.lock",
 		},
 		GlobalCache: GitusGlobalCacheConfig{
-			Type: "tcache",
+			Type: "in-memory",
 		},
 		JWTSecret: "",
 		PasswordHashStrength: 16,
