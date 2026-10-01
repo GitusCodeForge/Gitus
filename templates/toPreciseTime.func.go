@@ -11,9 +11,14 @@ func(s interface{}) string {
 		if !ok {
 			panic("Cannot determine time type")
 		}
-		return time.Unix(timestamp, 0).Format(time.RFC3339)
+		timeObj = time.Unix(timestamp, 0)
+		s := timeObj.Format(time.DateTime)
+		zone, _ := timeObj.Zone()
+		return fmt.Sprintf("%s %s", s, zone)
 	} else {
-		return timeObj.Format(time.RFC3339)
+		s := timeObj.Format(time.DateTime)
+		zone, _ := timeObj.Zone()
+		return fmt.Sprintf("%s %s", s, zone)
 	}
 }
 

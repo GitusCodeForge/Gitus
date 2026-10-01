@@ -16,11 +16,12 @@ type AuthorTime struct {
 }
 
 func parseTimezoneOffset(s string) (int, error) {
+	// returns seconds east of UTC.
 	if s == "Z" { return 0, nil }
 	if len(s) != 5 { return 0, errors.New("Invalid timezone offset string") }
 	hour := ((int(s[1]) - int('0')) * 10) + (int(s[2]) - int('0'))
 	minute := ((int(s[3]) - int('0')) * 10) + (int(s[4]) - int('0'))
-	total := hour * 60 + minute
+	total := (hour * 60 + minute) * 60
 	if s[0] == '-' { total = -total }
 	return total, nil
 }
@@ -50,6 +51,7 @@ func parseAuthorTime(s string) AuthorTime {
 	res.Time = timePiece.In(timezone)
 	return res
 }
+
 
 func (at *AuthorTime) String() string {
 	_, i := at.Time.Zone()

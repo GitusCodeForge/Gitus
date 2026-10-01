@@ -38,7 +38,9 @@
 	  <table class="commit-history-table">
 		<thead>
 		  <th>commit</th>
-		  <th>datetime</th>
+		  <th>date</th>
+		  <th>time</th>
+		  <th>timezone</th>
 		  <th>author</th>
 		  <th>message</th>
 		</thead>
@@ -47,8 +49,10 @@
 		  {{$authorUserName := resolveEmailToUsername $emailUserMapping .AuthorInfo.AuthorEmail}}
 		  {{$committerUserName := resolveEmailToUsername $emailUserMapping .CommitterInfo.AuthorEmail}}
 		  <tr>
-			<td>{{slice .Id 0 8}}</td>
-			<td>{{toFuzzyTime .AuthorInfo.Time}}</td>
+			<td><a href="{{$repoPath}}/commit/{{.Id}}">{{slice .Id 0 8}}</a></td>
+			<td>{{dateFromTimeObj .AuthorInfo.Time}}</td>
+			<td>{{timeFromTimeObj .AuthorInfo.Time}}</td>
+			<td>{{timezoneFromTimeObj .AuthorInfo.Time}}</td>
 			<td><a href="{{resolveEmailToLink $emailUserMapping .AuthorInfo.AuthorEmail}}">
 				{{.AuthorInfo.AuthorName}}</a>
 			</td>

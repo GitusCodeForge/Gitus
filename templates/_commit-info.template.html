@@ -1,31 +1,35 @@
 {{define "_commit-info"}}
 {{$emailUserMapping := .EmailUserMapping}}
-<div class="commit-info">
-  <b>Commit</b> <a href="{{.RootPath}}/commit/{{.Commit.Id}}">{{slice .Commit.Id 0 8}}...</a> (<a href="{{.RootPath}}/diff/{{.Commit.Id}}">Diff</a>) (<a href="{{.RootPath}}/commit/{{.Commit.Id}}">Tree</a>) (<a href="{{.RootPath}}/history/commit:{{.Commit.Id}}">Full History</a>)<br />
-  {{if gt (len .Commit.CoAuthorInfo) 0}}
-  <b>Authors</b> @ <span class="author-time commit-author-time">{{toFuzzyTime .Commit.AuthorInfo.Time}} <span class="precise-time">{{.Commit.AuthorInfo.Time}}</span></span><br />
-  <ul style="margin: 0">
-	<li><span class="author-name commit-author-name">{{.Commit.AuthorInfo.AuthorName}}</span>
-	  (<span class="author-email commit-author-email"><a href="{{resolveEmailToLink .EmailUserMapping .Commit.AuthorInfo.AuthorEmail}}">{{.Commit.AuthorInfo.AuthorEmail}}</a></span>)</li>
-	{{range $k := .Commit.CoAuthorInfo}}
-	<li><span class="author-name commit-author-name">{{.AuthorName}}</span>
-	  (<span class="author-email commit-author-email"><a href="{{resolveEmailToLink $emailUserMapping .AuthorEmail}}">{{.AuthorEmail}}</a></span>)</li>
-	{{end}}
-  </ul>
-  {{else}}
-  <b>Author</b>:
-  <span class="author-name commit-author-name">{{.Commit.AuthorInfo.AuthorName}}</span>
+<table class="commit-info">
+  <tbody>
+	<tr><td><b>Commit</b></td><td><a href="{{.RootPath}}/commit/{{.Commit.Id}}">{{.Commit.Id}}</a> (<a href="{{.RootPath}}/diff/{{.Commit.Id}}">Diff</a>) (<a href="{{.RootPath}}/commit/{{.Commit.Id}}">Tree</a>) (<a href="{{.RootPath}}/history/commit:{{.Commit.Id}}">Full History</a>)<br /></td></tr>
+	{{if gt (len .Commit.CoAuthorInfo) 0}}
+	<tr>
+	  <td><b>Authors</b></td>
+	  <td>@ <span class="author-time commit-author-time">{{toFuzzyTime .Commit.AuthorInfo.Time}} <span class="precise-time">{{toPreciseTime .Commit.AuthorInfo.Time}}</span></span>
+		<ul style="margin: 0">
+		  <li><span class="author-name commit-author-name">{{.Commit.AuthorInfo.AuthorName}}</span>
+			(<span class="author-email commit-author-email"><a href="{{resolveEmailToLink .EmailUserMapping .Commit.AuthorInfo.AuthorEmail}}">{{.Commit.AuthorInfo.AuthorEmail}}</a></span>)</li>
+		  {{range $k := .Commit.CoAuthorInfo}}
+		  <li><span class="author-name commit-author-name">{{.AuthorName}}</span>
+			(<span class="author-email commit-author-email"><a href="{{resolveEmailToLink $emailUserMapping .AuthorEmail}}">{{.AuthorEmail}}</a></span>)</li>
+		  {{end}}
+		</ul>
+	  </td>
+	</tr>
+	{{else}}
+	<tr><td><b>Author</b></td><td><span class="author-name commit-author-name">{{.Commit.AuthorInfo.AuthorName}}</span>
   (<span class="author-email commit-author-email"><a href="{{resolveEmailToLink .EmailUserMapping .Commit.AuthorInfo.AuthorEmail}}">{{.Commit.AuthorInfo.AuthorEmail}}</a></span>)
-  @ <span class="author-time commit-author-time">{{toFuzzyTime .Commit.AuthorInfo.Time}} <span class="precise-time">{{.Commit.AuthorInfo.Time}}</span></span><br />
-  {{end}}
-  <b>Committer</b>: 
-  <span class="committer-name">{{.Commit.CommitterInfo.AuthorName}}</span>
+		@ <span class="author-time commit-author-time">{{toFuzzyTime .Commit.AuthorInfo.Time}} <span class="precise-time">{{toPreciseTime .Commit.AuthorInfo.Time}}</span></span></td></tr>
+	{{end}}
+	<tr><td><b>Committer</b></td>
+	  <td><span class="committer-name">{{.Commit.CommitterInfo.AuthorName}}</span>
   (<span class="committer-email"><a href="{{resolveEmailToLink .EmailUserMapping .Commit.AuthorInfo.AuthorEmail}}">{{.Commit.CommitterInfo.AuthorEmail}}</a></span>)
-  @ <span class="committer-time">{{toFuzzyTime .Commit.CommitterInfo.Time}} <span class="precise-time">{{.Commit.CommitterInfo.Time}}</span></span><br />
-  <b>Message</b>:<p class="commit-message">{{.Commit.CommitMessage}}</p>
-  {{if gt (len .Commit.Signature) 0}}
-  <details><summary><b>Commit Signature</b></summary><pre style="overflow:auto">{{.Commit.Signature}}</pre></details>
-  {{end}}
-</div>
-
+		@ <span class="committer-time">{{toFuzzyTime .Commit.CommitterInfo.Time}} <span class="precise-time">{{toPreciseTime .Commit.CommitterInfo.Time}}</span></span></td></tr>
+	<tr><td><b>Message</b></td><td><p class="commit-message">{{.Commit.CommitMessage}}</p></td></tr>
+	{{if gt (len .Commit.Signature) 0}}
+	<tr><td><b>Commit Signature</b></td><td><details><summary>Commit Signature</summary><pre style="overflow:auto">{{.Commit.Signature}}</pre></details></td></tr>
+	{{end}}
+  </tbody>
+</table>
 {{end}}
