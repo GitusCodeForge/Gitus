@@ -30,7 +30,7 @@ func UseMiddleware(w []Middleware, ctx *RouterContext, f HandlerFunc) http.Handl
 		// security headers...
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';")
 		scheme := r.Header.Get("X-Forwarded-Proto")
 		if r.TLS != nil || scheme == "https" {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
