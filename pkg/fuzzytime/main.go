@@ -49,13 +49,17 @@ func TimeSpanToFuzzyTimeString(s time.Duration) string {
 		}
 	} else {
 		if yearCount == 1 {
-			if yearRemain == 1 {
+			if yearRemain == 0 {
+				return "1 year ago"
+			} else if  yearRemain == 1 {
 				return "1 year 1 month ago"
 			} else {
 				return fmt.Sprintf("1 year %d months ago", yearRemain)
 			}
 		} else {
-			if yearRemain == 1 {
+			if yearRemain == 0 {
+				return fmt.Sprintf("%d years ago", yearCount)
+			} else if yearRemain == 1 {
 				return fmt.Sprintf("%d years 1 month ago", yearCount)
 			} else {
 				return fmt.Sprintf("%d years %d months ago", yearCount, yearRemain)
