@@ -32,12 +32,7 @@
 	<hr />
 
 	<main>
-	  <div class="node-description left-side">
-		{{if .ParentTreeFileList}}
-		{{template "_tree-file-list" .ParentTreeFileList}}
-		{{end}}
-	  </div>
-	  <div class="tree main-side">
+	  <div class="tree main-side tree-main-side">
 		<div class="main-side-top">
 		  {{template "_tree-path" .TreePath}}
 		  <div class="file-nav">

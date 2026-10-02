@@ -293,13 +293,7 @@ hr {
 
 /* ======================================================== */
 /* file list (used when displaying tree object) */
-.file-list {
-	display: flex;
-	flex-direction: column;
-}
 .file-list-item {
-	display: flex;
-	flex-direction: row;
 	font-size: var(--file-list-height);
 }
 .file-list-item-icon {
@@ -308,6 +302,33 @@ hr {
 	fill: var(--foreground-color);
 }
 .file-list-item-last-commit {
+	margin-left: 1rem;
+	color: var(--shade-degree-2);
+	text-decoration: none;
+}
+/* ======================================================== */
+
+
+/* ======================================================== */
+/* sidebar file list (used when displaying parent directory
+   in the sidebar while viewing a file.) */
+.sidebar-file-list {
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
+}
+.sidebar-file-list-item {
+	display: flex;
+	flex-direction: row;
+	font-size: var(--file-list-height);
+}
+.sidebar-file-list-item-icon {
+	width: var(--file-list-height);
+	height: var(--file-list-height);
+	fill: var(--foreground-color);
+    min-width: var(--file-list-height);
+}
+.sidebar-file-list-item-last-commit {
 	margin-left: 1rem;
 	color: var(--shade-degree-2);
 	text-decoration: none;
@@ -405,6 +426,7 @@ main {
 	width: 240q;
 	flex-grow: 1;
 	padding-right: 2rem;
+	border-right: 2px var(--foreground-color) solid;
 }
 .sidebar hr {
 	height: 2px;
@@ -415,11 +437,14 @@ main {
 .main-side {
 	padding: 2rem;
 	flex-grow: 2;
-    border-left: 2px var(--foreground-color) solid;
 	overflow: auto;
 }
 .main-side h2:first-child {
 	margin-top: 0;
+}
+.tree-main-side {
+	padding-left: 0 !important;
+	padding-right: 0 !important;
 }
 @media (max-width: 820px) {
 	main { display: inherit; }

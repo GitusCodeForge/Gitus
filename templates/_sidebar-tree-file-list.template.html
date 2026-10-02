@@ -1,0 +1,26 @@
+{{define "_sidebar-tree-file-list"}}
+{{$rootPath := .RootPath}}
+{{$treePath := .TreePath}}
+{{$repoPath := .RepoPath}}
+<div class="sidebar-file-list">
+  {{if .ShouldHaveParentLink}}
+  <div class="sidebar-file-list-parent-link"><a href="..">..</a></div>
+  {{end}}
+  
+  {{range .FileList}}
+  <div class="sidebar-file-list-item">
+	<svg class="sidebar-file-list-item-icon">
+	  {{if or (eq (.Mode) 100644) (eq (.Mode) 100755)}}
+	  <use href="/static/assets/icons.svg#file"></use>
+	  {{else if (eq (.Mode) 40000) }}
+	  <use href="/static/assets/icons.svg#folder"></use>
+	  {{else if (eq (.Mode) 160000)}}
+	  <use href="/static/assets/icons.svg#link"></use>
+	  {{end}}
+	</svg>
+	{{if eq .Mode 160000}}{{.Name}}{{else}}<a href="{{$rootPath}}/{{$treePath}}{{.Name}}{{if eq .Mode 40000}}/{{end}}">{{.Name}}</a>{{end}}
+	{{if .LastCommit}}<a class="file-list-item-last-commit" href="{{$repoPath}}/commit/{{.LastCommit.Id}}"}>"{{firstLine .LastCommit.CommitMessage}}" @ {{toFuzzyTime .LastCommit.CommitterInfo.Time}}</a>{{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}	
