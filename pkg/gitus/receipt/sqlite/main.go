@@ -41,12 +41,13 @@ func (rsif *GitusSqliteReceiptSystemInterface) Dispose() error {
 	return rsif.connection.Close()
 }
 
+// NOTE: all queries below go through connection/tx directly instead of
+// Prepare; statements prepared here are one-shot and would have to be
+// finalized explicitly, which is easy to forget and leaks in the driver.
 func (rsif *GitusSqliteReceiptSystemInterface) IsReceiptSystemUsable() (bool, error) {
 	pfx := rsif.config.ReceiptSystem.TablePrefix
-	stmt, err := rsif.connection.Prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?")
-	if err != nil { return false, err }
 	for _, item := range requiredTableList {
-		r := stmt.QueryRow(fmt.Sprintf("%s_%s", pfx, item))
+		r := rsif.connection.QueryRow("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?", fmt.Sprintf("%s_%s", pfx, item))
 		if r.Err() != nil { return false, r.Err() }
 		var a string
 		err := r.Scan(&a)
@@ -62,15 +63,13 @@ func (rsif *GitusSqliteReceiptSystemInterface) Install() error {
 	tx, err := rsif.connection.Begin()
 	if err != nil { return err }
 	defer tx.Rollback()
-	stmt, err := tx.Prepare(fmt.Sprintf(`
+	_, err = tx.Exec(fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS %s_receipt (
     id TEXT UNIQUE,
     command TEXT,
     issue_time INT,
     timeout_minute INT
 )`, pfx))
-	if err != nil { return err }
-	_, err = stmt.Exec()
 	if err != nil { return err }
 	err = tx.Commit()
 	if err != nil { return err }
@@ -79,18 +78,15 @@ CREATE TABLE IF NOT EXISTS %s_receipt (
 
 func (rsif *GitusSqliteReceiptSystemInterface) RetrieveReceipt(rid string) (*receipt.Receipt, error) {
 	pfx := rsif.config.ReceiptSystem.TablePrefix
-	stmt, err := rsif.connection.Prepare(fmt.Sprintf(`
+	r := rsif.connection.QueryRow(fmt.Sprintf(`
 SELECT command, issue_time, timeout_minute
 FROM %s_receipt
 WHERE id = ?
-`, pfx))
-	if err != nil { return nil, err }
-	defer stmt.Close()
-	r := stmt.QueryRow(rid)
-	if r.Err() != nil { return nil, err }
+`, pfx), rid)
+	if r.Err() != nil { return nil, r.Err() }
 	var cmd string
 	var issueTime, timeoutMinute int64
-	err = r.Scan(&cmd, &issueTime, &timeoutMinute)
+	err := r.Scan(&cmd, &issueTime, &timeoutMinute)
 	if err != nil { return nil, err }
 	return &receipt.Receipt{
 		Id: rid,
@@ -105,13 +101,11 @@ func (rsif *GitusSqliteReceiptSystemInterface) IssueReceipt(timeoutMinute int64,
 	tx, err := rsif.connection.Begin()
 	if err != nil { return "", err }
 	defer tx.Rollback()
-	stmt, err := tx.Prepare(fmt.Sprintf(`
+	rid := receipt.NewReceiptId()
+	_, err = tx.Exec(fmt.Sprintf(`
 INSERT INTO %s_receipt(id, command, issue_time, timeout_minute)
 VALUES (?,?,?,?)
-`, pfx))
-	if err != nil { return "", err }
-	rid := receipt.NewReceiptId()
-	_, err = stmt.Exec(rid, receipt.SerializeReceiptCommand(command), time.Now().Unix(), timeoutMinute)
+`, pfx), rid, receipt.SerializeReceiptCommand(command), time.Now().Unix(), timeoutMinute)
 	if err != nil { return "", err }
 	err = tx.Commit()
 	if err != nil { return "", err }
@@ -123,9 +117,7 @@ func (rsif *GitusSqliteReceiptSystemInterface) CancelReceipt(rid string) error {
 	tx, err := rsif.connection.Begin()
 	if err != nil { return err }
 	defer tx.Rollback()
-	stmt, err := tx.Prepare(fmt.Sprintf(`DELETE FROM %s_receipt WHERE id = ?`, pfx))
-	if err != nil { return err }
-	_, err = stmt.Exec(rid)
+	_, err = tx.Exec(fmt.Sprintf(`DELETE FROM %s_receipt WHERE id = ?`, pfx), rid)
 	if err != nil { return err }
 	err = tx.Commit()
 	if err != nil { return err }
@@ -134,14 +126,11 @@ func (rsif *GitusSqliteReceiptSystemInterface) CancelReceipt(rid string) error {
 
 func (rsif *GitusSqliteReceiptSystemInterface) GetAllReceipt(pageNum int, pageSize int) ([]*receipt.Receipt, error) {
 	pfx := rsif.config.ReceiptSystem.TablePrefix
-	stmt, err := rsif.connection.Prepare(fmt.Sprintf(`
+	r, err := rsif.connection.Query(fmt.Sprintf(`
 SELECT id, command, issue_time, timeout_minute
 FROM %s_receipt
 ORDER BY rowid ASC
-LIMIT ? OFFSET ?`, pfx))
-	if err != nil { return nil, err }
-	defer stmt.Close()
-	r, err := stmt.Query(pageSize, pageNum * pageSize)
+LIMIT ? OFFSET ?`, pfx), pageSize, pageNum * pageSize)
 	if err != nil { return nil, err }
 	defer r.Close()
 	res := make([]*receipt.Receipt, 0)
@@ -157,6 +146,7 @@ LIMIT ? OFFSET ?`, pfx))
 			TimeoutMinute: timeoutMinute,
 		})
 	}
+	if r.Err() != nil { return nil, r.Err() }
 	return res, nil
 }
 
@@ -166,15 +156,13 @@ func (rsif *GitusSqliteReceiptSystemInterface) SearchReceipt(q string, pageNum i
 	pattern = strings.ReplaceAll(pattern, "%", "\\%")
 	pattern = strings.ReplaceAll(pattern, "_", "\\_")
 	pattern = "%" + pattern + "%"
-	stmt, err := rsif.connection.Prepare(fmt.Sprintf(`
+	r, err := rsif.connection.Query(fmt.Sprintf(`
 SELECT id, command, issue_time, timeout_minute
 FROM %s_receipt
 WHERE id LIKE ? ESCAPE ? OR command LIKE ? ESCAPE ?
-ORDER BY rowid ASC LIMIT ? OFFSET ?`, pfx))
-	if err != nil { return nil, nil }
-	defer stmt.Close()
-	r, err := stmt.Query(pattern, "\\", pattern, "\\", pageSize, pageNum * pageSize)
+ORDER BY rowid ASC LIMIT ? OFFSET ?`, pfx), pattern, "\\", pattern, "\\", pageSize, pageNum * pageSize)
 	if err != nil { return nil, err }
+	defer r.Close()
 	res := make([]*receipt.Receipt, 0)
 	for r.Next() {
 		var id, command string
@@ -188,6 +176,7 @@ ORDER BY rowid ASC LIMIT ? OFFSET ?`, pfx))
 			TimeoutMinute: timeoutMinute,
 		})
 	}
+	if r.Err() != nil { return nil, r.Err() }
 	return res, nil
 }
 
@@ -196,17 +185,13 @@ func (rsif *GitusSqliteReceiptSystemInterface) EditReceipt(id string, robj *rece
 	tx, err := rsif.connection.Begin()
 	if err != nil { return err }
 	defer tx.Rollback()
-	stmt, err := tx.Prepare(fmt.Sprintf(`
+	_, err = tx.Exec(fmt.Sprintf(`
 UPDATE %s_receipt
 SET command = ?, issue_time = ?, timeout_minute = ?
 WHERE id = ?
-`, pfx))
-	if err != nil { return err }
-	defer stmt.Close()
-	_, err = stmt.Exec(receipt.SerializeReceiptCommand(robj.Command), robj.IssueTime, robj.TimeoutMinute, robj.Id)
+`, pfx), receipt.SerializeReceiptCommand(robj.Command), robj.IssueTime, robj.TimeoutMinute, robj.Id)
 	if err != nil { return err }
 	err = tx.Commit()
 	if err != nil { return err }
 	return nil
 }
-

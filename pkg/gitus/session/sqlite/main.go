@@ -38,14 +38,15 @@ func (ss *GitusSqliteSessionStore) Dispose() error {
 	return ss.connection.Close()
 }
 
+// NOTE: all queries below go through connection/tx directly instead of
+// Prepare; statements prepared here are one-shot and would have to be
+// finalized explicitly, which is easy to forget and leaks in the driver.
 func (ss *GitusSqliteSessionStore) IsSessionStoreUsable() (bool, error) {
 	tableName := fmt.Sprintf("%ssession", ss.config.Session.TablePrefix)
-	stmt, err := ss.connection.Prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?")
-	if err != nil { return false, err }
- 	r := stmt.QueryRow(tableName)
+	r := ss.connection.QueryRow("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?", tableName)
 	if r.Err() != nil { return false, r.Err() }
 	var x string
-	err = r.Scan(&x)
+	err := r.Scan(&x)
 	if err == sql.ErrNoRows { return false, nil }
 	if err != nil { return false, err }
 	if len(x) <= 0 { return false, nil }
@@ -55,15 +56,14 @@ func (ss *GitusSqliteSessionStore) IsSessionStoreUsable() (bool, error) {
 func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string) (*session.GitusSession, error) {
 	tx, err := ss.connection.Begin()
 	if err != nil { return nil, err }
-	stmt, err := tx.Prepare(fmt.Sprintf("INSERT INTO %ssession(user_name, value, reg_timestamp, expire_timestamp, csrf) VALUES (?,?,?,?,?)", ss.config.Session.TablePrefix))
-	if err != nil { tx.Rollback(); return nil, err }
+	defer tx.Rollback()
 	var t int64 = time.Now().UTC().Unix()
 	var tExp int64 = t + int64(ss.config.MaxSessionLifetime)
 	var csrf = auxfuncs.CryptoGenSym(64)
-	_, err = stmt.Exec(name, s, t, tExp, csrf)
-	if err != nil { tx.Rollback(); return nil, err }
-	err = tx.Commit();
-	if err != nil { tx.Rollback(); return nil, err }
+	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %ssession(user_name, value, reg_timestamp, expire_timestamp, csrf) VALUES (?,?,?,?,?)", ss.config.Session.TablePrefix), name, s, t, tExp, csrf)
+	if err != nil { return nil, err }
+	err = tx.Commit()
+	if err != nil { return nil, err }
 	return &session.GitusSession{
 		Username: name,
 		Id: s,
@@ -74,11 +74,10 @@ func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string) (*sess
 }
 
 func (ss *GitusSqliteSessionStore) RetrieveSession(name string) ([]*session.GitusSession, error) {
-	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT value, reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ?", ss.config.Session.TablePrefix))
-	if err != nil { return nil, err }
 	res := make([]*session.GitusSession, 0)
+	r, err := ss.connection.Query(fmt.Sprintf("SELECT value, reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ?", ss.config.Session.TablePrefix), name)
 	if err != nil { return nil, err }
-	r, err := stmt.Query(name)
+	defer r.Close()
 	for r.Next() {
 		var id string
 		var timestamp int64
@@ -94,18 +93,17 @@ func (ss *GitusSqliteSessionStore) RetrieveSession(name string) ([]*session.Gitu
 			CSRFToken: csrf,
 		})
 	}
+	if r.Err() != nil { return nil, r.Err() }
 	return res, nil
 }
 
 func (ss *GitusSqliteSessionStore) RetrieveSessionByKey(username string, key string) (*session.GitusSession, error) {
-	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix))
-	if err != nil { return nil, err }
-	r := stmt.QueryRow(username, key)
+	r := ss.connection.QueryRow(fmt.Sprintf("SELECT reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix), username, key)
 	if r.Err() != nil { return nil, r.Err() }
 	var timestamp int64
 	var tExp int64
 	var csrf string
-	err = r.Scan(&timestamp, &tExp, &csrf)
+	err := r.Scan(&timestamp, &tExp, &csrf)
 	if err != nil { return nil, err }
 	if time.Now().Unix() >= tExp {
 		ss.RevokeSession(username, key)
@@ -123,32 +121,28 @@ func (ss *GitusSqliteSessionStore) RetrieveSessionByKey(username string, key str
 func (ss *GitusSqliteSessionStore) RevokeSession(username string, target string) error {
 	tx, err := ss.connection.Begin()
 	if err != nil { return err }
-	stmt, err := tx.Prepare(fmt.Sprintf("DELETE FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix))
-	if err != nil { tx.Rollback(); return err }
-	_, err = stmt.Exec(username, target)
-	if err != nil { tx.Rollback(); return err }
+	defer tx.Rollback()
+	_, err = tx.Exec(fmt.Sprintf("DELETE FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix), username, target)
+	if err != nil { return err }
 	err = tx.Commit()
-	if err != nil { tx.Rollback(); return err }
+	if err != nil { return err }
 	return nil
 }
 
 func (ss *GitusSqliteSessionStore) RevokeAllSession(username string) error {
 	tx, err := ss.connection.Begin()
 	if err != nil { return err }
-	stmt, err := tx.Prepare(fmt.Sprintf("DELETE FROM %ssession WHERE user_name = ?", ss.config.Session.TablePrefix))
-	if err != nil { tx.Rollback(); return err }
-	_, err = stmt.Exec(username)
-	if err != nil { tx.Rollback(); return err }
-	err = tx.Commit();
-	if err != nil { tx.Rollback(); return err }
+	defer tx.Rollback()
+	_, err = tx.Exec(fmt.Sprintf("DELETE FROM %ssession WHERE user_name = ?", ss.config.Session.TablePrefix), username)
+	if err != nil { return err }
+	err = tx.Commit()
+	if err != nil { return err }
 	return nil
 }
 
 func (ss *GitusSqliteSessionStore) VerifySessionExist(name string, target string) (bool, error) {
-	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT expire_timestamp FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix))
-	if err != nil { return false, err }
 	var s int64
-	err = stmt.QueryRow(name, target).Scan(&s)
+	err := ss.connection.QueryRow(fmt.Sprintf("SELECT expire_timestamp FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix), name, target).Scan(&s)
 	if err == sql.ErrNoRows { return false, nil }
 	if err != nil { return false, err }
 	if time.Now().Unix() >= s {
@@ -159,14 +153,12 @@ func (ss *GitusSqliteSessionStore) VerifySessionExist(name string, target string
 }
 
 func (ss *GitusSqliteSessionStore) VerifySessionFull(username string, session string, csrf string) (bool, error) {
-	stmt, err := ss.connection.Prepare(fmt.Sprintf("SELECT reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix))
-	if err != nil { return false, err }
-	r := stmt.QueryRow(username, csrf)
+	r := ss.connection.QueryRow(fmt.Sprintf("SELECT reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix), username, session)
 	if r.Err() != nil { return false, r.Err() }
 	var timestamp int64
 	var tExp int64
 	var sessionCsrf string
-	err = r.Scan(&timestamp, &tExp, &csrf)
+	err := r.Scan(&timestamp, &tExp, &sessionCsrf)
 	if err != nil { return false, err }
 	if time.Now().Unix() >= tExp {
 		ss.RevokeSession(username, session)
@@ -175,4 +167,3 @@ func (ss *GitusSqliteSessionStore) VerifySessionFull(username string, session st
 	if subtle.ConstantTimeCompare([]byte(sessionCsrf), []byte(csrf)) == 0 { return false, nil }
 	return true, nil
 }
-
