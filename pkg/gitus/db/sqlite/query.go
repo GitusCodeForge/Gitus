@@ -1188,95 +1188,25 @@ ORDER BY rowid ASC LIMIT ? OFFSET ?
 }
 
 func (dbif *SqliteGitusDatabaseInterface) SearchForNamespace(k string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error) {
-	pfx := dbif.config.Database.TablePrefix
-	pattern := strings.ReplaceAll(k, "\\", "\\\\")
-	pattern = strings.ReplaceAll(pattern, "%", "\\%")
-	pattern = strings.ReplaceAll(pattern, "_", "\\_")
-	pattern = "%" + pattern + "%"
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE ns_name LIKE ? ESCAPE ? OR ns_title LIKE ? ESCAPE ?
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-	if err != nil { return nil, err }
-	r, err := stmt.Query(pattern, "\\", pattern, "\\", pageSize, pageNum * pageSize)
+	b := db.NewQueryBuilder()
+	b.And(nsKeywordCond(b, k))
+	q := fmt.Sprintf("SELECT %s FROM %s_namespace %s ORDER BY rowid ASC %s",
+		namespaceColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
 	defer r.Close()
-	res := make(map[string]*model.Namespace, 0)
-	var name, title, desc, email, owner, acl string
-	var reg_date int64
-	var status int
-	for r.Next() {
-		err = r.Scan(&name, &title, &desc, &email, &owner, &reg_date, &status, &acl)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		res[name] = &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: desc,
-			Email: email,
-			Owner: owner,
-			RegisterTime: reg_date,
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		}
-	}
-	return res, nil
+	return dbif.scanNamespaceRows(r)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) SearchForRepository(k string, pageNum int64, pageSize int64) ([]*model.Repository, error) {
-	pfx := dbif.config.Database.TablePrefix
-	pattern := strings.ReplaceAll(k, "\\", "\\\\")
-	pattern = strings.ReplaceAll(pattern, "%", "\\%")
-	pattern = strings.ReplaceAll(pattern, "_", "\\_")
-	pattern = "%" + pattern + "%"
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_acl, repo_owner, repo_status, repo_fork_origin_name, repo_fork_origin_namespace, repo_label_list, repo_webhook, rowid
-FROM %s_repository
-WHERE (repo_namespace LIKE ? ESCAPE ? OR repo_name LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-	if err != nil { return nil, err }
-	r, err := stmt.Query(pattern, "\\", pattern, "\\", pageSize, pageNum * pageSize)
+	b := db.NewQueryBuilder()
+	b.And(repoKeywordCond(b, k))
+	q := fmt.Sprintf("SELECT %s FROM %s_repository repo %s ORDER BY repo.rowid ASC %s",
+		repositoryColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
 	defer r.Close()
-	res := make([]*model.Repository, 0)
-	var ns, name, desc, acl, owner, forkOriginName, forkOriginNs, labelList, webhookstr string
-	var status int
-	var rowid int64
-	var repoType uint8
-	for r.Next() {
-		err = r.Scan(&repoType, &ns, &name, &desc, &acl, &owner, &status, &forkOriginName, &forkOriginNs, &labelList, &webhookstr, &rowid)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		p := path.Join(dbif.config.GitRoot, ns, name)
-		lr, err := model.CreateLocalRepository(repoType, ns, name, p)
-		if err != nil { return nil, err }
-		var tags []string = nil
-		if len(labelList) > 0 {
-			tags = strings.Split(labelList[1:len(labelList)-1], "}{")
-		}
-		webhookobj, err := model.ParseWebHookConfig(webhookstr)
-		if err != nil { return nil, err }
-		res = append(res, &model.Repository{
-			AbsId: rowid,
-			Type: repoType,
-			Namespace: ns,
-			Name: name,
-			Description: desc,
-			AccessControlList: a,
-			Status: model.GitusRepositoryStatus(status),
-			Repository: lr,
-			ForkOriginNamespace: forkOriginNs,
-			ForkOriginName: forkOriginName,
-			RepoLabelList: tags,
-			WebHookConfig: webhookobj,
-		})
-	}
-	return res, nil
+	return dbif.scanRepositoryRows(r)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) SetNamespaceACL(nsName string, targetUserName string, aclt *model.ACLTuple) error {
@@ -1353,10 +1283,7 @@ UPDATE %s_repository SET repo_acl = ? WHERE repo_namespace = ? AND repo_name = ?
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllComprisingNamespace(username string) (map[string]*model.Namespace, error) {
 	pfx := dbif.config.Database.TablePrefix
-	pattern := strings.ReplaceAll(username, "\\", "\\\\")
-	pattern = strings.ReplaceAll(pattern, "%", "\\%")
-	pattern = strings.ReplaceAll(pattern, "_", "\\_")
-	pattern = "%" + pattern + "%"
+	pattern := db.ToSqlSearchPattern(username)
 	stmt1, err := dbif.prepare(fmt.Sprintf(`
 SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
 FROM %s_namespace
@@ -1390,124 +1317,11 @@ WHERE ns_owner = ? OR ns_acl LIKE ? ESCAPE ?
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllVisibleNamespacePaginated(username string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error) {
-	pfx := dbif.config.Database.TablePrefix
-	privateSelectClause := ""
-	if len(username) > 0 {
-		privateSelectClause = "OR (ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)"
-	}
-	stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE ns_status = 1 %s
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, privateSelectClause))
-	if err != nil { return nil, err }
-	var rs *sql.Rows
-	if len(username) > 0 {
-		pattern := strings.ReplaceAll(username, "\\", "\\\\")
-		pattern = strings.ReplaceAll(pattern, "%", "\\%")
-		pattern = strings.ReplaceAll(pattern, "_", "\\_")
-		pattern = "%" + pattern + "%"
-		rs, err = stmt1.Query(username, pattern, "\\", pageSize, pageNum*pageSize)
-	} else {
-		rs, err = stmt1.Query(pageSize, pageNum*pageSize)
-	}
-	if err != nil { return nil, err }
-	defer rs.Close()
-	res := make(map[string]*model.Namespace, 0)
-	for rs.Next() {
-		var name, title, desc, email, owner, acl string
-		var regtime int64
-		var status int64
-		err = rs.Scan(&name, &title, &desc, &email, &owner, &regtime, &status, &acl)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		res[name] = &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: desc,
-			Email: email,
-			Owner: owner,
-			RegisterTime: regtime,
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		}
-	}
-	return res, nil
+	return dbif.listVisibleNamespaces(username, "", pageNum, pageSize)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllVisibleRepositoryPaginated(username string, pageNum int64, pageSize int64) ([]*model.Repository, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var rs *sql.Rows
-	var stmt *sql.Stmt
-	var err error
-	if len(username) > 0 {
-		upat := db.ToSqlSearchPattern(username)
-		stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, repo_webhook, rowid
-FROM %s_repository repo
-FULL JOIN (SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3 OR (ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)) ns
-ON repo.repo_namespace = ns.ns_name
-WHERE ((ns_status = 1 OR ns_status = 3) AND ns.ns_name IS NOT NULL)
-OR (repo_status = 1 OR repo_status = 4 OR repo_status = 5)
-OR (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, pfx))
-		if err != nil { return nil, err }
-		rs, err = stmt.Query(username, upat, "\\", username, upat, "\\", pageSize, pageNum*pageSize)
-		if err != nil { return nil, err }
-	} else {
-		stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, repo_webhook, rowid
-FROM %s_repository repo
-FULL JOIN (SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3) ns
-ON repo.repo_namespace = ns.ns_name
-WHERE ((ns_status = 1 OR ns_status = 3) AND ns.ns_name IS NOT NULL)
-OR (repo_status = 1 OR repo_status = 4)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, pfx))
-		if err != nil { return nil, err }
-		rs, err = stmt.Query(pageSize, pageNum*pageSize)
-		if err != nil { return nil, err }
-	}
-	if err != nil { return nil, err }
-	defer rs.Close()
-	res := make([]*model.Repository, 0)
-	var ns, name, desc, owner, acl, forkOriginNs, forkOriginName, labelList, webhookstr string
-	var status, rowid int64
-	var repoType uint8
-	for rs.Next() {
-		err = rs.Scan(&repoType, &ns, &name, &desc, &owner, &acl, &status, &forkOriginNs, &forkOriginName, &labelList, &webhookstr, &rowid)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		p := path.Join(dbif.config.GitRoot, ns, name)
-		lr, err := model.CreateLocalRepository(repoType, ns, name, p)
-		if err != nil { return nil, err }
-		var tags []string = nil
-		if len(labelList) > 0 {
-			tags = strings.Split(labelList[1:len(labelList)-1], "}{")
-		}
-		webhookobj, err := model.ParseWebHookConfig(webhookstr)
-		if err != nil { return nil, err }
-		res = append(res, &model.Repository{
-			AbsId: rowid,
-			Type: repoType,
-			Namespace: ns,
-			Name: name,
-			Owner: owner,
-			Description: desc,
-			AccessControlList: a,
-			Status: model.GitusRepositoryStatus(status),
-			Repository: lr,
-			ForkOriginNamespace: forkOriginNs,
-			ForkOriginName: forkOriginName,
-			RepoLabelList: tags,
-			WebHookConfig: webhookobj,
-		})
-	}
-	return res, nil
+	return dbif.listRepositories(username, "", pageNum, pageSize)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) CountAllVisibleNamespace(username string) (int64, error) {
@@ -1518,343 +1332,69 @@ func (dbif *SqliteGitusDatabaseInterface) CountAllVisibleRepositories(username s
 	return dbif.CountAllVisibleRepositoriesSearchResult(username, "")
 }
 
-func (dbif *SqliteGitusDatabaseInterface) SearchAllVisibleNamespacePaginated(username string, query string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var rs *sql.Rows
-	var stmt *sql.Stmt
-	var err error
-	if len(query) > 0 {
-		qpattern := db.ToSqlSearchPattern(query)
-		if len(username) > 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE (ns_name LIKE ? ESCAPE ? OR ns_title LIKE ? ESCAPE ?)
-AND (ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-			if err != nil { return nil, err }
-			rs, err = stmt.Query(qpattern, "\\", qpattern, "\\", username, db.ToSqlSearchPattern(username), "\\", pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE (ns_name LIKE ? ESCAPE ? OR ns_title LIKE ? ESCAPE ?)
-AND (ns_status = 1 OR ns_status = 3)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-			if err != nil { return nil, err }
-			rs, err = stmt.Query(qpattern, "\\", qpattern, "\\", pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		}
-	} else {
-		if len(username) > 0 {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE (ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-			if err != nil { return nil, err }
-			rs, err = stmt.Query(username, db.ToSqlSearchPattern(username), "\\", pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE (ns_status = 1 OR ns_status = 3)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-			if err != nil { return nil, err }
-			rs, err = stmt.Query(pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		}
-	}
+// listVisibleNamespaces is the single implementation behind both the namespace
+// browse page and the namespace search page; they only differ in whether a
+// keyword is given.
+func (dbif *SqliteGitusDatabaseInterface) listVisibleNamespaces(username string, query string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error) {
+	b := db.NewQueryBuilder()
+	b.And(dbif.nsVisibilityCond(b, username))
+	b.And(nsKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT %s FROM %s_namespace %s ORDER BY rowid ASC %s",
+		namespaceColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
-	defer rs.Close()
-	res := make(map[string]*model.Namespace, 0)
-	var name, title, desc, email, owner, acl string
-	var reg_date int64
-	var status int
-	for rs.Next() {
-		err = rs.Scan(&name, &title, &desc, &email, &owner, &reg_date, &status, &acl)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		res[name] = &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: desc,
-			Email: email,
-			Owner: owner,
-			RegisterTime: reg_date,
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		}
-	}
-	return res, nil
+	defer r.Close()
+	return dbif.scanNamespaceRows(r)
+}
+
+func (dbif *SqliteGitusDatabaseInterface) SearchAllVisibleNamespacePaginated(username string, query string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error) {
+	return dbif.listVisibleNamespaces(username, query, pageNum, pageSize)
+}
+
+// listVisibleRepositories is the single implementation behind both the
+// repository browse page and the repository search page.
+func (dbif *SqliteGitusDatabaseInterface) listRepositories(username string, query string, pageNum int64, pageSize int64) ([]*model.Repository, error) {
+	b := db.NewQueryBuilder()
+	b.And(dbif.repoVisibilityCond(b, username))
+	b.And(repoKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT %s FROM %s_repository repo %s ORDER BY repo.rowid ASC %s",
+		repositoryColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
+	if err != nil { return nil, err }
+	defer r.Close()
+	return dbif.scanRepositoryRows(r)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) SearchAllVisibleRepositoryPaginated(username string, query string, pageNum int64, pageSize int64) ([]*model.Repository, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var r *sql.Rows
-	var err error
-	if len(query) > 0 {
-		qpattern := db.ToSqlSearchPattern(query)
-		if len(username) > 0 {
-			upattern := db.ToSqlSearchPattern(username)
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_webhook, rowid
-FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4 OR repo_status = 5
-    OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, pfx))
-			if err != nil { return nil, err }
-			r, err = stmt.Query(username, upattern, "\\", username, upattern, "\\", qpattern, "\\", qpattern, "\\", pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_webhook, rowid
-FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, pfx))
-			if err != nil { return nil, err }
-			r, err = stmt.Query(qpattern, "\\", qpattern, "\\", pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		}
-	} else {
-		if len(username) > 0 {
-			upattern := db.ToSqlSearchPattern(username)
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_webhook, rowid
-FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4
-    OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, pfx))
-			if err != nil { return nil, err }
-			r, err = stmt.Query(username, upattern, "\\", username, upattern, "\\", pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_webhook, rowid
-FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4)
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx, pfx))
-			if err != nil { return nil, err }
-			r, err = stmt.Query(pageSize, pageNum*pageSize)
-			if err != nil { return nil, err }
-		}
-	}
-	defer r.Close()
-	res := make([]*model.Repository, 0)
-	for r.Next() {
-		var ns, name, desc, acl, forkOriginNamespace, forkOriginName, webhookstr string
-		var status, rowid int64
-		var repoType uint8
-		err = r.Scan(&repoType, &ns, &name, &desc, &acl, &status, &forkOriginNamespace, &forkOriginName, &webhookstr, &rowid)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		p := path.Join(dbif.config.GitRoot, ns, name)
-		lr, err := model.CreateLocalRepository(repoType, ns, name, p)
-		if err != nil { return nil, err }
-		webhookobj, err := model.ParseWebHookConfig(webhookstr)
-		if err != nil { return nil, err }
-		res = append(res, &model.Repository{
-			AbsId: rowid,
-			Type: repoType,
-			Namespace: ns,
-			Name: name,
-			Description: desc,
-			AccessControlList: a,
-			Status: model.GitusRepositoryStatus(status),
-			Repository: lr,
-			ForkOriginNamespace: forkOriginNamespace,
-			ForkOriginName: forkOriginName,
-			WebHookConfig: webhookobj,
-		})
-	}
-	return res, nil
+	return dbif.listRepositories(username, query, pageNum, pageSize)
 }
 
 
 func (dbif *SqliteGitusDatabaseInterface) CountAllVisibleNamespaceSearchResult(username string, pattern string) (int64, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var r *sql.Row
-	var err error
-	if len(pattern) > 0 {
-		qpattern := db.ToSqlSearchPattern(pattern)
-		if len(username) > 0 {
-			upattern := db.ToSqlSearchPattern(username)
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_namespace
-WHERE (ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?) AND (ns_name LIKE ? ESCAPE ? OR ns_title LIKE ? ESCAPE ?)
-`, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow(username, upattern, "\\", qpattern, "\\", qpattern, "\\")
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_namespace
-WHERE (ns_status = 1 OR ns_status = 3)
-AND (ns_name LIKE ? ESCAPE ? OR ns_title LIKE ? ESCAPE ?)
-`, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow(qpattern, "\\", qpattern, "\\")
-		}
-	} else {
-		if len(username) > 0 {
-			upattern := db.ToSqlSearchPattern(username)
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_namespace
-WHERE (ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)
-`, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow(username, upattern, "\\")
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_namespace WHERE (ns_status = 1 OR ns_status = 3)
-`, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow()
-		}
-	}
-	if r.Err() != nil { return 0, r.Err() }
-	var res int64
-	err = r.Scan(&res)
-	if err != nil { return 0, r.Err() }
-	return res, nil
+	b := db.NewQueryBuilder()
+	b.And(dbif.nsVisibilityCond(b, username))
+	b.And(nsKeywordCond(b, pattern))
+	q := fmt.Sprintf("SELECT COUNT(*) FROM %s_namespace %s", dbif.config.Database.TablePrefix, b.Where())
+	return dbif.countQuery(q, b.Args()...)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) CountAllVisibleRepositoriesSearchResult(username string, pattern string) (int64, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var r *sql.Row
-	var err error
-	if len(pattern) > 0 {
-		qpattern := db.ToSqlSearchPattern(pattern)
-		if len(username) > 0 {
-			upattern := db.ToSqlSearchPattern(username)
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4
-    OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-`, pfx, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow(username, upattern, "\\", username, upattern, "\\", qpattern, "\\", qpattern, "\\")
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-`, pfx, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow(qpattern, "\\", qpattern, "\\")
-		}
-	} else {
-		if len(username) > 0 {
-			upattern := db.ToSqlSearchPattern(username)
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3 OR ns_owner = ? OR ns_acl LIKE ? ESCAPE ?
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4
-    OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-`, pfx, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow(username, upattern, "\\", username, upattern, "\\")
-		} else {
-			stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository repo
-FULL JOIN (
-    SELECT ns_name, ns_status FROM %s_namespace WHERE ns_status = 1 OR ns_status = 3
-) ns ON repo.repo_namespace = ns.ns_name
-WHERE (
-    ((ns.ns_status = 1 OR ns.ns_status = 3) AND ns.ns_name IS NOT NULL)
-    OR repo.repo_status = 1 OR repo_status = 4
-)
-`, pfx, pfx))
-			if err != nil { return 0, err }
-			r = stmt.QueryRow()
-		}
-	}
-	if r.Err() != nil { return 0, r.Err() }
-	var res int64
-	err = r.Scan(&res)
-	if err != nil { return 0, r.Err() }
-	return res, nil
+	b := db.NewQueryBuilder()
+	b.And(dbif.repoVisibilityCond(b, username))
+	b.And(repoKeywordCond(b, pattern))
+	q := fmt.Sprintf("SELECT COUNT(*) FROM %s_repository repo %s", dbif.config.Database.TablePrefix, b.Where())
+	return dbif.countQuery(q, b.Args()...)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllRepositoryIssue(ns string, name string) ([]*model.Issue, error) {
-	pfx := dbif.config.Database.TablePrefix
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, issue_id, issue_author, issue_status, issue_title, issue_content, issue_timestamp
-FROM %s_issue
-WHERE repo_namespace = ? AND repo_name = ?
-`, pfx))
-	if err != nil { return nil, err }
-	r, err := stmt.Query(ns, name)
+	b := db.NewQueryBuilder()
+	b.And(fmt.Sprintf("repo_namespace = %s", b.Arg(ns)))
+	b.And(fmt.Sprintf("repo_name = %s", b.Arg(name)))
+	q := fmt.Sprintf("SELECT %s FROM %s_issue %s ORDER BY issue_id ASC", issueColumns, dbif.config.Database.TablePrefix, b.Where())
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
 	defer r.Close()
-	res := make([]*model.Issue, 0)
-	for r.Next() {
-		var issueAbsId, issueTimestamp int64
-		var issueId, issueStatus int
-		var issueAuthor, issueTitle, issueContent string
-		err = r.Scan(&issueAbsId, &issueId, &issueAuthor, &issueStatus, &issueTitle, &issueContent, &issueTimestamp)
-		if err != nil { return nil, err }
-		res = append(res, &model.Issue{
-			IssueAbsId: issueAbsId,
-			RepoNamespace: ns,
-			RepoName: name,
-			IssueStatus: issueStatus,
-			IssueId: issueId,
-			IssueTime: issueTimestamp,
-			IssueTitle: issueTitle,
-			IssueAuthor: issueAuthor,
-			IssueContent: issueContent,
-		})
-	}
-	return res, nil
+	return dbif.scanIssueRows(r, ns, name)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetRepositoryIssue(ns string, name string, iid int) (*model.Issue, error) {
@@ -2059,253 +1599,34 @@ DELETE FROM %s_issue_event WHERE rowid = ?
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllBelongingNamespace(viewingUser string, userName string) ([]*model.Namespace, error) {
-	pfx := dbif.config.Database.TablePrefix
-	nsStatusClause := "ns_status = 1"
-	if len(viewingUser) > 0 {
-		if viewingUser == userName {
-			nsStatusClause = "1"
-		} else {
-			nsStatusClause = "ns_acl LIKE ? ESCAPE ?"
-		}
-	}
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE (%s) AND (ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)
-`, pfx, nsStatusClause))
+	b := db.NewQueryBuilder()
+	b.And(dbif.belongingNamespaceCond(b, viewingUser, userName))
+	q := fmt.Sprintf("SELECT %s FROM %s_namespace %s ORDER BY rowid ASC",
+		namespaceColumns, dbif.config.Database.TablePrefix, b.Where())
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
-	userSearchPattern := db.ToSqlSearchPattern(userName)
-	var rs *sql.Rows
-	if len(viewingUser) > 0 {
-		if viewingUser == userName {
-			rs, err = stmt.Query(userName, userSearchPattern, "\\")
-		} else {
-			viewingPattern := db.ToSqlSearchPattern(viewingUser)
-			rs, err = stmt.Query(viewingPattern, "\\", userName, userSearchPattern, "\\")
-		}
-	} else {
-		rs, err = stmt.Query(userName, userSearchPattern, "\\")
-	}
-	if err != nil { return nil, err }
-	defer rs.Close()
-	res := make([]*model.Namespace, 0)
-	for rs.Next() {
-		var name, title, desc, email, owner, acl string
-		var regtime int64
-		var status int64
-		err = rs.Scan(&name, &title, &desc, &email, &owner, &regtime, &status, &acl)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		res = append(res, &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: desc,
-			Email: email,
-			Owner: owner,
-			RegisterTime: regtime,
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		})
-	}
-	return res, nil
+	defer r.Close()
+	return dbif.scanNamespaceList(r)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllBelongingRepository(viewingUser string, user string, query string, pageNum int64, pageSize int64) ([]*model.Repository, error) {
-	// the fact that go does not have if-expr is killing me.
-	// NOTE:
-	// + if viewingUser is empty, it means the viewing user is a guest,
-	//   which means we should only select public repositories of user.
-	// + if viewingUser is non-empty and the same as user, we select
-	//   all belonging repositories regardless of status.
-	// + if viewingUser is non-empty but not the same as user, we select
-	//   all belonging repositories of user but filter with viewingUser.
-	pfx := dbif.config.Database.TablePrefix
-	var stmt *sql.Stmt
-	var err error
-	var r *sql.Rows
-	if len(viewingUser) <= 0 {
-		if len(query) <= 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE (repo_status = 1 OR repo_status = 4) AND (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-ORDER BY repo_name ASC, repo_namespace ASC
-`, pfx))
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE (repo_status = 1 OR repo_status = 4) AND (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-ORDER BY repo_name ASC, repo_namespace ASC
-`, pfx))
-		}
-		if err != nil { return nil, err }
-		if len(query) <= 0 {
-			r, err = stmt.Query(user, db.ToSqlSearchPattern(user), "\\")
-		} else {
-			qpat := db.ToSqlSearchPattern(query)
-			r, err = stmt.Query(user, db.ToSqlSearchPattern(user), "\\", qpat, "\\", qpat, "\\")
-		}
-	} else if viewingUser == user {
-		if len(query) <= 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-ORDER BY repo_name ASC, repo_namespace ASC
-`, pfx))
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-ORDER BY repo_name ASC, repo_namespace ASC
-`, pfx))
-		}
-		if err != nil { return nil, err }
-		if len(query) <= 0 {
-			r, err = stmt.Query(user, db.ToSqlSearchPattern(user), "\\")
-		} else {
-			qpat := db.ToSqlSearchPattern(query)
-			r, err = stmt.Query(user, db.ToSqlSearchPattern(user), "\\", qpat, "\\", qpat, "\\")
-		}
-	} else {
-		if len(query) <= 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_status = 1 OR repo_status = 4 OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-ORDER BY repo_name ASC, repo_namespace ASC
-`, pfx))
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_status = 1 OR repo_status = 4 OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-ORDER BY repo_name ASC, repo_namespace ASC
-`, pfx))
-		}
-		if err != nil { return nil, err }
-		if len(query) <= 0 {
-			r, err = stmt.Query(user, db.ToSqlSearchPattern(user), "\\", user, db.ToSqlSearchPattern(user), "\\")
-		} else {
-			qpat := db.ToSqlSearchPattern(query)
-			r, err = stmt.Query(user, db.ToSqlSearchPattern(user), "\\", user, db.ToSqlSearchPattern(user), "\\", qpat, "\\", qpat, "\\")
-		}
-	}
+	b := db.NewQueryBuilder()
+	b.And(dbif.belongingRepoCond(b, viewingUser, user))
+	b.And(repoKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT %s FROM %s_repository repo %s ORDER BY repo.repo_name ASC, repo.repo_namespace ASC %s",
+		repositoryColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
+	if err != nil { return nil, err }
 	defer r.Close()
-	res := make([]*model.Repository, 0)
-	for r.Next() {
-		var ns, name, desc, acl, owner, forkOriginNamespace, forkOriginName, labelList string
-		var status, rowid int64
-		var repoType uint8
-		err := r.Scan(&repoType, &ns, &name, &desc, &owner, &acl, &status, &forkOriginNamespace, &forkOriginName, &labelList, &rowid)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		p := path.Join(dbif.config.GitRoot, ns, name)
-		lr, err := model.CreateLocalRepository(repoType, ns, name, p)
-		if err != nil { return nil, err }
-		var tags []string = nil
-		if len(labelList) > 0 {
-			tags = strings.Split(labelList[1:len(labelList)-1], "}{")
-		}
-		res = append(res, &model.Repository{
-			AbsId: rowid,
-			Type: repoType,
-			Namespace: ns,
-			Name: name,
-			Description: desc,
-			Owner: owner,
-			AccessControlList: a,
-			Status: model.GitusRepositoryStatus(status),
-			Repository: lr,
-			ForkOriginNamespace: forkOriginNamespace,
-			ForkOriginName: forkOriginName,
-			RepoLabelList: tags,
-		})
-	}
-	return res, nil
+	return dbif.scanRepositoryRows(r)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) CountAllBelongingRepository(viewingUser string, user string, query string) (int64, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var stmt *sql.Stmt
-	var r *sql.Row
-	var err error
-	if len(viewingUser) <= 0 {
-		if len(query) <= 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE (repo_status = 1 OR repo_status = 4) AND (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-`, pfx))
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE (repo_status = 1 OR repo_status = 4) AND (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?) AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-`, pfx))
-		}
-		if err != nil { return 0, err }
-		if len(query) <= 0 {
-			r = stmt.QueryRow(user, db.ToSqlSearchPattern(user), "\\")
-		} else {
-			qpat := db.ToSqlSearchPattern(query)
-			r = stmt.QueryRow(user, db.ToSqlSearchPattern(user), "\\", qpat, "\\", qpat, "\\")
-		}
-	} else if viewingUser == user {
-		if len(query) <= 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-`, pfx))
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-`, pfx))
-		}
-		if err != nil { return 0, err }
-		if len(query) <= 0 {
-			r = stmt.QueryRow(user, db.ToSqlSearchPattern(user), "\\")
-		} else {
-			qpat := db.ToSqlSearchPattern(query)
-			r = stmt.QueryRow(user, db.ToSqlSearchPattern(user), "\\", qpat, "\\", qpat, "\\")
-		}
-	} else {
-		if len(query) <= 0 {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_status = 1 OR repo_status = 4 OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-`, pfx))
-		} else {
-			stmt, err = dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_status = 1 OR repo_status = 4 OR repo_owner = ? OR repo_acl LIKE ? ESCAPE ?)
-AND (repo_name LIKE ? ESCAPE ? OR repo_namespace LIKE ? ESCAPE ?)
-`, pfx))
-		}
-		if err != nil { return 0, err }
-		if len(query) <= 0 {
-			r = stmt.QueryRow(user, db.ToSqlSearchPattern(user), "\\", user, db.ToSqlSearchPattern(user), "\\")
-		} else {
-			qpat := db.ToSqlSearchPattern(query)
-			r = stmt.QueryRow(user, db.ToSqlSearchPattern(user), "\\", user, db.ToSqlSearchPattern(user), "\\", qpat, "\\", qpat, "\\")
-		}
-	}
-	if r.Err() != nil { return 0, r.Err() }
-	var res int64
-	err = r.Scan(&res)
-	if err != nil { return 0, err }
-	return res, nil
+	b := db.NewQueryBuilder()
+	b.And(dbif.belongingRepoCond(b, viewingUser, user))
+	b.And(repoKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT COUNT(*) FROM %s_repository repo %s", dbif.config.Database.TablePrefix, b.Where())
+	return dbif.countQuery(q, b.Args()...)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetForkRepositoryOfUser(username string, originNamespace string, originName string) ([]*model.Repository, error) {
@@ -2356,152 +1677,45 @@ WHERE repo_owner = ? AND repo_fork_origin_namespace = ? AND repo_fork_origin_nam
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllPullRequestPaginated(namespace string, name string, pageNum int64, pageSize int64) ([]*model.PullRequest, error) {
-	pfx := dbif.config.Database.TablePrefix
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, pull_request_id, username, title, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp
-FROM %spull_request
-WHERE receiver_namespace = ? AND receiver_name = ?
-ORDER BY pull_request_id ASC LIMIT ? OFFSET ?
-`, pfx))
-	if err != nil { return nil, err }
-	r, err := stmt.Query(namespace, name, pageSize, pageNum*pageSize)
+	b := db.NewQueryBuilder()
+	b.And(fmt.Sprintf("receiver_namespace = %s", b.Arg(namespace)))
+	b.And(fmt.Sprintf("receiver_name = %s", b.Arg(name)))
+	q := fmt.Sprintf("SELECT %s FROM %s_pull_request %s ORDER BY pull_request_id ASC %s",
+		pullRequestColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
 	defer r.Close()
-	res := make([]*model.PullRequest, 0)
-	for r.Next() {
-		var prid, absid, prtime int64
-		var status int
-		var username, title, receiverBranch string
-		var providerNamespace, providerName, provideBranch string
-		var mergeCheckResultString string
-		var mergeCheckTimestamp int64
-		err = r.Scan(&absid, &prid, &username, &title, &receiverBranch, &providerNamespace, &providerName, &provideBranch, &mergeCheckResultString, &mergeCheckTimestamp, &status, &prtime)
-		if err != nil { return nil, err }
-		var mergeCheckResult *gitlib.MergeCheckResult = nil
-		if len(mergeCheckResultString) > 0 {		
-			err = json.Unmarshal([]byte(mergeCheckResultString), &mergeCheckResult)
-			if err != nil { return nil, err }
-		}
-		res = append(res, &model.PullRequest{
-			PRId: prid,
-			PRAbsId: absid,
-			Title: title,
-			Author: username,
-			Timestamp: prtime,
-			ReceiverNamespace: namespace,
-			ReceiverName: name,
-			ReceiverBranch: receiverBranch,
-			ProviderNamespace: providerNamespace,
-			ProviderName: providerName,
-			ProviderBranch: provideBranch,
-			Status: status,
-			MergeCheckResult: mergeCheckResult,
-			MergeCheckTimestamp: mergeCheckTimestamp,
-		})
-	}
-	return res, nil
+	return dbif.scanPullRequestRows(r, namespace, name)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) CountIssue(query string, namespace string, name string, filterType int) (int64, error) {
-	pfx := dbif.config.Database.TablePrefix
-	statusClause := ""
-	switch filterType {
-    case 1: statusClause = "issue_status = 1"
-	case 2: statusClause = "NOT (issue_status = 1)"
-	case 3: statusClause = "issue_status = 2"
-	case 4: statusClause = "issue_status = 3"
-	}
-	queryClause := ""
-	if query == "" {
-		queryClause = "issue_title LIKE ? ESCAPE ?"
-	}
-	condition := ""
-	if statusClause == "" {
-		if queryClause == "" {
-		} else {
-			condition = fmt.Sprintf("WHERE %s", queryClause)
-		}
-	} else {
-		if queryClause == "" {
-			condition = fmt.Sprintf("WHERE %s", statusClause)
-		} else {
-			condition = fmt.Sprintf("WHERE %s AND %s", queryClause, statusClause)
-		}
-	}
-	stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_issue %s
-`, pfx, condition))
-	if err != nil { return 0, err }
-	var cnt int64
-	var r *sql.Row
-	if queryClause == "" {
-		r = stmt1.QueryRow()
-	} else {
-		queryPattern := db.ToSqlSearchPattern(query)
-		r = stmt1.QueryRow(queryPattern, "\\")
-	}
-	if r.Err() != nil { return 0, r.Err() }
-	err = r.Scan(&cnt)
-	if err != nil { return 0, err }
-	return cnt, nil
+	b := db.NewQueryBuilder()
+	b.And(fmt.Sprintf("repo_namespace = %s", b.Arg(namespace)))
+	b.And(fmt.Sprintf("repo_name = %s", b.Arg(name)))
+	b.And(issueStatusCond(filterType))
+	b.And(issueKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT COUNT(*) FROM %s_issue %s", dbif.config.Database.TablePrefix, b.Where())
+	return dbif.countQuery(q, b.Args()...)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) SearchIssuePaginated(query string, namespace string, name string, filterType int, pageNum int64, pageSize int64) ([]*model.Issue, error) {
-	pfx := dbif.config.Database.TablePrefix
-	statusClause := ""
-	switch filterType {
-    case 1: statusClause = "AND issue_status = 1"
-	case 2: statusClause = "AND NOT (issue_status = 1)"
-	case 3: statusClause = "AND issue_status = 2"
-	case 4: statusClause = "AND issue_status = 3"
-	}
-	queryClause := ""
-	if query != "" {
-		queryClause = "AND issue_title LIKE ? ESCAPE ?"
-	}
-	stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, issue_id, issue_author, issue_status, issue_title, issue_content, issue_timestamp, issue_priority
-FROM %s_issue
-WHERE repo_namespace = ? AND repo_name = ? %s %s
-ORDER BY issue_priority DESC, issue_timestamp DESC LIMIT ? OFFSET ?
-`, pfx, statusClause, queryClause))
-	if err != nil { return nil, err }
-	var r *sql.Rows
-	if queryClause == "" {
-		r, err = stmt1.Query(namespace, name, pageSize, pageNum*pageSize)
-	} else {
-		queryPattern := db.ToSqlSearchPattern(query)
-		r, err = stmt1.Query(namespace, name, queryPattern, "\\", pageSize, pageNum*pageSize)
-	}
+	b := db.NewQueryBuilder()
+	b.And(fmt.Sprintf("repo_namespace = %s", b.Arg(namespace)))
+	b.And(fmt.Sprintf("repo_name = %s", b.Arg(name)))
+	b.And(issueStatusCond(filterType))
+	b.And(issueKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT %s FROM %s_issue %s ORDER BY issue_priority DESC, issue_timestamp DESC %s",
+		issueColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
 	defer r.Close()
-	res := make([]*model.Issue, 0)
-	for r.Next() {
-		var issueAbsId, issueTimestamp int64
-		var issueId, issueStatus, issuePriority int
-		var issueAuthor, issueTitle, issueContent string
-		err = r.Scan(&issueAbsId, &issueId, &issueAuthor, &issueStatus, &issueTitle, &issueContent, &issueTimestamp, &issuePriority)
-		if err != nil { return nil, err }
-		res = append(res, &model.Issue{
-			IssueAbsId: issueAbsId,
-			RepoNamespace: namespace,
-			RepoName: name,
-			IssueStatus: issueStatus,
-			IssueId: issueId,
-			IssueTime: issueTimestamp,
-			IssueTitle: issueTitle,
-			IssueAuthor: issueAuthor,
-			IssueContent: issueContent,
-			IssuePriority: issuePriority,
-		})
-	}
-	return res, nil
+	return dbif.scanIssueRows(r, namespace, name)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) NewPullRequest(username string, title string, receiverNamespace string, receiverName string, receiverBranch string, providerNamespace string, providerName string, providerBranch string) (int64, error) {
 	pfx := dbif.config.Database.TablePrefix
 	stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %spull_request
+SELECT COUNT(*) FROM %s_pull_request
 WHERE receiver_namespace = ? AND receiver_name = ?
 `, pfx))
 	if err != nil { return 0, err }
@@ -2513,7 +1727,7 @@ WHERE receiver_namespace = ? AND receiver_name = ?
 	if err != nil { return 0, err }
 	defer tx.Rollback()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %spull_request(
+INSERT INTO %s_pull_request(
     username, pull_request_id, title,
     receiver_namespace, receiver_name, receiver_branch,
     provider_namespace, provider_name, provider_branch,
@@ -2539,7 +1753,7 @@ func (dbif *SqliteGitusDatabaseInterface) GetPullRequest(namespace string, name 
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
 SELECT rowid, username, title, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp
-FROM %spull_request
+FROM %s_pull_request
 WHERE receiver_namespace = ? AND receiver_name = ? AND pull_request_id = ?
 `, pfx))
 	if err != nil { return nil, err }
@@ -2579,7 +1793,7 @@ func (dbif *SqliteGitusDatabaseInterface) GetPullRequestByAbsId(absId int64) (*m
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
 SELECT username, pull_request_id, title, receiver_namespace, receiver_name, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp
-FROM %spull_request
+FROM %s_pull_request
 WHERE rowid = ?
 `, pfx))
 	if err != nil { return nil, err }
@@ -2623,7 +1837,7 @@ func (dbif *SqliteGitusDatabaseInterface) CheckPullRequestMergeConflict(absId in
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
 SELECT receiver_namespace, receiver_name, receiver_branch, provider_namespace, provider_name, provider_branch
-FROM %spull_request
+FROM %s_pull_request
 WHERE rowid = ?
 `, pfx))
 	if err != nil { return nil, err }
@@ -2642,7 +1856,7 @@ WHERE rowid = ?
 	mr, err := lgr.CheckBranchMergeConflict(receiverBranch, remoteName, providerBranch)
 	if err != nil { return nil, err }
 	stmt2, err := dbif.prepareTx(tx, fmt.Sprintf(`
-UPDATE %spull_request
+UPDATE %s_pull_request
 SET merge_conflict_check_result = ?, merge_conflict_check_timestamp = ?
 WHERE rowid = ?
 `, pfx))
@@ -2662,7 +1876,7 @@ func (dbif *SqliteGitusDatabaseInterface) DeletePullRequest(absId int64) error {
 	if err != nil { return err }
 	defer tx.Rollback()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-DELETE FROM %spull_request WHERE rowid = ?
+DELETE FROM %s_pull_request WHERE rowid = ?
 `, pfx))
 	if err != nil { return err }
 	_, err = stmt.Exec(absId)
@@ -2676,7 +1890,7 @@ func (dbif *SqliteGitusDatabaseInterface) GetAllPullRequestEventPaginated(absId 
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
 SELECT event_type, event_timestamp, event_author, event_content
-FROM %spull_request_event
+FROM %s_pull_request_event
 WHERE pull_request_abs_id = ?
 ORDER BY event_timestamp ASC LIMIT ? OFFSET ?
 `, pfx))
@@ -2764,13 +1978,13 @@ SELECT user_email, user_title FROM %s_user WHERE user_name = ?
 	defer tx.Rollback()
 	t := time.Now().Unix()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-UPDATE %spull_request SET pull_request_status = ?, pull_request_timestamp = ? WHERE rowid = ?
+UPDATE %s_pull_request SET pull_request_status = ?, pull_request_timestamp = ? WHERE rowid = ?
 `, pfx))
 	if err != nil { return err }
 	_, err = stmt.Exec(model.PULL_REQUEST_CLOSED_AS_MERGED, t, absId)
 	if err != nil { return err }
 	stmt2, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %spull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
+INSERT INTO %s_pull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
 VALUES (?,?,?,?,?)
 `, pfx))
 	if err != nil { return err }
@@ -2788,7 +2002,7 @@ func (dbif *SqliteGitusDatabaseInterface) CommentOnPullRequest(absId int64, auth
 	if err != nil { return nil, err }
 	defer tx.Rollback()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %spull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content) VALUES (?,?,?,?,?)
+INSERT INTO %s_pull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content) VALUES (?,?,?,?,?)
 `, pfx))
 	if err != nil { return nil, err }
 	eventContentString := content
@@ -2811,7 +2025,7 @@ func (dbif *SqliteGitusDatabaseInterface) CommentOnPullRequestCode(absId int64, 
 	if err != nil { return nil, err }
 	defer tx.Rollback()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %spull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
+INSERT INTO %s_pull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
 VALUES (?,?,?,?,?)
 `, pfx))
 	if err != nil { return nil, err }
@@ -2837,7 +2051,7 @@ func (dbif *SqliteGitusDatabaseInterface) ClosePullRequestAsNotMerged(absid int6
 	if err != nil { return err }
 	defer tx.Rollback()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %spull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
+INSERT INTO %s_pull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
 VALUES (?,?,?,?,?)
 `, pfx))
 	if err != nil { return err }
@@ -2845,7 +2059,7 @@ VALUES (?,?,?,?,?)
 	_, err = stmt.Exec(absid, model.PULL_REQUEST_EVENT_CLOSE_AS_NOT_MERGED, t, author, new(string))
 	if err != nil { return err }
 	stmt2, err := dbif.prepareTx(tx, fmt.Sprintf(`
-UPDATE %spull_request
+UPDATE %s_pull_request
 SET pull_request_status = ?
 WHERE rowid = ?
 `, pfx))
@@ -2863,7 +2077,7 @@ func (dbif *SqliteGitusDatabaseInterface) ReopenPullRequest(absid int64, author 
 	if err != nil { return err }
 	defer tx.Rollback()
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %spull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
+INSERT INTO %s_pull_request_event(pull_request_abs_id, event_type, event_timestamp, event_author, event_content)
 VALUES (?,?,?,?,?)
 `, pfx))
 	if err != nil { return err }
@@ -2871,7 +2085,7 @@ VALUES (?,?,?,?,?)
 	_, err = stmt.Exec(absid, model.PULL_REQUEST_EVENT_REOPEN, t, author, new(string))
 	if err != nil { return err }
 	stmt2, err := dbif.prepareTx(tx, fmt.Sprintf(`
-UPDATE %spull_request
+UPDATE %s_pull_request
 SET pull_request_status = ?
 WHERE rowid = ?
 `, pfx))
@@ -2884,95 +2098,27 @@ WHERE rowid = ?
 }
 
 func (dbif *SqliteGitusDatabaseInterface) CountPullRequest(query string, namespace string, name string, filterType int) (int64, error) {
-	pfx := dbif.config.Database.TablePrefix
-	statusClause := ""
-	switch filterType {
-	case 0: statusClause = ""
-	case 1: statusClause = "AND pull_request_status = 1"
-	case 2: statusClause = "AND NOT (pull_request_status = 1)"
-	}
-	queryClause := ""
-	if query != "" { queryClause = "AND title LIKE ? ESCAPE ?" }
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %spull_request
-WHERE receiver_namespace = ? AND receiver_name = ? %s %s
-`, pfx, statusClause, queryClause))
-	if err != nil { return 0, err }
-	var r *sql.Row
-	if query == "" {
-		r = stmt.QueryRow(namespace, name)
-	} else {
-		pat := db.ToSqlSearchPattern(query)
-		r = stmt.QueryRow(namespace, name, pat, "\\")
-	}
-	if r.Err() != nil { return 0, r.Err() }
-	var res int64
-	err = r.Scan(&res)
-	if err != nil { return 0, err }
-	return res, nil
+	b := db.NewQueryBuilder()
+	b.And(fmt.Sprintf("receiver_namespace = %s", b.Arg(namespace)))
+	b.And(fmt.Sprintf("receiver_name = %s", b.Arg(name)))
+	b.And(pullRequestStatusCond(filterType))
+	b.And(pullRequestKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT COUNT(*) FROM %s_pull_request %s", dbif.config.Database.TablePrefix, b.Where())
+	return dbif.countQuery(q, b.Args()...)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) SearchPullRequestPaginated(query string, namespace string, name string, filterType int, pageNum int64, pageSize int64) ([]*model.PullRequest, error) {
-	pfx := dbif.config.Database.TablePrefix
-	statusClause := ""
-	switch filterType {
-	case 0: statusClause = ""
-	case 1: statusClause = "AND pull_request_status = 1"
-	case 2: statusClause = "AND NOT (pull_request_status = 1)"
-	case 3: statusClause = "AND pull_request_status = 2"
-	case 4: statusClause = "AND pull_request_status = 3"
-	}
-	queryClause := ""
-	if query != "" { queryClause = "AND title LIKE ? ESCAPE ?" }
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, username, pull_request_id, title, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp
-FROM %spull_request
-WHERE receiver_namespace = ? AND receiver_name = ? %s %s
-ORDER BY pull_request_timestamp DESC LIMIT ? OFFSET ?
-`, pfx, statusClause, queryClause))
+	b := db.NewQueryBuilder()
+	b.And(fmt.Sprintf("receiver_namespace = %s", b.Arg(namespace)))
+	b.And(fmt.Sprintf("receiver_name = %s", b.Arg(name)))
+	b.And(pullRequestStatusCond(filterType))
+	b.And(pullRequestKeywordCond(b, query))
+	q := fmt.Sprintf("SELECT %s FROM %s_pull_request %s ORDER BY pull_request_timestamp DESC %s",
+		pullRequestColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
 	if err != nil { return nil, err }
-	var r *sql.Rows
-	if query == "" {
-		r, err = stmt.Query(namespace, name, pageSize, pageNum*pageSize)
-	} else {
-		pat := db.ToSqlSearchPattern(query)
-		r, err = stmt.Query(namespace, name, pat, "\\", pageSize, pageNum*pageSize)
-	}
-	if r.Err() != nil { return nil, r.Err() }
 	defer r.Close()
-	res := make([]*model.PullRequest, 0)
-	for r.Next() {
-		var prid, absid, prtime int64
-		var status int
-		var username, title, receiverBranch string
-		var providerNamespace, providerName, provideBranch string
-		var mergeCheckResultString string
-		var mergeCheckTimestamp int64
-		err = r.Scan(&absid, &username, &prid, &title, &receiverBranch, &providerNamespace, &providerName, &provideBranch, &mergeCheckResultString, &mergeCheckTimestamp, &status, &prtime)
-		if err != nil { return nil, err }
-		var mergeCheckResult *gitlib.MergeCheckResult = nil
-		if len(mergeCheckResultString) > 0 {		
-			err = json.Unmarshal([]byte(mergeCheckResultString), &mergeCheckResult)
-			if err != nil { return nil, err }
-		}
-		res = append(res, &model.PullRequest{
-			PRId: prid,
-			PRAbsId: absid,
-			Title: title,
-			Author: username,
-			Timestamp: prtime,
-			ReceiverNamespace: namespace,
-			ReceiverName: name,
-			ReceiverBranch: receiverBranch,
-			ProviderNamespace: providerNamespace,
-			ProviderName: providerName,
-			ProviderBranch: provideBranch,
-			Status: status,
-			MergeCheckResult: mergeCheckResult,
-			MergeCheckTimestamp: mergeCheckTimestamp,
-		})
-	}
-	return res, nil
+	return dbif.scanPullRequestRows(r, namespace, name)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllRegisteredEmailOfUser(username string) ([]struct{Email string;Verified bool}, error) {
@@ -3401,98 +2547,23 @@ SELECT repo_label_list FROM %s_repository WHERE repo_namespace = ? and repo_name
 }
 
 func (dbif *SqliteGitusDatabaseInterface) CountRepositoryWithLabel(username string, label string) (int64, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var r *sql.Row
-	var err error
-	if len(username) <= 0 {
-		stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE repo_label_list LIKE ? ESCAPE ?
-AND repo_status = 1 OR repo_status = 4
-`, pfx))
-		if err != nil { return 0, err }
-		r = stmt.QueryRow(db.ToSqlSearchPattern(fmt.Sprintf("{%s}", label)), "\\")
-		if r.Err() != nil { return 0, r.Err() }
-	} else {
-		stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_repository
-WHERE repo_label_list LIKE ? ESCAPE ?
-AND (
-    repo_status = 1 OR repo_status = 4 OR repo_status = 5
-    OR (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?))
-`, pfx))
-		if err != nil { return 0, err }
-		r = stmt.QueryRow(db.ToSqlSearchPattern(fmt.Sprintf("{%s}", label)), "\\", username, db.ToSqlSearchPattern(username), "\\")
-		if r.Err() != nil { return 0, r.Err() }
-	}
-	var res int64
-	err = r.Scan(&res)
-	if err != nil { return 0, err }
-	return res, nil
+	b := db.NewQueryBuilder()
+	b.And(repoLabelCond(b, label))
+	b.And(dbif.repoVisibilityCond(b, username))
+	q := fmt.Sprintf("SELECT COUNT(*) FROM %s_repository repo %s", dbif.config.Database.TablePrefix, b.Where())
+	return dbif.countQuery(q, b.Args()...)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetRepositoryWithLabelPaginated(username string, label string, pageNum int64, pageSize int64) ([]*model.Repository, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var r *sql.Rows
-	var err error
-	if len(username) <= 0 {
-		stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT  repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE repo_label_list LIKE ? ESCAPE ?
-AND repo_status = 1 OR repo_status = 4
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-		if err != nil { return nil, err }
-		r, err = stmt.Query(db.ToSqlSearchPattern(fmt.Sprintf("{%s}", label)), "\\", pageSize, pageNum*pageSize)
-		if err != nil { return nil, err }
-	} else {
-		stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT  repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, rowid
-FROM %s_repository
-WHERE repo_label_list LIKE ? ESCAPE ?
-AND (
-    repo_status = 1 OR repo_status = 4 OR repo_status = 5
-    OR (repo_owner = ? OR repo_acl LIKE ? ESCAPE ?))
-ORDER BY rowid ASC LIMIT ? OFFSET ?
-`, pfx))
-		if err != nil { return nil, err }
-		r, err = stmt.Query(db.ToSqlSearchPattern(fmt.Sprintf("{%s}", label)), "\\", username, db.ToSqlSearchPattern(username), "\\", pageSize, pageNum*pageSize)
-		if err != nil { return nil, err }
-	}
+	b := db.NewQueryBuilder()
+	b.And(repoLabelCond(b, label))
+	b.And(dbif.repoVisibilityCond(b, username))
+	q := fmt.Sprintf("SELECT %s FROM %s_repository repo %s ORDER BY repo.rowid ASC %s",
+		repositoryColumns, dbif.config.Database.TablePrefix, b.Where(), b.Limit(pageSize, pageNum))
+	r, err := dbif.queryRows(q, b.Args()...)
+	if err != nil { return nil, err }
 	defer r.Close()
-	var rtype uint8
-	var ns, name, desc, owner, acl string
-	var status int
-	var rowid int64
-	var forkOriginNs, forkOriginName, labelList string
-	res := make([]*model.Repository, 0)
-	for r.Next() {
-		err = r.Scan(&rtype, &ns, &name, &desc, &owner, &acl, &status, &forkOriginNs, &forkOriginName, &labelList, &rowid)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		p := path.Join(dbif.config.GitRoot, ns, name)
-		var tags []string = nil
-		if len(labelList) > 0 {
-			tags = strings.Split(labelList[1:len(labelList)-1], "}{")
-		}
-		res = append(res, &model.Repository{
-			AbsId: rowid,
-			Type: rtype,
-			Namespace: ns,
-			Name: name,
-			Owner: owner,
-			Description: desc,
-			AccessControlList: a,
-			Status: model.GitusRepositoryStatus(status),
-			Repository: gitlib.NewLocalGitRepository(p),
-			ForkOriginNamespace: forkOriginNs,
-			ForkOriginName: forkOriginName,
-			RepoLabelList: tags,
-		})
-	}
-	return res, nil
+	return dbif.scanRepositoryRows(r)
 }
 
 func (dbif *SqliteGitusDatabaseInterface) NewSnippet(username string, name string, status uint8) (*model.Snippet, error) {

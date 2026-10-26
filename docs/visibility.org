@@ -1,0 +1,54 @@
+* Visibility of namespaces and repositories
+
+The browse pages, the search pages, the label page and the user profile pages
+all share one definition of "what the viewer may see", implemented as
+=nsVisibilityCond= and =repoVisibilityCond= in
+=pkg/gitus/db/sqlite/sqlaux.go= and =pkg/gitus/db/postgres/sqlaux.go=.
+Changing the rules means changing those functions, not the individual
+queries: the listing query and the count query behind the same page must be
+built from the same helper, otherwise the pagination and the number of items
+actually shown disagree.
+
+** namespace status
+
++ =NAMESPACE_NORMAL_PUBLIC= (1): listed for everyone.
++ =NAMESPACE_INTERNAL= (3): listed for logged in users only.
++ =NAMESPACE_NORMAL_PRIVATE= (2): listed for the owner and for users that are
+  granted access through the namespace ACL.
+
+** repository status
+
++ =REPO_NORMAL_PUBLIC= (1): listed for everyone.
++ =REPO_ARCHIVED= (4): listed for everyone. An archived repository stays
+  readable, but no push is accepted.
++ =REPO_INTERNAL= (5): listed for logged in users only.
++ =REPO_NORMAL_PRIVATE= (2): listed for the owner and for users that are
+  granted access through the repository ACL (or through the ACL of the
+  namespace it resides in).
++ =REPO_LIMITED= (6): currently not listed by any of the listing queries.
+
+** namespace status does not gate repository listing
+
+Whether a repository page is accessible is decided by the repository status
+alone: =routes/controller/repository.go= rejects a repository only when it is
+=REPO_NORMAL_PRIVATE= and the viewer is neither the owner nor granted access
+by an ACL. The repository listing follows the same rule, so a public
+repository inside a private namespace is still listed and still readable; the
+private namespace only keeps the namespace page itself out of the listing.
+
+An earlier version derived repository visibility from the namespace status as
+well. That made a plain browse of all repositories fail outright as soon as
+one public namespace had no repositories yet (the namespace/repository
+=FULL JOIN= produced an all-NULL row that could not be scanned), and it also
+listed private repositories of public namespaces to guests. Both are gone.
+
+** user profile pages
+
+=GetAllBelongingNamespace= and =GetAllBelongingRepository= list what a user
+owns or was granted access to (=owner= or an ACL entry), filtered by what the
+*viewing* user may see:
+
++ guest: public namespaces; public and archived repositories.
++ the user themselves: everything that belongs to them.
++ any other logged in user: as above, but internal entries are included and
+  the viewing user's own ACL entries apply as well.

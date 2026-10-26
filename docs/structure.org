@@ -14,6 +14,11 @@ NOTE: this should be updated when there's very big changes.
 + =devtools=: things used in the development process, e.g. things that should be run at compile-time.
 + =pkg=:
   + =gitus=: main pkg.
+    + =db=: database interfaces (see =db/dbif.go=), with one implementation per
+      backend (=db/sqlite/=, =db/postgres/=). The query builder shared by both
+      backends lives in =db/builder.go=; per-backend column lists, visibility
+      conditions and row scanners live in the =sqlaux.go= of each backend. See
+      [[./visibility.org]] and [[./sqlite-database.org]].
   + =gitlib=: package for handling git repo.
   + =ini=: ini parser. used to parse config files in git repo.
   + =shellparse=: utility to parse command line arguments escaped by git.

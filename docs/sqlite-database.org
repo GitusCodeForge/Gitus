@@ -28,3 +28,36 @@ Please note that while all =.Query= should've already had their corresponding =.
 
 2025.5.6
 
+** prepared statements and the statement cache
+
+Every query goes through =(*SqliteGitusDatabaseInterface).prepare= or
+=.prepareTx= (see =defs.go=), which keep the compiled statements in a map on
+the interface instance. Statements returned by the cache are owned by the
+cache and must *not* be closed by the caller; =Dispose= finalizes them.
+
+This is not only an optimization. =sql.DB.Prepare= hands out a new
+=*sql.Stmt= on every call, and the underlying =sqlite3_stmt= stays alive until
+that statement is finalized. The earlier code prepared a statement for every
+single query and rarely closed it, so every request leaked a little:
+2000 calls of =GetUserByName= grew the heap by roughly 1.6MB before the cache
+was introduced.
+
+Statements prepared from a =*sql.Tx= are finalized together with the
+transaction by =database/sql= itself, but they still go through =.prepareTx=
+so that the per-connection statement cache is reused instead of recompiling
+the same SQL for every transaction.
+
+When adding a query, keep in mind that the cache is keyed by the full SQL
+text: never build SQL whose number of placeholders varies with the input
+(e.g. an =IN (?,?,...)= list). =ResolveMultipleEmailToUsername= builds
+exactly such a query and deliberately uses =connection.Query= directly.
+
+Most listing queries are assembled by =db.QueryBuilder=
+(=pkg/gitus/db/builder.go=): conditions and their arguments are added
+together, and the builder renders either =?= (sqlite) or =$n= (postgres) for
+the placeholders. The column lists and the matching row scanners live in
+=sqlaux.go= next to the query code.
+
+2026.10.26
+
+
