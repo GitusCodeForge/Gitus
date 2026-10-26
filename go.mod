@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.17.2
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf
 	github.com/golang-jwt/jwt/v5 v5.3.0
-	github.com/gomarkdown/markdown v0.0.0-20260417124207-7d523f7318df
+	github.com/gomarkdown/markdown v0.0.0-20260724235538-61af6e1e6971
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/mattn/go-sqlite3 v1.14.28
