@@ -60,9 +60,10 @@ grafts) drop both halves with =( *LocalGitRepository).ClearLastCommitStore=.
 Because the cache lives in the web server process, a push is followed by an
 =IPC_COMMAND_WARM_LAST_COMMIT_CACHE= message (=gitus update-trigger=) that asks
 that process to resolve the root listing of the new commit ahead of time. It is
-best effort: if the message is lost, the web server was down, or nobody ever
-ran the hook, the first visitor just computes the listing. Nothing has to be
-repaired afterwards.
+best effort: if the message is lost, the web server was down, or the hook was
+never installed (repositories created before Gitus managed hooks; see
+=gitus install-hooks= in [[./webhooks.org]]), the first visitor just computes
+the listing. Nothing has to be repaired afterwards.
 
 See =cmd/gitus/ipc-server.go= for the message format,
 =pkg/gitlib/lastcommit.go= for the resolver and the in-memory cache, and

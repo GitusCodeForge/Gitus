@@ -850,6 +850,8 @@ VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
 	if err != nil { return nil, err }
+	err = model.InstallManagedHook(lr, dbif.config.FilePath, r.FullName())
+	if err != nil { return nil, err }
 	return r, nil
 }
 
@@ -892,6 +894,8 @@ VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 	r.Owner = owner
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
+	if err != nil { return nil, err }
+	err = model.InstallManagedHook(targetRepo, dbif.config.FilePath, r.FullName())
 	if err != nil { return nil, err }
 	return r, nil
 }

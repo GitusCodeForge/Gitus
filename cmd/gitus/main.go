@@ -79,8 +79,9 @@ func main() {
 	isSsh := containsCommand && mainCall[0] == "ssh"
 	isWebHooks := containsCommand && mainCall[0] == "web-hooks"
 	isUpdateTrigger := containsCommand && mainCall[0] == "update-trigger"
+	isInstallHooks := containsCommand && mainCall[0] == "install-hooks"
 	isResetAdmin := containsCommand && mainCall[0] == "reset-admin"
-	dbifNeeded := isWebServer || (containsCommand && (isSsh || isWebHooks || isUpdateTrigger || isResetAdmin))
+	dbifNeeded := isWebServer || (containsCommand && (isSsh || isWebHooks || isUpdateTrigger || isInstallHooks || isResetAdmin))
 	ssifNeeded := isWebServer
 	keyctxNeeded := isWebServer || (containsCommand && isSsh)
 	rsifNeeded := isWebServer
@@ -246,6 +247,13 @@ func main() {
 				return
 			}
 			HandleUpdateTrigger(&context, mainCall[1], mainCall[2], mainCall[3], mainCall[4], mainCall[5])
+			return
+		case "install-hooks":
+			repoFullName := ""
+			if len(mainCall) > 1 { repoFullName = mainCall[1] }
+			if failures := HandleInstallHooks(&context, repoFullName); failures > 0 {
+				os.Exit(1)
+			}
 			return
 		}
 	}

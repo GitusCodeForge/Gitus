@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -854,18 +855,17 @@ func bindRepositorySettingController(ctx *RouterContext) {
 				rc.ReportInternalError(fmt.Sprintf("Failed to update repository info: %s", err), w, r)
 				return
 			}
-			if enableWebhook {
-				err = lgr.EnableWebHook(repo.FullName())
-				if err != nil {
-					rc.ReportInternalError(fmt.Sprintf("Failed to setup webhook: %s", err), w, r)
+			// The update hook is what sends the webhook and what warms up the
+			// last-commit listing of a pushed commit, so it stays installed even
+			// when the webhook itself is turned off.
+			err = model.InstallManagedHook(lgr, ctx.Config.FilePath, repo.FullName())
+			if err != nil {
+				if errors.Is(err, gitlib.ErrHookNotManaged) {
+					rc.ReportNormalError("The webhook was saved, but the repository already has an update hook that gitus did not write. Remove or rename it, then save the settings again.", w, r)
 					return
 				}
-			} else {
-				err = lgr.DisableWebHook()
-				if err != nil {
-					rc.ReportInternalError(fmt.Sprintf("Failed to disable webhook: %s", err), w, r)
-					return
-				}
+				rc.ReportInternalError(fmt.Sprintf("Failed to install the git hook: %s", err), w, r)
+				return
 			}
 			rc.ReportRedirect(fmt.Sprintf("/repo/%s/setting/webhook", repo.FullName()), 5, "Updated", "Your configuration of webhooks has been saved.", w, r)
 		},

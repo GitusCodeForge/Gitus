@@ -54,6 +54,19 @@ func CreateLocalForkOf(origin LocalRepository, newNs string, newName string, new
 	}
 }
 
+// InstallManagedHook installs the git hook Gitus uses to send webhooks and to
+// warm up its cache. An empty configPath means the caller has no configuration
+// file to point the hook at, in which case nothing is installed.
+func InstallManagedHook(lr LocalRepository, configPath string, repoFullName string) error {
+	if len(configPath) <= 0 { return nil }
+	gr, ok := lr.(*gitlib.LocalGitRepository)
+	if !ok { return nil }
+	return gr.InstallManagedHook(gitlib.ManagedHookParams{
+		ConfigPath: configPath,
+		RepoFullName: repoFullName,
+	})
+}
+
 func GetLocalRepositoryLocalPath(r LocalRepository) string {
 	switch GetGitusType(r) {
 	case REPO_TYPE_GIT:

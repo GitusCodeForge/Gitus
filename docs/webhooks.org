@@ -4,20 +4,36 @@ It's better to use webhooks because it's very easy to turn git hooks into a secu
 
 Webhooks are a kind of notification mechanism. When enabled, a POST request with necessary data like commit ids and such would be sent to the pre-configured URL; the receiving end of the POST request could then move on to perform different actions.
 
-Webhooks for repositories in Gitus are introduced with the following steps:
+Each repository has at most one webhook. It is set up with the following steps:
 
 + Enable webhook in repository setting.
 + Add repository-specific secret key. This key should be shared w/ the receiving end.
 + Configure URL in repository setting.
 
-After enabling, the corresponding =update= git hook would be set with a shell script that invokes the command =gitus webhook send=.
+Gitus installs the =update= git hook of a repository when the repository is
+created (including forks and clones) and refreshes it when the webhook settings
+are saved. Repositories that predate this can be handled with:
+
+#+begin_example
+gitus -config /path/to/config install-hooks [repo-full-name]
+#+end_example
+
+...which, without a repository name, visits every repository once. The hook is
+recognized by its =# managed by gitus= marker; a repository that already has an
+=update= hook that Gitus did not write is left alone and the command reports an
+error for it.
+
+The hook only notifies: it sends the webhook configured for the repository and
+warms up the "last commit" listing of the new commit (see
+[[./last-commit-cache.org]]). It never rejects a push, and it stays installed
+when the webhook is disabled, because the warm-up half is still wanted.
 
 ** Verification
 
 POST requests sent by Gitus come with an =Authentication= header of the following format:
 
 #+begin_example
-Authorization: Bearer webhook-jwt-{token}
+Authentication: Bearer webhook-jwt-{token}
 #+end_example
 
 ...where =token= is a JWT token of the following format:
@@ -26,17 +42,19 @@ Authorization: Bearer webhook-jwt-{token}
 
   #+begin_src json
   {
-      "alg": "HS256",
+      "alg": "HS512",
       "typ": "JWT"
   }
   #+end_src json
 
-  ...Gitus uses HMAC SHA-256.
+  ...Gitus uses HMAC SHA-512.
 + Payload: the following:
 
   #+begin_src json
   {
-      "iss": "{timestamp}",
+      "jti": "{result report id; see below}",
+      "iat": "{issue time; integer}",
+      "exp": "{expiry time; integer}",
       "nonce": "{nonce; in integer}",
   }
   #+end_src json
@@ -97,7 +115,14 @@ Data structure are similar to GitHub webhooks:
 
 ** Command
 
-The following command is executed:
+The =update= hook runs the following command, which sends the webhook and then
+warms up the last-commit listing of the new commit:
+
+#+begin_example
+gitus -config /path/to/config update-trigger "$repo_full_name" "$refname" "$newrev_type" "$oldrev" "$newrev"
+#+end_example
+
+The same function is also reachable directly, without the cache warm-up:
 
 #+begin_example
 gitus web-hooks send "$repo_full_name" "$refname" "$newrev_type" "$oldrev" "$newrev"

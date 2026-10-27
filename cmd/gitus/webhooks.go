@@ -253,6 +253,9 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 		},
 	}
 	c := &http.Client{
+		// This runs inside the update hook of a push, so a receiver that never
+		// answers must not hold the push hostage.
+		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
 			DialContext: d.DialContext,
 		},

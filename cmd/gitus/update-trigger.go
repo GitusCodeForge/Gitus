@@ -19,12 +19,18 @@ func HandleUpdateTrigger(ctx *routes.RouterContext, repoFullName string, refFull
 		printGitError(fmt.Sprintf("Failed to get repository: %s", err))
 		return
 	}
-	// Everything below is best effort. The last-commit listing of a commit is
-	// memoized by commit id and therefore never goes stale: a message that does
-	// not get through only means the first visitor of the new commit computes
-	// the listing instead of finding it warm.
+	// Everything below is best effort.
+	//
+	// The last-commit listing of a commit is memoized by commit id and therefore
+	// never goes stale: a message that does not get through only means the first
+	// visitor of the new commit computes the listing instead of finding it warm.
+	// Warming it up first also means it has happened before the webhook call,
+	// which may involve a slow endpoint.
 	err = sendIPCCommand(ctx, IPC_COMMAND_WARM_LAST_COMMIT_CACHE, repoFullName, newRev)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to warm the last-commit cache for %s@%s: %s\n", repoFullName, newRev, err.Error())
 	}
+	// The webhook is the notification channel for repositories that enabled one;
+	// HandleWebHook returns immediately when it is disabled.
+	HandleWebHook(ctx, repoFullName, refFullName, newrevType, oldRev, newRev)
 }

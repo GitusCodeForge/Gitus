@@ -768,6 +768,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	r.Owner = owner
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
+	err = model.InstallManagedHook(lr, dbif.config.FilePath, r.FullName())
+	if err != nil { return nil, err }
 	return r, nil
 }
 
@@ -801,7 +803,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	r.Owner = owner
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
-	fmt.Println("done!")
+	err = model.InstallManagedHook(targetLr, dbif.config.FilePath, r.FullName())
+	if err != nil { return nil, err }
 	return r, nil
 }
 
