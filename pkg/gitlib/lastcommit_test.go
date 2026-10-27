@@ -4,9 +4,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func gitRun(t *testing.T, dir string, args ...string) string {
@@ -162,6 +164,80 @@ func TestResolveLastCommitAtDirCache(t *testing.T) {
 		if errs[i] != nil { t.Fatal(errs[i]) }
 		if len(results[i]) != 2 {
 			t.Fatalf("unexpected result for sub: %v", results[i])
+		}
+	}
+}
+
+func TestResolveLastCommitAtDirStore(t *testing.T) {
+	ClearLastCommitCache()
+	defer ClearLastCommitCache()
+	gr, dir := newTestRepo(t)
+	cobj := headCommit(t, gr, dir)
+
+	want, err := gr.ResolveLastCommitAtDir(cobj, "")
+	if err != nil { t.Fatal(err) }
+
+	storePath := gr.lastCommitStorePath(cobj.Id, "")
+	if _, err := os.Stat(storePath); err != nil {
+		t.Fatalf("no store file at %s: %s", storePath, err.Error())
+	}
+
+	// After dropping the in-memory cache the listing has to come from disk.
+	// Hiding git makes sure it is not simply recomputed.
+	ClearLastCommitCache()
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", t.TempDir())
+	defer t.Setenv("PATH", oldPath)
+	got, err := gr.ResolveLastCommitAtDir(cobj, "")
+	if err != nil {
+		t.Fatalf("the listing was not read from disk: %s", err.Error())
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v { t.Fatalf("entry %q: got %s, want %s", k, got[k], v) }
+	}
+	t.Setenv("PATH", oldPath)
+
+	// A file that does not belong to the lookup, or is not readable as one, is
+	// ignored instead of being used.
+	os.WriteFile(storePath, []byte("{not json"), 0644)
+	ClearLastCommitCache()
+	got, err = gr.ResolveLastCommitAtDir(cobj, "")
+	if err != nil { t.Fatal(err) }
+	if len(got) != len(want) { t.Fatalf("corrupt store file was used: %v", got) }
+
+	// An id that cannot be a commit id must not be turned into a file name.
+	if _, ok := gr.loadLastCommitFromDisk("../../escape", ""); ok {
+		t.Fatal("a bogus id was accepted")
+	}
+	gr.saveLastCommitToDisk("../../escape", "", map[string]string{"a": "b"})
+
+	// ClearLastCommitStore drops both halves.
+	if err = gr.ClearLastCommitStore(); err != nil { t.Fatal(err) }
+	if _, err = os.Stat(storePath); !os.IsNotExist(err) {
+		t.Fatal("store file survived ClearLastCommitStore")
+	}
+}
+
+func TestPruneLastCommitStore(t *testing.T) {
+	dir := t.TempDir()
+	base := time.Now().Add(-time.Hour)
+	for i := 0; i < 10; i++ {
+		p := path.Join(dir, "f"+strconv.Itoa(i)+".json")
+		if err := os.WriteFile(p, []byte("x"), 0644); err != nil { t.Fatal(err) }
+		when := base.Add(time.Duration(i) * time.Minute)
+		if err := os.Chtimes(p, when, when); err != nil { t.Fatal(err) }
+	}
+	pruneLastCommitStore(dir, 4)
+	entries, err := os.ReadDir(dir)
+	if err != nil { t.Fatal(err) }
+	if len(entries) != 4 { t.Fatalf("kept %d files, want 4", len(entries)) }
+	// the four newest survive
+	for i := 6; i < 10; i++ {
+		if _, err := os.Stat(path.Join(dir, "f"+strconv.Itoa(i)+".json")); err != nil {
+			t.Fatalf("f%d should have survived: %s", i, err.Error())
 		}
 	}
 }

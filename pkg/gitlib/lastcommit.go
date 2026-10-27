@@ -28,6 +28,10 @@ import (
 // directory), and a commit id never changes its history, so a cached entry can
 // never go stale. Entries of commits that are no longer browsed are simply
 // evicted; nothing has to invalidate them when the repository gets new commits.
+//
+// Listings are kept in memory (see lastCommitCache below) and, so that a
+// restarted server does not have to walk the history again, on disk inside the
+// repository (see lastcommit_store.go).
 func (gr *LocalGitRepository) ResolveLastCommitAtDir(cobj *CommitObject, dir string) (map[string]string, error) {
 	if cobj == nil { return nil, fmt.Errorf("no commit given") }
 	dir = normalizeLastCommitDir(dir)
@@ -51,7 +55,18 @@ func (gr *LocalGitRepository) ResolveLastCommitAtDir(cobj *CommitObject, dir str
 	lastCommitCache.inflight[key] = call
 	lastCommitCache.mu.Unlock()
 
-	call.res, call.err = gr.resolveLastCommitAtDir(cobj, dir)
+	// A previous process may have left the listing on disk; that is much
+	// cheaper than walking the history again after a restart.
+	diskHit := false
+	if cached, ok := gr.loadLastCommitFromDisk(cobj.Id, dir); ok {
+		call.res = cached
+		diskHit = true
+	} else {
+		call.res, call.err = gr.resolveLastCommitAtDir(cobj, dir)
+	}
+	if call.err == nil && !diskHit {
+		gr.saveLastCommitToDisk(cobj.Id, dir, call.res)
+	}
 
 	lastCommitCache.mu.Lock()
 	delete(lastCommitCache.inflight, key)
@@ -64,7 +79,8 @@ func (gr *LocalGitRepository) ResolveLastCommitAtDir(cobj *CommitObject, dir str
 	return copyLastCommitMap(call.res), call.err
 }
 
-// ClearLastCommitCache drops every memoized listing.
+// ClearLastCommitCache drops every memoized listing of the process. The on-disk
+// listings are not touched; see (*LocalGitRepository).ClearLastCommitStore.
 //
 // Cached entries are keyed by commit id and cannot go stale, so this is only
 // meant for tests, and for operations that rewrite history in place
