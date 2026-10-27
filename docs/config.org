@@ -2,3 +2,26 @@
 
 for details, please visit file ~pkg/gitus/config.go~.
 
+** debug mode
+
+=debugMode= (=false= by default) makes the error page show internal error
+messages: the raw text of a failed database query, a file that could not be
+opened, and so on. It is meant for development, and for debugging a live
+instance when the error is not reproducible elsewhere.
+
+When it is off, the visitor only sees
+
+#+begin_example
+Internal error: An unexpected error occurred. Please contact the administrator and mention reference 51b9ea7f.
+#+end_example
+
+and the full message goes to the server log with the same reference:
+
+#+begin_example
+2026/10/27 11:56:48 [INTERNAL ERROR] 192.0.2.1:1234 GET /somewhere (ref 51b9ea7f): open /srv/git/secret.git/config: permission denied
+#+end_example
+
+The flag is toggled in the site settings (=/admin/site-config=, "Basic
+Settings"). It is never enabled by default, and it should stay off on any
+instance that other people can reach: internal messages may contain absolute
+paths, SQL errors and library versions.

@@ -5,12 +5,16 @@ package routes
 // together and is not used to manage lifetimes & stuff AT ALL.
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/confirm_code"
@@ -104,6 +108,15 @@ func (ctx RouterContext) ReportNormalError(msg string, w http.ResponseWriter, r 
 }
 
 func (ctx RouterContext) ReportInternalError(msg string, w http.ResponseWriter, r *http.Request) {
+	// The full message always goes to the server log: it can contain file paths,
+	// SQL errors and other internals, so it is only rendered to the visitor when
+	// the site is explicitly put in debug mode (see the site settings).
+	ref := newErrorReference()
+	log.Printf("[INTERNAL ERROR] %s %s %s (ref %s): %s", r.RemoteAddr, r.Method, r.URL.Path, ref, msg)
+	shown := msg
+	if !ctx.Config.DebugMode {
+		shown = fmt.Sprintf("An unexpected error occurred. Please contact the administrator and mention reference %s.", ref)
+	}
 	w.WriteHeader(500)
 	LogTemplateError(ctx.LoadTemplate("error").Execute(w,
 		templates.ErrorTemplateModel{
@@ -111,10 +124,20 @@ func (ctx RouterContext) ReportInternalError(msg string, w http.ResponseWriter, 
 			ErrorCode: 500,
 			ErrorMessage: fmt.Sprintf(
 				"Internal error: %s",
-				msg,
+				shown,
 			),
 		},
 	))
+}
+
+// newErrorReference returns a short random string that ties the message shown
+// to the visitor together with the matching line in the server log.
+func newErrorReference() string {
+	var b [4]byte
+	if _, err := crand.Read(b[:]); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b[:])
 }
 
 func (ctx RouterContext) ReportForbidden(msg string, w http.ResponseWriter, r *http.Request) {

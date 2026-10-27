@@ -170,6 +170,14 @@ type GitusConfig struct {
 	// a configured ssh public key.
 	NoInteractiveShellMessage string `json:"noSshLoginMessage"`
 
+	// debug mode.
+	// when enabled, internal error messages (usually the raw error text of a
+	// failed database or filesystem operation) are shown to the visitor on the
+	// error page instead of a generic message. those messages can contain
+	// file paths, SQL errors and other internals, so this is meant for
+	// development and for debugging a live instance, not for normal operation.
+	DebugMode bool `json:"debugMode"`
+
 	// max session lifetime (seconds)
 	MaxSessionLifetime int `json:"maxSessionLifetime"`
 

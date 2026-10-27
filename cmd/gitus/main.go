@@ -285,6 +285,10 @@ func main() {
 	if err != nil {
 		log.Printf("WARNING: IPC server failed to start. Some functionalities might not be working...\nWARNING: %s\n", err.Error())
 	}
+
+	if config.DebugMode {
+		log.Printf("WARNING: debug mode is on; internal error messages (file paths, database errors, ...) will be shown to visitors.\nWARNING: turn it off in the site settings once you are done debugging.\n")
+	}
 	
 	go func() {
 		log.Printf("Start serving at %s:%d\n", config.BindAddress, config.BindPort)

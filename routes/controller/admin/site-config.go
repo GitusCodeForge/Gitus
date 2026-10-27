@@ -76,6 +76,10 @@ func bindAdminSiteConfigController(ctx *RouterContext) {
 				if r.Form.Has("manual-approval") && r.Form.Get("manual-approval") == "on" {
 					rc.Config.ManualApproval = true
 				}
+				rc.Config.DebugMode = false
+				if r.Form.Has("debug-mode") && r.Form.Get("debug-mode") == "on" {
+					rc.Config.DebugMode = true
+				}
 				rc.Config.RecalculateProperPath()
 				err := rc.Config.Sync()
 				if err != nil {

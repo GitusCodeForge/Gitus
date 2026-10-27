@@ -50,6 +50,14 @@
 				<td><input type="checkbox" name="manual-approval" id="chkbox-manual-approval" class="field-chkbox" {{if .Config.ManualApproval}}checked{{end}}/></td>
 			  </tr>
 			  <tr class="field">
+				<td><label class="field-label field-chkbox-label"  for="chkbox-debug-mode">Debug Mode:</label></td>
+				<td><input type="checkbox" name="debug-mode" id="chkbox-debug-mode" class="field-chkbox" {{if .Config.DebugMode}}checked{{end}}/></td>
+			  </tr>
+			  <tr class="field">
+				<td></td>
+				<td class="field-label-description">Debug mode shows internal error messages (file paths, database errors, ...) to visitors. Turn it off when the instance is reachable by anybody else.</td>
+			  </tr>
+			  <tr class="field">
 				<td></td>
 				<td><input class="field-submit" type="submit" value="Save Config" /></td>
 			  </tr>
