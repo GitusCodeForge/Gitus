@@ -21,6 +21,27 @@ func handleTreeSnapshotRequest(repo *model.Repository, treeId string, obj gitlib
 	responseWithTreeZip(rr, obj, filename, w)
 }
 
+// fillTreeItemLastCommit fills in the last commit of every entry of a tree
+// listing. All entries are resolved by one walk of the history (see
+// gitlib.ResolveLastCommitAtDir) instead of asking git once per entry.
+//
+// The column is decoration, so a failure to compute it must not fail the page:
+// entries that cannot be resolved are simply left untouched.
+func fillTreeItemLastCommit(rr *gitlib.LocalGitRepository, cobj *gitlib.CommitObject, dirPath string, items []gitlib.TreeObjectItem) {
+	if cobj == nil || len(items) <= 0 { return }
+	lastCommits, err := rr.ResolveLastCommitAtDir(cobj, dirPath)
+	if err != nil { return }
+	for i, item := range items {
+		cid, ok := lastCommits[item.Name]
+		if !ok { continue }
+		o, err := rr.ReadObject(cid)
+		if err != nil { continue }
+		commit, ok := o.(*gitlib.CommitObject)
+		if !ok { continue }
+		items[i].LastCommit = commit
+	}
+}
+
 func bindTreeHandler(ctx *RouterContext) {
 	http.HandleFunc("GET /repo/{repoName}/tree/{treeId}/{treePath...}", UseMiddleware(
 		[]Middleware{Logged, ValidRepositoryNameRequired("repoName"),

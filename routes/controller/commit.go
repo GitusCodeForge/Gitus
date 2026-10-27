@@ -208,14 +208,9 @@ func bindCommitController(ctx *RouterContext) {
 						TreePath: dirPath,
 						FileList: dirObj.(*gitlib.TreeObject).ObjectList,
 					}
+					fillTreeItemLastCommit(rr, cobj, dirPath, dirObj.(*gitlib.TreeObject).ObjectList)
 				}
-				for i, k := range target.(*gitlib.TreeObject).ObjectList {
-					cid, err := rr.ResolvePathLastCommitId(cobj, treePath + k.Name)
-					if err != nil { continue }
-					o, err := rr.ReadObject(strings.TrimSpace(cid))
-					if err != nil { continue }
-					target.(*gitlib.TreeObject).ObjectList[i].LastCommit = o.(*gitlib.CommitObject)
-				}
+				fillTreeItemLastCommit(rr, cobj, treePath, target.(*gitlib.TreeObject).ObjectList)
 				LogTemplateError(rc.LoadTemplate("tree").Execute(w, templates.TreeTemplateModel{
 					Repository: repo,
 					RepoHeaderInfo: *repoHeaderInfo,

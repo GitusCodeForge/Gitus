@@ -144,20 +144,8 @@ func bindRepositoryController(ctx *RouterContext) {
 				TreePath: "/",
 				FileList: treeObjList,
 			}
-			for i, item := range treeObjList {
-				// TODO: find a better way to do this...
-				cid, _ := rr.ResolvePathLastCommitId(cobj, item.Name)
-				o, err := rr.ReadObject(strings.TrimSpace(cid))
-				treeObjList[i].LastCommit = o.(*gitlib.CommitObject)
-				// lastCommitIdMap, _ = rr.ResolveLastCommitAtPath(cobj, ".")
-				// // fmt.Println(lastCommitIdMap)
-				// for k, item := range treeObjList {
-				// 	// TODO: find a better way to do this.
-				// 	lastCommitId, ok := lastCommitIdMap[item.Name]
-				// 	if ok {
-				// 		itemCObj, _ := rr.ReadObject(lastCommitId)
-				// 		treeObjList[k].LastCommit = itemCObj.(*gitlib.CommitObject)
-				// 	}
+			fillTreeItemLastCommit(rr, cobj, "", treeObjList)
+			for _, item := range treeObjList {
 				if item.Name == "README" || strings.HasPrefix(item.Name, "README.") {
 					// NOTE: this is to make sure that README.md and the like will
 					// always have a higher priority than other README file; some repo
