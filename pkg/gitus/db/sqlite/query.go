@@ -317,22 +317,26 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	if err != nil { return nil, err }
 	_, err = stmt.Exec(name, name, email, new(string), new(string), passwordHash, t, status, `{"email":{"enable":false}}`, `{"useSiteWideThemeConfig":true}`)
 	if err != nil { tx.Rollback(); return nil, err }
-	err = tx.Commit()
-	if err != nil { tx.Rollback(); return nil, err }
-	// we delete whatever we have inside the old ns.
-	// this should be ok since when a user exists as "deleted"
-	// state the actions above should've violated unique constraint
-	// and triggered an error already. of course we should remove
-	// "deleted" user regularly from the dbto prevent possible sabotage.
+	// The filesystem work happens before the commit: if it fails the user row
+	// is rolled back with it, instead of leaving a committed account whose
+	// directory does not exist.
+	//
+	// NOTE: we delete whatever we have inside the old ns. this should be ok
+	// since when a user exists as "deleted" state the actions above should've
+	// violated unique constraint and triggered an error already. of course we
+	// should remove "deleted" user regularly from the db to prevent possible
+	// sabotage.
 	userNsPath := path.Join(dbif.config.GitRoot, name)
 	if !db.IsSubDir(dbif.config.GitRoot, userNsPath) {
 		return nil, db.ErrInvalidLocation
 	}
 	err = os.RemoveAll(userNsPath)
-	if err != nil && !os.IsNotExist(err) { tx.Rollback(); return nil, err }
+	if err != nil && !os.IsNotExist(err) { return nil, err }
 	err = os.MkdirAll(userNsPath, os.ModeDir|0755)
 	// TODO: chown.
-	if err != nil { tx.Rollback(); return nil, err }
+	if err != nil { return nil, err }
+	err = tx.Commit()
+	if err != nil { return nil, err }
 	return &model.GitusUser{
 		Name: name,
 		Title: name,
@@ -897,15 +901,17 @@ VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 	if err != nil { return nil, err }
 	err = model.InitLocalRepository(lr)
 	if err != nil { return nil, err }
-	if err = tx.Commit(); err != nil { return nil, err }
 	r, err := model.NewRepository(ns, name, lr)
+	if err != nil { return nil, err }
 	r.Type = repoType
 	r.Owner = owner
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
-	if err != nil { return nil, err }
+	// Install the hook before committing, so a failure cannot leave a
+	// committed repository without the hook that drives webhooks.
 	err = model.InstallManagedHook(lr, dbif.config.FilePath, r.FullName())
 	if err != nil { return nil, err }
+	if err = tx.Commit(); err != nil { return nil, err }
 	return r, nil
 }
 
@@ -942,15 +948,15 @@ VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 	if err != nil { return nil, err }
 	targetRepo, err := model.CreateLocalForkOf(originRepo, targetNs, targetName, targetP)
 	if err != nil { return nil, err }
-	if err = tx.Commit(); err != nil { return nil, err }
 	r, err := model.NewRepository(targetNs, targetName, targetRepo)
+	if err != nil { return nil, err }
 	r.Type = model.GetGitusType(targetRepo)
 	r.Owner = owner
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
-	if err != nil { return nil, err }
 	err = model.InstallManagedHook(targetRepo, dbif.config.FilePath, r.FullName())
 	if err != nil { return nil, err }
+	if err = tx.Commit(); err != nil { return nil, err }
 	return r, nil
 }
 

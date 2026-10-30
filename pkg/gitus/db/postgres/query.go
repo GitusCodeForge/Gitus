@@ -816,15 +816,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	lr, err := model.CreateLocalRepository(repoType, ns, name, p)
 	if err != nil { return nil, err }
 	if err = model.InitLocalRepository(lr); err != nil { return nil, err }
-	if err = tx.Commit(ctx); err != nil { return nil, err }
 	r, err := model.NewRepository(ns, name, lr)
 	if err != nil { return nil, err }
 	r.Type = repoType
 	r.Owner = owner
 	r.RepoLabelList = nil
 	r.WebHookConfig = webhookobj
+	// Install the hook before committing, so a failure cannot leave a
+	// committed repository without the hook that drives webhooks.
 	err = model.InstallManagedHook(lr, dbif.config.FilePath, r.FullName())
 	if err != nil { return nil, err }
+	if err = tx.Commit(ctx); err != nil { return nil, err }
 	return r, nil
 }
 
@@ -851,7 +853,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	originLr, err := model.CreateLocalRepository(model.REPO_TYPE_GIT, originNs, originName, originP)
 	if err != nil { return nil, err }
 	targetLr, err := model.CreateLocalForkOf(originLr, targetNs, targetName, targetP)
-	if err = tx.Commit(ctx); err != nil { return nil, err }
+	if err != nil { return nil, err }
 	r, err := model.NewRepository(targetNs, targetName, targetLr)
 	if err != nil { return nil, err }
 	r.Type = model.REPO_TYPE_GIT
@@ -860,6 +862,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	r.WebHookConfig = webhookobj
 	err = model.InstallManagedHook(targetLr, dbif.config.FilePath, r.FullName())
 	if err != nil { return nil, err }
+	if err = tx.Commit(ctx); err != nil { return nil, err }
 	return r, nil
 }
 
