@@ -228,6 +228,37 @@ WHERE user_name = $1 AND key_name = $2
 	return nil
 }
 
+// GetRepositoryWithNamespace returns the repository and the namespace it lives
+// in with a single query. Resolving a /repo/... URL used to cost two round
+// trips (GetNamespaceByName then GetRepositoryByName) on every request.
+func (dbif *PostgresGitusDatabaseInterface) GetRepositoryWithNamespace(nsName string, repoName string) (*model.Namespace, *model.Repository, error) {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	stmt := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
+SELECT repo.repo_type, repo.repo_namespace, repo.repo_name, repo.repo_description, repo.repo_owner, repo.repo_acl, repo.repo_status, repo.repo_fork_origin_namespace, repo.repo_fork_origin_name, repo.repo_label_list, repo.repo_webhook, repo.repo_absid,
+ns.ns_name, ns.ns_title, ns.ns_description, ns.ns_email, ns.ns_owner, ns.ns_reg_datetime, ns.ns_status, ns.ns_acl
+FROM %s_repository repo
+INNER JOIN %s_namespace ns ON ns.ns_name = repo.repo_namespace
+WHERE repo.repo_namespace = $1 AND repo.repo_name = $2
+`, pfx, pfx), nsName, repoName)
+	var repoType, status int
+	var repoNs, name, desc, owner, acl, forkOriginNs, forkOriginName, labelList, webhookStr string
+	var absId int64
+	var nsTitle, nsDesc, nsEmail, nsOwner, nsACL string
+	var nsRegTime time.Time
+	var nsStatus int
+	err := stmt.Scan(
+		&repoType, &repoNs, &name, &desc, &owner, &acl, &status, &forkOriginNs, &forkOriginName, &labelList, &webhookStr, &absId,
+		&nsName, &nsTitle, &nsDesc, &nsEmail, &nsOwner, &nsRegTime, &nsStatus, &nsACL)
+	if err == pgx.ErrNoRows { return nil, nil, db.ErrEntityNotFound }
+	if err != nil { return nil, nil, err }
+	repo, err := dbif.buildRepository(repoType, repoNs, name, desc, owner, acl, status, forkOriginNs, forkOriginName, labelList, webhookStr, absId)
+	if err != nil { return nil, nil, err }
+	ns, err := dbif.buildNamespace(nsName, nsTitle, nsDesc, nsEmail, nsOwner, nsRegTime, nsACL, nsStatus)
+	if err != nil { return nil, nil, err }
+	return ns, repo, nil
+}
+
 func (dbif *PostgresGitusDatabaseInterface) GetNamespaceByName(name string) (*model.Namespace, error) {
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()

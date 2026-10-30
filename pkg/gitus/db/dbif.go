@@ -24,6 +24,7 @@ type GitusDatabaseInterface interface {
 	RemoveSignKey(username string, keyname string) error
 	GetNamespaceByName(name string) (*model.Namespace, error)
 	GetRepositoryByName(nsName string, repoName string) (*model.Repository, error)
+	GetRepositoryWithNamespace(nsName string, repoName string) (*model.Namespace, *model.Repository, error)
 	GetAllNamespace() (map[string]*model.Namespace, error)
 	GetAllVisibleNamespace(username string) (map[string]*model.Namespace, error)
 	GetAllVisibleNamespacePaginated(username string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error)

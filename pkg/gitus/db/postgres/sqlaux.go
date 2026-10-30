@@ -164,6 +164,38 @@ func (dbif *PostgresGitusDatabaseInterface) belongingNamespaceCond(b *db.QueryBu
 	return fmt.Sprintf("(%s AND (%s OR %s))", owned, nsCondInternal, dbif.nsViewerCond(b, viewingUser))
 }
 
+// buildRepository turns one row of repositoryColumns into a model. It is shared
+// by the plain listing scanner and by GetRepositoryWithNamespace, which reads a
+// repository and its namespace in a single query.
+func (dbif *PostgresGitusDatabaseInterface) buildRepository(repoType int, ns, name, desc, owner, acl string, status int, forkOriginNs, forkOriginName, labelList, webhookStr string, absId int64) (*model.Repository, error) {
+	a, err := model.ParseACL(acl)
+	if err != nil { return nil, err }
+	p := path.Join(dbif.config.GitRoot, ns, name)
+	lr, err := model.CreateLocalRepository(uint8(repoType), ns, name, p)
+	if err != nil { return nil, err }
+	var tags []string = nil
+	if len(labelList) > 0 {
+		tags = strings.Split(labelList[1:len(labelList)-1], "}{")
+	}
+	webhookObj, err := model.ParseWebHookConfig(webhookStr)
+	if err != nil { return nil, err }
+	return &model.Repository{
+		AbsId: absId,
+		Type: uint8(repoType),
+		Namespace: ns,
+		Name: name,
+		Owner: owner,
+		Description: desc,
+		AccessControlList: a,
+		Status: model.GitusRepositoryStatus(status),
+		Repository: lr,
+		ForkOriginNamespace: forkOriginNs,
+		ForkOriginName: forkOriginName,
+		RepoLabelList: tags,
+		WebHookConfig: webhookObj,
+	}, nil
+}
+
 func (dbif *PostgresGitusDatabaseInterface) scanRepositoryRows(rows pgx.Rows) ([]*model.Repository, error) {
 	res := make([]*model.Repository, 0)
 	for rows.Next() {
@@ -172,32 +204,9 @@ func (dbif *PostgresGitusDatabaseInterface) scanRepositoryRows(rows pgx.Rows) ([
 		var absId int64
 		err := rows.Scan(&repoType, &ns, &name, &desc, &owner, &acl, &status, &forkOriginNs, &forkOriginName, &labelList, &webhookStr, &absId)
 		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
+		repo, err := dbif.buildRepository(repoType, ns, name, desc, owner, acl, status, forkOriginNs, forkOriginName, labelList, webhookStr, absId)
 		if err != nil { return nil, err }
-		p := path.Join(dbif.config.GitRoot, ns, name)
-		lr, err := model.CreateLocalRepository(uint8(repoType), ns, name, p)
-		if err != nil { return nil, err }
-		var tags []string = nil
-		if len(labelList) > 0 {
-			tags = strings.Split(labelList[1:len(labelList)-1], "}{")
-		}
-		webhookObj, err := model.ParseWebHookConfig(webhookStr)
-		if err != nil { return nil, err }
-		res = append(res, &model.Repository{
-			AbsId: absId,
-			Type: uint8(repoType),
-			Namespace: ns,
-			Name: name,
-			Owner: owner,
-			Description: desc,
-			AccessControlList: a,
-			Status: model.GitusRepositoryStatus(status),
-			Repository: lr,
-			ForkOriginNamespace: forkOriginNs,
-			ForkOriginName: forkOriginName,
-			RepoLabelList: tags,
-			WebHookConfig: webhookObj,
-		})
+		res = append(res, repo)
 	}
 	if rows.Err() != nil { return nil, rows.Err() }
 	return res, nil
@@ -213,6 +222,21 @@ func (dbif *PostgresGitusDatabaseInterface) scanNamespaceRows(rows pgx.Rows) (ma
 	return res, nil
 }
 
+func (dbif *PostgresGitusDatabaseInterface) buildNamespace(name, title, desc, email, owner string, regTime time.Time, acl string, status int) (*model.Namespace, error) {
+	a, err := model.ParseACL(acl)
+	if err != nil { return nil, err }
+	return &model.Namespace{
+		Name: name,
+		Title: title,
+		Description: desc,
+		Email: email,
+		Owner: owner,
+		RegisterTime: regTime.Unix(),
+		ACL: a,
+		Status: model.GitusNamespaceStatus(status),
+	}, nil
+}
+
 func (dbif *PostgresGitusDatabaseInterface) scanNamespaceList(rows pgx.Rows) ([]*model.Namespace, error) {
 	res := make([]*model.Namespace, 0)
 	for rows.Next() {
@@ -221,18 +245,9 @@ func (dbif *PostgresGitusDatabaseInterface) scanNamespaceList(rows pgx.Rows) ([]
 		var status int
 		err := rows.Scan(&name, &title, &desc, &email, &owner, &regTime, &acl, &status)
 		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
+		ns, err := dbif.buildNamespace(name, title, desc, email, owner, regTime, acl, status)
 		if err != nil { return nil, err }
-		res = append(res, &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: desc,
-			Email: email,
-			Owner: owner,
-			RegisterTime: regTime.Unix(),
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		})
+		res = append(res, ns)
 	}
 	if rows.Err() != nil { return nil, rows.Err() }
 	return res, nil

@@ -306,9 +306,8 @@ func (ctx *RouterContext) ResolveRepositoryFullName(str string) (string, string,
 			return "", "", nil, nil, ErrNotFound
 		}
 	} else {
-		ns, err = ctx.DatabaseInterface.GetNamespaceByName(namespaceName)
-		if err != nil { return "", "", nil, nil, err }
-		rp, err = ctx.DatabaseInterface.GetRepositoryByName(namespaceName, repoName)
+		// One query instead of two: this runs on every repo-scoped request.
+		ns, rp, err = ctx.DatabaseInterface.GetRepositoryWithNamespace(namespaceName, repoName)
 		if err != nil { return "", "", nil, nil, err }
 	}
 	return namespaceName, repoName, ns, rp, nil

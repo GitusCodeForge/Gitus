@@ -400,6 +400,36 @@ DELETE FROM %s_user WHERE user_name = ?
 	return nil
 }
 
+// GetRepositoryWithNamespace returns the repository and the namespace it lives
+// in with a single query. Resolving a /repo/... URL used to cost two round
+// trips (GetNamespaceByName then GetRepositoryByName) on every request.
+func (dbif *SqliteGitusDatabaseInterface) GetRepositoryWithNamespace(nsName string, repoName string) (*model.Namespace, *model.Repository, error) {
+	pfx := dbif.config.Database.TablePrefix
+	stmt, err := dbif.prepare(fmt.Sprintf(`
+SELECT repo.repo_type, repo.repo_namespace, repo.repo_name, repo.repo_description, repo.repo_owner, repo.repo_acl, repo.repo_status, repo.repo_fork_origin_namespace, repo.repo_fork_origin_name, repo.repo_label_list, repo.repo_webhook, repo.rowid,
+ns.ns_name, ns.ns_title, ns.ns_description, ns.ns_email, ns.ns_owner, ns.ns_reg_datetime, ns.ns_status, ns.ns_acl
+FROM %s_repository repo
+INNER JOIN %s_namespace ns ON ns.ns_name = repo.repo_namespace
+WHERE repo.repo_namespace = ? AND repo.repo_name = ?
+`, pfx, pfx))
+	if err != nil { return nil, nil, err }
+	var repoType uint8
+	var repoNs, name, desc, owner, acl, forkOriginNs, forkOriginName, labelList, webhookStr string
+	var status, rowid int64
+	var nsNameOut, nsTitle, nsDesc, nsEmail, nsOwner, nsACL string
+	var nsRegTime, nsStatus int64
+	err = stmt.QueryRow(nsName, repoName).Scan(
+		&repoType, &repoNs, &name, &desc, &owner, &acl, &status, &forkOriginNs, &forkOriginName, &labelList, &webhookStr, &rowid,
+		&nsNameOut, &nsTitle, &nsDesc, &nsEmail, &nsOwner, &nsRegTime, &nsStatus, &nsACL)
+	if err == sql.ErrNoRows { return nil, nil, db.ErrEntityNotFound }
+	if err != nil { return nil, nil, err }
+	repo, err := dbif.buildRepository(repoType, repoNs, name, desc, owner, acl, status, forkOriginNs, forkOriginName, labelList, webhookStr, rowid)
+	if err != nil { return nil, nil, err }
+	ns, err := dbif.buildNamespace(nsNameOut, nsTitle, nsDesc, nsEmail, nsOwner, nsRegTime, nsStatus, nsACL)
+	if err != nil { return nil, nil, err }
+	return ns, repo, nil
+}
+
 func (dbif *SqliteGitusDatabaseInterface) GetNamespaceByName(name string) (*model.Namespace, error) {
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
