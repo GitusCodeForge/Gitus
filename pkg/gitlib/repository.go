@@ -72,11 +72,18 @@ func NewLocalGitRepository(p string) *LocalGitRepository {
 		}
 	}
 	res.LoadSubmoduleConfig()
-	cmd := exec.Command("git", "update-server-info")
-	cmd.Dir = p
-	// ignore error for now.
-	cmd.Run()
 	return &res
+}
+
+// UpdateServerInfo refreshes the files that the v1-dumb HTTP transport serves
+// (info/refs, info/packs, ...). It used to run in NewLocalGitRepository, which
+// meant one git process per repository handle - a namespace listing alone would
+// spawn one per repository. It is only needed when somebody actually clones over
+// the dumb protocol, so the clone handler calls it lazily.
+func (gr LocalGitRepository) UpdateServerInfo() error {
+	cmd := exec.Command("git", "update-server-info")
+	cmd.Dir = gr.GitDirectoryPath
+	return cmd.Run()
 }
 
 func (gr LocalGitRepository) SyncLocalDescription() error {

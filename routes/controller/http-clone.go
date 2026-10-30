@@ -115,6 +115,12 @@ func bindHttpCloneController(ctx *RouterContext) {
 				return
 			}
 			rr := repo.Repository.(*gitlib.LocalGitRepository)
+			// The dumb protocol is served out of info/, which is only refreshed
+			// when it is needed (see gitlib.LocalGitRepository.UpdateServerInfo).
+			if err := rr.UpdateServerInfo(); err != nil {
+				ctx.ReportInternalError(fmt.Sprintf("Failed to refresh the dumb protocol files: %s", err.Error()), w, r)
+				return
+			}
 			p := path.Clean(path.Join(rr.GitDirectoryPath, "info", r.PathValue("p")))
 			chk, err := filepath.Rel(rr.GitDirectoryPath, p)
 			if err != nil || strings.HasPrefix(chk, "..") {
