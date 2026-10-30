@@ -74,6 +74,29 @@ WHERE user_name = $1
 	return res, nil
 }
 
+// GetUserLoginInfo returns only what UseLoginInfo needs, without decoding the
+// 2FA config and the website preference JSON that GetUserByName has to read.
+func (dbif *PostgresGitusDatabaseInterface) GetUserLoginInfo(name string) (*model.GitusUserLoginInfo, error) {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	stmt := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
+SELECT user_name, user_title, user_email, user_status
+FROM %s_user
+WHERE user_name = $1
+`, pfx), name)
+	var username, title, email string
+	var status int
+	err := stmt.Scan(&username, &title, &email, &status)
+	if errors.Is(err, pgx.ErrNoRows) { return nil, db.ErrEntityNotFound }
+	if err != nil { return nil, err }
+	return &model.GitusUserLoginInfo{
+		Name: username,
+		Title: title,
+		Email: email,
+		Status: model.GitusUserStatus(status),
+	}, nil
+}
+
 func (dbif *PostgresGitusDatabaseInterface) GetAuthKeyByName(userName string, keyName string) (*model.GitusAuthKey, error) {
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()

@@ -12,6 +12,7 @@ type GitusDatabaseInterface interface {
 	Dispose() error
 	
 	GetUserByName(name string) (*model.GitusUser, error)
+	GetUserLoginInfo(name string) (*model.GitusUserLoginInfo, error)
 	GetAllAuthKeyByUsername(name string) ([]model.GitusAuthKey, error)
 	GetAuthKeyByName(userName string, keyName string) (*model.GitusAuthKey, error)
 	RegisterAuthKey(username string, keyname string, keytext string) error

@@ -126,7 +126,7 @@ func GenerateLoginInfoModel(ctx *RouterContext, r *http.Request) (*templates.Log
 			IsSuperAdmin: false,
 		}, nil
 	}
-	u, err := ctx.DatabaseInterface.GetUserByName(un)
+	u, err := ctx.DatabaseInterface.GetUserLoginInfo(un)
 	if err != nil { return nil, err }
 	return &templates.LoginInfoModel{
 		LoggedIn: true,

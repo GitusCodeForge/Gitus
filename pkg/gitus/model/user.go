@@ -19,6 +19,16 @@ func ValidUserName(s string) bool {
 	return true
 }
 
+// GitusUserLoginInfo is the subset of a user that UseLoginInfo needs on every
+// authenticated request. Fetching a full GitusUser there means decoding the
+// 2FA config and the website preference JSON on every page load for nothing.
+type GitusUserLoginInfo struct {
+	Name string `json:"name"`
+	Title string `json:"title"`
+	Email string `json:"email"`
+	Status GitusUserStatus `json:"status"`
+}
+
 type GitusUser struct {
 	// user name. 
 	Name string `json:"name"`
