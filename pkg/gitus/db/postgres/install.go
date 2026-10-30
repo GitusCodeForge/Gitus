@@ -178,6 +178,16 @@ CREATE TABLE IF NOT EXISTS %s_webhook_log (
 )`, pfx))
 	if err != nil { return err }
 
+	_, err = tx.Exec(ctx, fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_id_counter (
+    repo_namespace VARCHAR(64),
+    repo_name VARCHAR(64),
+    kind SMALLINT,
+    next_id BIGINT,
+    PRIMARY KEY (repo_namespace, repo_name, kind)
+)`, pfx))
+	if err != nil { return err }
+
 	// Indexes for the queries that run on every issue/PR list, every issue
 	// view, every email lookup and every ownership check. See P4 of the audit.
 	// (repository(repo_namespace, repo_name) already has a UNIQUE constraint.)

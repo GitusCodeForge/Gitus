@@ -1508,25 +1508,17 @@ WHERE repo_namespace = ? AND repo_name = ?
 
 func (dbif *SqliteGitusDatabaseInterface) NewRepositoryIssue(ns string, name string, author string, title string, content string) (int64, error) {
 	pfx := dbif.config.Database.TablePrefix
-	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_issue WHERE repo_namespace = ? AND repo_name = ?
-`, pfx))
-	if err != nil { return 0, err }
-	r := stmt.QueryRow(ns, name)
-	if r.Err() != nil { return 0, err }
-	var res int64
-	err = r.Scan(&res)
-	if err != nil { return 0, err }
-	res += 1
 	tx, err := dbif.connection.Begin()
 	if err != nil { return 0, err }
 	defer tx.Rollback()
-	stmt2, err := dbif.prepareTx(tx, fmt.Sprintf(`
+	res, err := dbif.nextSequentialId(tx, ns, name, sequentialIdKindIssue, fmt.Sprintf("%s_issue", pfx), "issue_id", "repo_namespace", "repo_name")
+	if err != nil { return 0, err }
+	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
 INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority)
 VALUES (?,?,?,?,?,?,?,?,?)
 `, pfx))
 	if err != nil { return 0, err }
-	_, err = stmt2.Exec(ns, name, res, time.Now().Unix(), author, title, content, model.ISSUE_OPENED, 0)
+	_, err = stmt.Exec(ns, name, res, time.Now().Unix(), author, title, content, model.ISSUE_OPENED, 0)
 	if err != nil { return 0, err }
 	err = tx.Commit()
 	if err != nil { return 0, err }
@@ -1778,18 +1770,11 @@ func (dbif *SqliteGitusDatabaseInterface) SearchIssuePaginated(query string, nam
 
 func (dbif *SqliteGitusDatabaseInterface) NewPullRequest(username string, title string, receiverNamespace string, receiverName string, receiverBranch string, providerNamespace string, providerName string, providerBranch string) (int64, error) {
 	pfx := dbif.config.Database.TablePrefix
-	stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_pull_request
-WHERE receiver_namespace = ? AND receiver_name = ?
-`, pfx))
-	if err != nil { return 0, err }
-	var newid int64
-	err = stmt1.QueryRow(receiverNamespace, receiverName).Scan(&newid)
-	newid += 1
-	if err != nil { return 0, err }
 	tx, err := dbif.connection.Begin()
 	if err != nil { return 0, err }
 	defer tx.Rollback()
+	newid, err := dbif.nextSequentialId(tx, receiverNamespace, receiverName, sequentialIdKindPullRequest, fmt.Sprintf("%s_pull_request", pfx), "pull_request_id", "receiver_namespace", "receiver_name")
+	if err != nil { return 0, err }
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
 INSERT INTO %s_pull_request(
     username, pull_request_id, title,
@@ -2968,3 +2953,46 @@ WHERE uuid = ?
 	return webhookResult, nil
 }
 
+
+// kinds used by id_counter (see nextSequentialId).
+const (
+	sequentialIdKindIssue = 1
+	sequentialIdKindPullRequest = 2
+)
+
+// nextSequentialId hands out the next id of an issue or pull request of a
+// repository. It replaces SELECT COUNT(*) + 1, which handed the same id to two
+// concurrent creations and rescanned the table every time.
+//
+// The counter row is created on first use with MAX(existing)+1, so databases
+// that already contain issues continue right after the last one. The upsert is
+// a single statement, which is what makes it safe under concurrency.
+func (dbif *SqliteGitusDatabaseInterface) nextSequentialId(tx *sql.Tx, ns string, name string, kind int, table string, idColumn string, nsColumn string, nameColumn string) (int64, error) {
+	pfx := dbif.config.Database.TablePrefix
+	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
+INSERT INTO %s_id_counter(repo_namespace, repo_name, kind, next_id)
+VALUES (?, ?, ?, (SELECT COALESCE(MAX(%s), 0) + 1 FROM %s WHERE %s = ? AND %s = ?))
+ON CONFLICT(repo_namespace, repo_name, kind) DO UPDATE SET next_id = next_id + 1
+RETURNING next_id
+`, pfx, idColumn, table, nsColumn, nameColumn))
+	if err != nil { return 0, err }
+	var next int64
+	err = stmt.QueryRow(ns, name, kind, ns, name).Scan(&next)
+	if err != nil { return 0, err }
+	return next, nil
+}
+
+// EnsureSchema creates the tables that were added after the database was
+// installed. It is idempotent and is called once at startup.
+func (dbif *SqliteGitusDatabaseInterface) EnsureSchema() error {
+	pfx := dbif.config.Database.TablePrefix
+	_, err := dbif.connection.Exec(fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_id_counter (
+    repo_namespace TEXT,
+    repo_name TEXT,
+    kind SMALLINT,
+    next_id INTEGER,
+    PRIMARY KEY (repo_namespace, repo_name, kind)
+)`, pfx))
+	return err
+}

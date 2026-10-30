@@ -9,6 +9,9 @@ type GitusDatabaseInterface interface {
 	// we have to discern between "database unusable" and "error while detecting".
 	IsDatabaseUsable() (bool, error)
 	InstallTables() error
+	// EnsureSchema creates tables added after the database was installed. It is
+	// idempotent and called once at startup.
+	EnsureSchema() error
 	Dispose() error
 	
 	GetUserByName(name string) (*model.GitusUser, error)

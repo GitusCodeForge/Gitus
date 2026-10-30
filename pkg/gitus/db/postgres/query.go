@@ -1317,17 +1317,12 @@ func (dbif *PostgresGitusDatabaseInterface) SearchIssuePaginated(query string, n
 
 func (dbif *PostgresGitusDatabaseInterface) NewRepositoryIssue(ns string, name string, author string, title string, content string) (int64, error) {
 	pfx := dbif.config.Database.TablePrefix
-	ctx := context.Background()
-	stmt1 := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_issue WHERE repo_namespace = $1 AND repo_name = $2
-`, pfx), ns, name)
-	var newid int64
-	err := stmt1.Scan(&newid)
-	if err != nil { return 0, err }
 	ctx2 := context.Background()
 	tx, err := dbif.pool.Begin(ctx2)
 	if err != nil { return 0, err }
 	defer tx.Rollback(ctx2)
+	newid, err := dbif.nextSequentialId(tx, ns, name, sequentialIdKindIssue, fmt.Sprintf("%s_issue", pfx), "issue_id", "repo_namespace", "repo_name")
+	if err != nil { return 0, err }
 	t := time.Now()
 	_, err = tx.Exec(ctx2, fmt.Sprintf(`
 INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority)
@@ -1549,15 +1544,11 @@ func (dbif *PostgresGitusDatabaseInterface) GetAllPullRequestPaginated(namespace
 func (dbif *PostgresGitusDatabaseInterface) NewPullRequest(username string, title string, receiverNamespace string, receiverName string, receiverBranch string, providerNamespace string, providerName string, providerBranch string) (int64, error) {
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()
-	stmt1 := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
-SELECT COUNT(*) FROM %s_pull_request WHERE receiver_namespace = $1 AND receiver_name = $2
-`, pfx), receiverNamespace, receiverName)
-	var newId int64
-	err := stmt1.Scan(&newId)
-	if err != nil { return 0, err }
 	tx, err := dbif.pool.Begin(ctx)
 	if err != nil { return 0, err }
 	defer tx.Rollback(ctx)
+	newId, err := dbif.nextSequentialId(tx, receiverNamespace, receiverName, sequentialIdKindPullRequest, fmt.Sprintf("%s_pull_request", pfx), "pull_request_id", "receiver_namespace", "receiver_name")
+	if err != nil { return 0, err }
 	_, err = tx.Exec(ctx, fmt.Sprintf(`
 INSERT INTO %s_pull_request(author_username, pull_request_id, title, receiver_namespace, receiver_name, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -2609,3 +2600,44 @@ WHERE uuid = $1
 }
 
 
+
+// kinds used by id_counter (see nextSequentialId).
+const (
+	sequentialIdKindIssue = 1
+	sequentialIdKindPullRequest = 2
+)
+
+// nextSequentialId hands out the next id of an issue or pull request of a
+// repository. It replaces SELECT COUNT(*) + 1, which handed the same id to two
+// concurrent creations and rescanned the table every time.
+//
+// The counter row is created on first use with MAX(existing)+1, so databases
+// that already contain issues continue right after the last one. The upsert is
+// a single statement, which is what makes it safe under concurrency.
+func (dbif *PostgresGitusDatabaseInterface) nextSequentialId(tx pgx.Tx, ns string, name string, kind int, table string, idColumn string, nsColumn string, nameColumn string) (int64, error) {
+	pfx := dbif.config.Database.TablePrefix
+	var next int64
+	err := tx.QueryRow(context.Background(), fmt.Sprintf(`
+INSERT INTO %s_id_counter(repo_namespace, repo_name, kind, next_id)
+VALUES ($1, $2, $3, (SELECT COALESCE(MAX(%s), 0) + 1 FROM %s WHERE %s = $4 AND %s = $5))
+ON CONFLICT(repo_namespace, repo_name, kind) DO UPDATE SET next_id = %s_id_counter.next_id + 1
+RETURNING next_id
+`, pfx, idColumn, table, nsColumn, nameColumn, pfx), ns, name, kind, ns, name).Scan(&next)
+	if err != nil { return 0, err }
+	return next, nil
+}
+
+// EnsureSchema creates the tables that were added after the database was
+// installed. It is idempotent and is called once at startup.
+func (dbif *PostgresGitusDatabaseInterface) EnsureSchema() error {
+	pfx := dbif.config.Database.TablePrefix
+	_, err := dbif.pool.Exec(context.Background(), fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_id_counter (
+    repo_namespace VARCHAR(64),
+    repo_name VARCHAR(64),
+    kind SMALLINT,
+    next_id BIGINT,
+    PRIMARY KEY (repo_namespace, repo_name, kind)
+)`, pfx))
+	return err
+}

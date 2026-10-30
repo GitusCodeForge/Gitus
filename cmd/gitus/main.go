@@ -279,6 +279,13 @@ func main() {
 
 	context.RateLimiter = routes.NewRateLimiter(config)
 	context.PlainModeListingCache = routes.NewPlainModeListingCache()
+
+	if context.DatabaseInterface != nil {
+		// Tables that were added after this instance was installed; idempotent.
+		if err := context.DatabaseInterface.EnsureSchema(); err != nil {
+			log.Printf("WARNING: failed to apply schema updates: %s\n", err.Error())
+		}
+	}
 	
 	controller.InitializeRoute(&context)
 
