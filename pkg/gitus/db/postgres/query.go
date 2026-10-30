@@ -278,6 +278,7 @@ WHERE repo_namespace = $1 AND repo_name = $2
 	if err != nil { return nil, err }
 	res.AbsId = rowid
 	res.Type = uint8(repoType)
+	res.Description = description
 	res.Owner = owner
 	res.Status = model.GitusRepositoryStatus(repoStatus)
 	res.ForkOriginNamespace = forkOriginNamespace
@@ -814,12 +815,13 @@ func (dbif *PostgresGitusDatabaseInterface) UpdateRepositoryInfo(ns string, name
 	tx, err := dbif.pool.Begin(ctx)
 	if err != nil { return err }
 	defer tx.Rollback(ctx)
-	_, err = tx.Exec(ctx, fmt.Sprintf(`
+	tag, err := tx.Exec(ctx, fmt.Sprintf(`
 UPDATE %s_repository
 SET repo_description = $1, repo_owner = $2, repo_status = $3, repo_webhook = $6
 WHERE repo_namespace = $4 AND repo_name = $5
 `, pfx), robj.Description, robj.Owner, robj.Status, ns, name, robj.WebHookConfig)
 	if err != nil { return err }
+	if tag.RowsAffected() <= 0 { return db.ErrEntityNotFound }
 	if err = tx.Commit(ctx); err != nil { return err }
 	return nil
 }

@@ -461,6 +461,7 @@ WHERE repo_namespace = ? AND repo_name = ?
 	res, err := model.NewRepository(nsName, repoName, gitlib.NewLocalGitRepository(p))
 	res.AbsId = rowid
 	res.Type = repoType
+	res.Description = desc
 	res.Owner = owner
 	res.Status = model.GitusRepositoryStatus(status)
 	res.ForkOriginNamespace = forkOriginNs
@@ -912,6 +913,7 @@ SELECT rowid, repo_type FROM %s_repository WHERE repo_namespace = ? AND repo_nam
 	var rowid string
 	var repoType uint8
 	err = v.Scan(&rowid, &repoType)
+	if err == sql.ErrNoRows { return db.ErrEntityNotFound }
 	if err != nil { return err }
 	if len(rowid) <= 0 { return db.ErrEntityNotFound }
 	tx, err := dbif.connection.Begin()
@@ -923,8 +925,13 @@ SET repo_description = ?, repo_owner = ?, repo_status = ?, repo_webhook = ?
 WHERE rowid = ?
 `, pfx))
 	if err != nil { return err }
-	_, err = stmt2.Exec(robj.Description, robj.Owner, robj.Status, rowid, robj.WebHookConfig.String())
+	res, err := stmt2.Exec(robj.Description, robj.Owner, robj.Status, robj.WebHookConfig.String(), rowid)
 	if err != nil { return err }
+	// NOTE: the rowid used to be passed in the wrong position, so the WHERE
+	// clause never matched and the update silently did nothing.
+	affected, err := res.RowsAffected()
+	if err != nil { return err }
+	if affected <= 0 { return db.ErrEntityNotFound }
 	err = tx.Commit()
 	if err != nil { return err }
 	switch repoType {
