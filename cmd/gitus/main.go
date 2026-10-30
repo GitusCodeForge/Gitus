@@ -278,6 +278,7 @@ func main() {
 	}
 
 	context.RateLimiter = routes.NewRateLimiter(config)
+	context.PlainModeListingCache = routes.NewPlainModeListingCache()
 	
 	controller.InitializeRoute(&context)
 

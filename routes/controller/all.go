@@ -29,7 +29,8 @@ func bindAllController(ctx *routes.RouterContext) {
 					if len(q) > 0 {
 						nsl, err = ctx.Config.SearchAllNamespacePlain(q)
 					} else {
-						nsl, err = ctx.Config.GetAllNamespacePlain()
+						err = ctx.SyncAllNamespacePlain()
+						nsl = ctx.GitNamespaceList
 					}
 					if err != nil {
 						ctx.ReportInternalError(err.Error(), w, r)

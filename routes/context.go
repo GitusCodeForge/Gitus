@@ -34,6 +34,8 @@ type RouterContext struct {
 	MasterTemplate *template.Template
 	GitRepositoryList map[string]*model.Repository
 	GitNamespaceList map[string]*model.Namespace
+	// shared by every request of the process; see plainmode.go.
+	PlainModeListingCache *PlainModeListingCache
 	DatabaseInterface db.GitusDatabaseInterface
 	SessionInterface session.GitusSessionStore
 	SSHKeyManagingContext *ssh.SSHKeyManagingContext
@@ -59,6 +61,7 @@ func (ctx *RouterContext) NewLocal() *RouterContext {
 		GlobalCache: ctx.GlobalCache,
 		GitRepositoryList: ctx.GitRepositoryList,
 		GitNamespaceList: ctx.GitNamespaceList,
+		PlainModeListingCache: ctx.PlainModeListingCache,
 		DatabaseInterface: ctx.DatabaseInterface,
 		SessionInterface: ctx.SessionInterface,
 		SSHKeyManagingContext: ctx.SSHKeyManagingContext,
@@ -215,26 +218,41 @@ func (ctx *RouterContext) ReportSingleButtonCallback(
 	}))
 }
 
-func (ctx *RouterContext) SyncAllNamespacePlain() error {
-	if ctx.Config.UseNamespace {
-		rp, err := ctx.Config.GetAllNamespacePlain()
-		if err != nil { return err }
-		ctx.GitNamespaceList = rp
-	} else {
-		ns, err := model.NewNamespace("", ctx.Config.GitRoot)
-		if err != nil { return err }
-		if ctx.GitNamespaceList == nil {
-			ctx.GitNamespaceList = make(map[string]*model.Namespace, 0)
-		}
-		ctx.GitNamespaceList[""] = ns
+// plainModeCache returns the listing cache shared by every request. A context
+// that was not built by main (tests, mostly) gets a private one, which simply
+// means no caching across requests.
+func (ctx *RouterContext) plainModeCache() *PlainModeListingCache {
+	if ctx.PlainModeListingCache == nil {
+		ctx.PlainModeListingCache = NewPlainModeListingCache()
 	}
+	return ctx.PlainModeListingCache
+}
+
+func (ctx *RouterContext) SyncAllNamespacePlain() error {
+	c := ctx.plainModeCache()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.namespaces == nil || time.Since(c.namespacesAt) >= c.ttl {
+		m, err := ctx.Config.GetAllNamespacePlain()
+		if err != nil { return err }
+		c.namespaces = m
+		c.namespacesAt = time.Now()
+	}
+	ctx.GitNamespaceList = copyNamespaceListing(c.namespaces)
 	return nil
 }
 
 func (ctx *RouterContext) SyncNamespacePlain(ns *model.Namespace) error {
-	a, err := ctx.Config.GetAllRepositoryByNamespacePlain(ns.Name)
-	if err != nil { return err }
-	ns.RepositoryList = a
+	c := ctx.plainModeCache()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if at, ok := c.repositoriesAt[ns.Name]; !ok || time.Since(at) >= c.ttl {
+		m, err := ctx.Config.GetAllRepositoryByNamespacePlain(ns.Name)
+		if err != nil { return err }
+		c.repositories[ns.Name] = m
+		c.repositoriesAt[ns.Name] = time.Now()
+	}
+	ns.RepositoryList = copyRepositoryListing(c.repositories[ns.Name])
 	return nil
 }
 

@@ -24,20 +24,17 @@ func bindNamespaceController(ctx *RouterContext) {
 			var ok bool
 			var err error
 			if !rc.Config.IsInForgeMode() {
+				err = rc.SyncAllNamespacePlain()
+				if err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
 				ns, ok = rc.GitNamespaceList[namespaceName]
 				if !ok {
-					err = rc.SyncAllNamespacePlain()
-					if err != nil {
-						rc.ReportInternalError(err.Error(), w, r)
-						return
-					}
-					ns, ok = rc.GitNamespaceList[namespaceName]
-					if !ok {
-						rc.ReportNotFound(namespaceName, "Namespace", rc.Config.DepotName, w, r)
-						return
-					}
+					rc.ReportNotFound(namespaceName, "Namespace", rc.Config.DepotName, w, r)
+					return
 				}
-				ns.RepositoryList, err = rc.Config.GetAllRepositoryByNamespacePlain(ns.Name)
+				err = rc.SyncNamespacePlain(ns)
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to retrieve repository of namespace %s: %s", ns.Name, err), w, r)
 					return
