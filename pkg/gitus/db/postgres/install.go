@@ -177,6 +177,25 @@ CREATE TABLE IF NOT EXISTS %s_webhook_log (
     webhook_result JSONB
 )`, pfx))
 	if err != nil { return err }
+
+	// Indexes for the queries that run on every issue/PR list, every issue
+	// view, every email lookup and every ownership check. See P4 of the audit.
+	// (repository(repo_namespace, repo_name) already has a UNIQUE constraint.)
+	indexStatements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_%s_issue_repo_namespace_repo_name ON %s_issue (repo_namespace, repo_name);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_issue_event_issue_absid ON %s_issue_event (issue_absid);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_pull_request_receiver_namespace_receiver_name ON %s_pull_request (receiver_namespace, receiver_name);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_user_email_email ON %s_user_email (email);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_user_email_username ON %s_user_email (username);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_snippet_username ON %s_snippet (username);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_namespace_ns_owner ON %s_namespace (ns_owner);`,
+		`CREATE INDEX IF NOT EXISTS idx_%s_repository_repo_owner ON %s_repository (repo_owner);`,
+	}
+	for _, stmt := range indexStatements {
+		_, err = tx.Exec(ctx, fmt.Sprintf(stmt, pfx, pfx))
+		if err != nil { return err }
+	}
+
 	err = tx.Commit(ctx)
 	if err != nil { return err }
 
