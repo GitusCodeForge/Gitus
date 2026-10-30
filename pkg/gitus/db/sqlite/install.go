@@ -1,6 +1,9 @@
 package sqlite
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+)
 
 
 func (dbif *SqliteGitusDatabaseInterface) InstallTables() error {
@@ -237,21 +240,8 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
 )`, pfx))
 	if err != nil { return err }
 
-	// Indexes for the queries that run on every issue/PR list, every issue
-	// view, every email lookup and every ownership check. See P4 of the audit.
-	indexStatements := []string{
-		`CREATE INDEX IF NOT EXISTS idx_%s_issue_repo_namespace_repo_name ON %s_issue (repo_namespace, repo_name);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_issue_event_issue_abs_id ON %s_issue_event (issue_abs_id);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_pull_request_receiver_namespace_receiver_name ON %s_pull_request (receiver_namespace, receiver_name);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_repository_repo_namespace_repo_name ON %s_repository (repo_namespace, repo_name);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_user_email_email ON %s_user_email (email);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_user_email_username ON %s_user_email (username);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_snippet_username ON %s_snippet (username);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_namespace_ns_owner ON %s_namespace (ns_owner);`,
-		`CREATE INDEX IF NOT EXISTS idx_%s_repository_repo_owner ON %s_repository (repo_owner);`,
-	}
-	for _, stmt := range indexStatements {
-		_, err = tx.Exec(fmt.Sprintf(stmt, pfx, pfx))
+	for _, def := range indexDefinitions {
+		_, err = tx.Exec(fmt.Sprintf(def.sql, pfx, pfx))
 		if err != nil { return err }
 	}
 
@@ -259,3 +249,51 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
 	return nil
 }
 
+
+// indexDefinition is one of the indexes the listing and lookup queries rely on
+// (P4 of the audit). The name keeps the %s placeholder for the table prefix,
+// because PostgreSQL index names are global within a schema.
+type indexDefinition struct {
+	name string
+	sql string
+}
+
+var indexDefinitions = []indexDefinition{
+	{"idx_%s_issue_repo_namespace_repo_name", `CREATE INDEX IF NOT EXISTS idx_%s_issue_repo_namespace_repo_name ON %s_issue (repo_namespace, repo_name);`},
+	{"idx_%s_issue_event_issue_abs_id", `CREATE INDEX IF NOT EXISTS idx_%s_issue_event_issue_abs_id ON %s_issue_event (issue_abs_id);`},
+	{"idx_%s_pull_request_receiver_namespace_receiver_name", `CREATE INDEX IF NOT EXISTS idx_%s_pull_request_receiver_namespace_receiver_name ON %s_pull_request (receiver_namespace, receiver_name);`},
+	{"idx_%s_repository_repo_namespace_repo_name", `CREATE INDEX IF NOT EXISTS idx_%s_repository_repo_namespace_repo_name ON %s_repository (repo_namespace, repo_name);`},
+	{"idx_%s_user_email_email", `CREATE INDEX IF NOT EXISTS idx_%s_user_email_email ON %s_user_email (email);`},
+	{"idx_%s_user_email_username", `CREATE INDEX IF NOT EXISTS idx_%s_user_email_username ON %s_user_email (username);`},
+	{"idx_%s_snippet_username", `CREATE INDEX IF NOT EXISTS idx_%s_snippet_username ON %s_snippet (username);`},
+	{"idx_%s_namespace_ns_owner", `CREATE INDEX IF NOT EXISTS idx_%s_namespace_ns_owner ON %s_namespace (ns_owner);`},
+	{"idx_%s_repository_repo_owner", `CREATE INDEX IF NOT EXISTS idx_%s_repository_repo_owner ON %s_repository (repo_owner);`},
+}
+
+// EnsureSchema creates the tables and indexes that were added after the
+// database was installed. It runs once at startup and is idempotent; an index
+// that already exists is not touched, so a running instance does not pay for
+// DDL it does not need.
+func (dbif *SqliteGitusDatabaseInterface) EnsureSchema() error {
+	pfx := dbif.config.Database.TablePrefix
+	_, err := dbif.connection.Exec(fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_id_counter (
+    repo_namespace TEXT,
+    repo_name TEXT,
+    kind SMALLINT,
+    next_id INTEGER,
+    PRIMARY KEY (repo_namespace, repo_name, kind)
+)`, pfx))
+	if err != nil { return err }
+	for _, def := range indexDefinitions {
+		var name string
+		err = dbif.connection.QueryRow(
+			`SELECT name FROM sqlite_schema WHERE type = 'index' AND name = ?`,
+			fmt.Sprintf(def.name, pfx)).Scan(&name)
+		if err == nil { continue }
+		if err != sql.ErrNoRows { return err }
+		_, err = dbif.connection.Exec(fmt.Sprintf(def.sql, pfx, pfx))
+		if err != nil { return err }
+	}
+	return nil
+}

@@ -2629,18 +2629,3 @@ RETURNING next_id
 	if err != nil { return 0, err }
 	return next, nil
 }
-
-// EnsureSchema creates the tables that were added after the database was
-// installed. It is idempotent and is called once at startup.
-func (dbif *PostgresGitusDatabaseInterface) EnsureSchema() error {
-	pfx := dbif.config.Database.TablePrefix
-	_, err := dbif.pool.Exec(context.Background(), fmt.Sprintf(`
-CREATE TABLE IF NOT EXISTS %s_id_counter (
-    repo_namespace VARCHAR(64),
-    repo_name VARCHAR(64),
-    kind SMALLINT,
-    next_id BIGINT,
-    PRIMARY KEY (repo_namespace, repo_name, kind)
-)`, pfx))
-	return err
-}
