@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"slices"
 	"strconv"
 
@@ -22,7 +21,7 @@ func bindAdminRRDocDeleteController(ctx *RouterContext) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
-			if len(rc.Config.ReadingRequiredDocument) < int(n) {
+			if n < 1 || n > int64(len(rc.Config.ReadingRequiredDocument)) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
@@ -48,14 +47,18 @@ func bindAdminRRDocDeleteController(ctx *RouterContext) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
-			if len(rc.Config.ReadingRequiredDocument) < int(n) {
+			if n < 1 || n > int64(len(rc.Config.ReadingRequiredDocument)) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
 			p := rc.Config.ReadingRequiredDocument[int(n)-1]
-			tp := path.Join(rc.Config.StaticAssetDirectory, "_rrdoc", p.Path)
-			err = os.Remove(tp)
-			if err != nil {
+			tp, rerr := ResolveRRDocPath(rc.Config.StaticAssetDirectory, p.Path)
+			if rerr != nil {
+				// A configuration written before the check was in place may
+				// point outside the document directory; leave the file alone
+				// but still let the entry be deleted.
+				LogIfError(rerr)
+			} else if err = os.Remove(tp); err != nil {
 				rc.ReportInternalError(fmt.Sprintf("Failed to delete file %s: %s", p, err), w, r)
 				return
 			}

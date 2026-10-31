@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -25,15 +24,19 @@ func bindAdminRRDocEditController(ctx *RouterContext) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
-			if len(rc.Config.ReadingRequiredDocument) < int(n) {
+			if n < 1 || n > int64(len(rc.Config.ReadingRequiredDocument)) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
 			p := rc.Config.ReadingRequiredDocument[int(n)-1]
 			content := ""
 			if !(strings.HasPrefix(p.Path, "http://") || strings.HasPrefix(p.Path, "https://")) {
-				os.MkdirAll(path.Join(rc.Config.StaticAssetDirectory, "_rrdoc"), os.ModeDir)
-				fp := path.Join(rc.Config.StaticAssetDirectory, "_rrdoc", p.Path)
+				os.MkdirAll(RRDocDirectory(rc.Config.StaticAssetDirectory), os.ModeDir|0755)
+				fp, err := ResolveRRDocPath(rc.Config.StaticAssetDirectory, p.Path)
+				if err != nil {
+					rc.ReportNotFound(p.Path, "document", "instance", w, r)
+					return
+				}
 				f, err := os.ReadFile(fp)
 				if err != nil {
 					if !errors.Is(err, os.ErrNotExist) {
@@ -68,19 +71,28 @@ func bindAdminRRDocEditController(ctx *RouterContext) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
-			if len(rc.Config.ReadingRequiredDocument) < int(n) {
+			if n < 1 || n > int64(len(rc.Config.ReadingRequiredDocument)) {
 				rc.ReportNotFound("Required", "document", "instance", w, r)
 				return
 			}
 			title := r.Form.Get("title")
 			p := strings.TrimSpace(r.Form.Get("path"))
 			content := r.Form.Get("content")
+			isRemote := strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://")
+			fp := ""
+			if !isRemote {
+				var err error
+				fp, err = ResolveRRDocPath(rc.Config.StaticAssetDirectory, p)
+				if err != nil {
+					rc.ReportNormalError("The document path must stay inside the document directory.", w, r)
+					return
+				}
+			}
 			rc.Config.ReadingRequiredDocument[n-1].Title = title
 			rc.Config.ReadingRequiredDocument[n-1].Path = p
 			// don't sync until we have properly edited the file.
-			if !(strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://")) {
-				os.MkdirAll(path.Join(rc.Config.StaticAssetDirectory, "_rrdoc"), os.ModeDir|0755)
-				fp := path.Join(rc.Config.StaticAssetDirectory, "_rrdoc", p)
+			if !isRemote {
+				os.MkdirAll(RRDocDirectory(rc.Config.StaticAssetDirectory), os.ModeDir|0755)
 				f, err := os.OpenFile(fp, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to open file %s: %s", p, err), w, r)

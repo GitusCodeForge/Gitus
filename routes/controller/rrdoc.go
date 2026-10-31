@@ -46,7 +46,11 @@ func bindRRDocController(ctx *RouterContext) {
 				rc.ReportNotFound(r.PathValue("p"), "document", "instance", w, r)
 				return
 			}
-			fp := path.Join(rc.Config.StaticAssetDirectory, "_rrdoc", r.PathValue("p"))
+			fp, err := ResolveRRDocPath(rc.Config.StaticAssetDirectory, r.PathValue("p"))
+			if err != nil {
+				rc.ReportNotFound(r.PathValue("p"), "document", "instance", w, r)
+				return
+			}
 			e := path.Ext(fp)
 			var sourceString string
 			source, err := os.ReadFile(fp)
