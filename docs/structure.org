@@ -9,7 +9,7 @@ NOTE: this should be updated when there's very big changes.
     + =reset-admin.go=: reset admin password of an gitus instance.
     + =webhooks.go=: handler for webhooks (see [[./webhooks.org]])
     + =webinstaller.go=: installer (web ui)
-    + =simple-mode.go=: simple mode related things. (see [[./simple-mode.org]])
+    + =host-mode.go=: host mode related things (keys and repository config sync). (see [[./host-mode.org]])
 + =docs=: documentations.
 + =devtools=: things used in the development process, e.g. things that should be run at compile-time.
 + =pkg=:

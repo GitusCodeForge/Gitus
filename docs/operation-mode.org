@@ -1,32 +1,39 @@
 * operation mode
 
 
-| mode   | namespace             | visibility                                      |
-|--------+-----------------------+-------------------------------------------------|
-| plain  | config ~useNamespace~ | config ~ignoreNamespace~ and ~ignoreRepository~ |
-| simple | config ~useNamespace~ | special repo                                    |
-| forge  | config ~useNamespace~ | db-stored acl                                   |
+| mode        | namespace                | visibility                                      |
+|-------------+--------------------------+-------------------------------------------------|
+| browse-only | config ~enableNamespace~ | config ~ignoreNamespace~ and ~ignoreRepository~ |
+| host        | config ~enableNamespace~ | special repo                                    |
+| forge       | config ~enableNamespace~ | db-stored acl                                   |
 
 
-| mode   | allow push | repo-level perm. | branch-level perm. | webui acl config |
-|--------+------------+------------------+--------------------+------------------|
-| plain  | no         | no               | no                 | no               |
-| simple | yes        | yes              | planned*           | no               |
-| forge  | yes        | yes              | planned*           | yes              |
+| mode        | allow push | repo-level perm. | branch-level perm. | webui acl config |
+|-------------+------------+------------------+--------------------+------------------|
+| browse-only | no         | no               | no                 | no               |
+| host        | yes        | yes              | planned*           | no               |
+| forge       | yes        | yes              | planned*           | yes              |
 
 *: currently not implemented but there are plans to implement it
 
-| mode   | user management | user management webui | description                |
-|--------+-----------------+-----------------------+----------------------------|
-| plain  | not applicable  | not applicable        | "read-only" for everyone   |
-| simple | special repo    | no                    | for solodev or small teams |
-| forge  | db              | yes                   | for nearly any usage       |
+| mode        | user management | user management webui | description                |
+|-------------+-----------------+-----------------------+----------------------------|
+| browse-only | not applicable  | not applicable        | "read-only" for everyone   |
+| host        | special repo    | no                    | for solodev or small teams |
+| forge       | db              | yes                   | for nearly any usage       |
 
-** plain mode
+** browse-only mode
 
-setting a gitus instance to be in plain mode will completely remove all the functionalities that isn't built-in to git; this includes things like issue tracking and signature verification. in plain mode, gitus is basically like git instaweb.
+setting a gitus instance to be in browse-only mode will completely remove all the functionalities that isn't built-in to git; this includes things like issue tracking and signature verification. in browse-only mode, gitus is basically like git instaweb.
 
-** simple mode
+** host mode
 
-see [[./simple-mode.org]].
+users, namespaces and repositories are described by two specially designated
+repositories instead of the database; see [[./host-mode.org]].
+
+** forge mode
+
+the full-featured mode. users, namespaces and repositories live in the
+database, and the access control list is editable from the web interface; see
+[[./visibility.org]] and [[./acl.org]].
 

@@ -15,9 +15,9 @@ Gitus is a self-hosted code forge that mainly supports the Git distributed versi
 + Webhooks for external CI/CD (experimental feature; subject to change)
 + Support for snippets (à la GitHub snippets)
 + Multiple operation mode for different needs:
-  + Plain Mode for when you only need to have a web interface, similar to `git-instaweb`.
-  + Simple Mode for when you only need mininum features like creating repositories, push/pull by SSH and basic access control.
-  + Normal Mode, which comes with all the usual features.
+  + Browse-Only Mode for when you only need to have a web interface, similar to `git-instaweb`.
+  + Host Mode for when you only need minimum features like creating repositories, push/pull by SSH and basic access control.
+  + Forge Mode, which comes with all the usual features.
 + And many tiny things:
   + Labels for repositories;
   + UI for Git Blame;

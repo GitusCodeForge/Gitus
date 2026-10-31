@@ -1,16 +1,16 @@
-* simple mode
+* host mode
 
 
-this works similar to using gitolite. we don't use the proper acl in simple mode - see section about simple mode acl below.
+this works similar to using gitolite. we don't use the proper acl in host mode - see section about host mode acl below.
 
-under simple mode, two special repositories would be used for configuration:
+under host mode, two special repositories would be used for configuration:
 
 + ~__gitus:__keys~ (~__keys~ when ~useNamespace~ is false): repository for ssh and gpg keys.
 + ~__gitus:__repo_config~ (~__repo_config~ when ~useNamespace~ is false): repository for repo definitions and configs.
 
-These repositories would be setup during the installation phase. If these repositories were not found when Gitus is started and is configured to run in Simple Mode, it would create the repositories accordingly. The ~__keys~ repository would be created with update hook configured, so that all updates would trigger the command ~gitus simple-mode keys-update~. The hook is written to only trigger the command when the ~master~ branch is updated.
+These repositories would be setup during the installation phase. If these repositories were not found when Gitus is started and is configured to run in Host Mode, it would create the repositories accordingly. The ~__keys~ repository would be created with update hook configured, so that all updates would trigger the command ~gitus host-mode keys-update~. The hook is written to only trigger the command when the ~master~ branch is updated.
 
-The ~__repo_config~ repository is created with the post-update hook configured (instead of the update hook, which is called *before* packs are received), so that all updates to the ~master~ branch would trigger ~gitus simple-mode gitus-sync~. This command would go through the repository and ensure all the repositories are created.
+The ~__repo_config~ repository is created with the post-update hook configured (instead of the update hook, which is called *before* packs are received), so that all updates to the ~master~ branch would trigger ~gitus host-mode gitus-sync~. This command would go through the repository and ensure all the repositories are created.
 
 ** ~__keys~
 
@@ -38,7 +38,7 @@ the directory structure of this repo must be as follows:
 + ...
 #+end_example
 
-the ~update~ hook of this repo is configured to trigger command ~gitus simple-mode update-keys~, which will generate the required ~authorized_keys~ file accordingly.
+the ~update~ hook of this repo is configured to trigger command ~gitus host-mode keys-update~, which will generate the required ~authorized_keys~ file accordingly.
 
 ** ~__repo_config~
 
@@ -104,9 +104,9 @@ the ~.json~ that are directly under the directories for namespaces are as follow
   }
 #+end_src
 
-** simple mode acl
+** host mode acl
 
-a simple mode acl is currently an object composed of a ~default~, ~push~ and ~pull~ field,which allows a certain user to push, pull and all actions respectively. Configurations for ~push~ and ~pull~ have higher priorities than ~default~. Ref-specific access control is currently planned for the future.
+a host mode acl is currently an object composed of a ~default~, ~push~ and ~pull~ field,which allows a certain user to push, pull and all actions respectively. Configurations for ~push~ and ~pull~ have higher priorities than ~default~. Ref-specific access control is currently planned for the future.
 
 #+begin_src json
 {
@@ -118,7 +118,7 @@ a simple mode acl is currently an object composed of a ~default~, ~push~ and ~pu
 
 each field must be either ~allow~ or ~disallow~. for any ref and any action that's not specified in the acl, the value configured in ~default~ this would be the final verdict of whether to allow the user to do things or not.
 
-** how things are updated in simple mode
+** how things are updated in host mode
 
 ~gitus ssh~ is triggered as a separate process; this means that ~gitus ssh~ we cannot have what's in the memory of the web server process; but we need to have access control for ~gitus ssh~; this means that we have to somehow read the acl within ~gitus ssh~. we have the following two different methods:
 
@@ -127,5 +127,5 @@ each field must be either ~allow~ or ~disallow~. for any ref and any action that
 
 if we choose the first method, we will have to create a repository model object for ~__gitus:__repo_config~ and parse through its internal git objects every single time, which involves file IO, zlib decompress and JSON deserializing. for this reason, we currently keep a clone of this repo is thus created directly under the git folder of ~__gitus:__repo_config~ with the subfolder name ~gitus_sync~, so that we can skip the zlib decompress part (also os API is slightly easier to handle).
 
-the update of this ~gitus_sync~ cannot be done during the execution of the ~update~ hook since the update (to refs/heads/master) is only complete *after* the hook has completed running. we prepare the command ~gitus simple-mode gitus-sync~ for this.
+the update of this ~gitus_sync~ cannot be done during the execution of the ~update~ hook since the update (to refs/heads/master) is only complete *after* the hook has completed running. we prepare the command ~gitus host-mode gitus-sync~ for this.
 
