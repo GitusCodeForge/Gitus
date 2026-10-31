@@ -523,7 +523,7 @@ WHERE repo_namespace = $1
 			tags = strings.Split(labelList[1:len(labelList)-1], "}{")
 		}
 		webhookobj, err := model.ParseWebHookConfig(webhookstr)
-		res[name] = &model.Repository{
+		res[repoName] = &model.Repository{
 			AbsId: rowid,
 			Namespace: name,
 			Name: repoName,
@@ -551,14 +551,14 @@ func (dbif *PostgresGitusDatabaseInterface) GetAllVisibleRepositoryFromNamespace
 		stmt, err = dbif.pool.Query(ctx, fmt.Sprintf(`
 SELECT repo_type, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, repo_webhook, repo_absid
 FROM %s_repository
-WHERE repo_namespace = $1 AND repo_status = 1
-`, pfx), ns)
+WHERE repo_namespace = $1 AND (repo_status = 1 OR repo_owner = $2 OR repo_acl->'acl' ? $2)
+`, pfx), ns, username)
 	} else {
 		stmt, err = dbif.pool.Query(ctx, fmt.Sprintf(`
 SELECT repo_type, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, repo_webhook, repo_absid
 FROM %s_repository
-WHERE repo_namespace = $1 AND (repo_status = 1 OR repo_owner = $2 OR repo_acl->'acl' ? $2)
-`, pfx), ns, username)
+WHERE repo_namespace = $1 AND repo_status = 1
+`, pfx), ns)
 	}
 	if err != nil { return nil, err }
 	defer stmt.Close()
@@ -2346,6 +2346,7 @@ VALUES ($1, $2, $3, $4, $5, $6)
 		Description: "",
 		Time: t.Unix(),
 		FileList: make(map[string]string, 0),
+		Status: status,
 	}, nil
 }
 
