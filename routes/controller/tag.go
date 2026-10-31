@@ -130,6 +130,8 @@ func bindTagController(ctx *RouterContext) {
 				tagInfo = &templates.TagInfoTemplateModel{
 					Annotated: true,
 					RepoName: rfn,
+					Namespace: repo.Namespace,
+					Name: repo.Name,
 					Tag: to,
 				}
 				subject, err = rr.ReadObject(to.TaggedObjId)
@@ -209,7 +211,9 @@ func bindTagController(ctx *RouterContext) {
 				if rc.Config.IsInForgeMode() {
 					m, _ = rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
 				}
-				tagInfo.EmailUserMapping = m
+				if tagInfo != nil {
+					tagInfo.EmailUserMapping = m
+				}
 				LogTemplateError(rc.LoadTemplate("tag").Execute(w, templates.TagTemplateModel{
 					Repository: repo,
 					RepoHeaderInfo: *repoHeaderInfo,
@@ -240,7 +244,55 @@ func bindTagController(ctx *RouterContext) {
 				if rc.Config.IsInForgeMode() {
 					m, _ = rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
 				}
-				tagInfo.EmailUserMapping = m
+				// A lightweight tag points directly at a commit, so there is no
+				// tag object and tagInfo stays nil.
+				if tagInfo != nil {
+					tagInfo.EmailUserMapping = m
+				}
+				// The file view has the same sidebar and breadcrumb as the
+				// branch view. The commit is only known when the tag ultimately
+				// points at a commit; a tag of a bare blob has no tree to show.
+				var treeFileList *templates.TreeFileListTemplateModel = nil
+				var treePathModelValue *templates.TreePathTemplateModel = nil
+				if commitInfo != nil {
+					rootPath := fmt.Sprintf("/repo/%s/tag/%s", rfn, tagName)
+					tp1 := make([]string, 0)
+					treePathSegmentList := make([]struct{Name string; RelPath string}, 0)
+					for item := range strings.SplitSeq(treePath, "/") {
+						if len(item) <= 0 { continue }
+						tp1 = append(tp1, item)
+						treePathSegmentList = append(treePathSegmentList, struct{
+							Name string; RelPath string
+						}{
+							Name: item, RelPath: strings.Join(tp1, "/"),
+						})
+					}
+					treePathModelValue = &templates.TreePathTemplateModel{
+						RootFullName: fmt.Sprintf("%s@%s:%s", rfn, "tag", tagName),
+						RootPath: rootPath,
+						TreePath: treePath,
+						TreePathSegmentList: treePathSegmentList,
+					}
+					dirPath := path.Dir(treePath) + "/"
+					rootObj, err := rr.ReadObject(commitInfo.Commit.TreeObjId)
+					if err == nil {
+						if rootTree, ok := rootObj.(*gitlib.TreeObject); ok {
+							dirObj, err := rr.ResolveTreePath(rootTree, dirPath)
+							if err == nil {
+								if dirTree, ok := dirObj.(*gitlib.TreeObject); ok {
+									fillTreeItemLastCommit(rr, commitInfo.Commit, dirPath, dirTree.ObjectList)
+									treeFileList = &templates.TreeFileListTemplateModel{
+										ShouldHaveParentLink: len(treePath) > 0,
+										RepoPath: fmt.Sprintf("/repo/%s", rfn),
+										RootPath: rootPath,
+										TreePath: dirPath,
+										FileList: dirTree.ObjectList,
+									}
+								}
+							}
+						}
+					}
+				}
 				LogTemplateError(rc.LoadTemplate(templateType).Execute(w, templates.FileTemplateModel{
 					Repository: repo,
 					RepoHeaderInfo: *repoHeaderInfo,
@@ -249,7 +301,8 @@ func bindTagController(ctx *RouterContext) {
 						FileContent: str,
 					},
 					PermaLink: permaLink,
-					TreePath: nil,
+					TreeFileList: treeFileList,
+					TreePath: treePathModelValue,
 					CommitInfo: commitInfo,
 					TagInfo: tagInfo,
 					LoginInfo: rc.LoginInfo,
@@ -283,7 +336,9 @@ func bindTagController(ctx *RouterContext) {
 				if rc.Config.IsInForgeMode() {
 					m, _ = rc.DatabaseInterface.ResolveMultipleEmailToUsername(m)
 				}
-				commitInfo.EmailUserMapping = m
+				if commitInfo != nil {
+					commitInfo.EmailUserMapping = m
+				}
 				LogTemplateError(rc.LoadTemplate("tree").Execute(w, templates.TreeTemplateModel{
 					Repository: repo,
 					RepoHeaderInfo: *repoHeaderInfo,

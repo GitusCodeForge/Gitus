@@ -9,6 +9,8 @@ type TagInfoTemplateModel struct {
 	// and vice versa.
 	Annotated bool
 	RepoName string
+	Namespace string
+	Name string
 	Tag *gitlib.TagObject
 	EmailUserMapping map[string]string
 }
