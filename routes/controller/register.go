@@ -18,7 +18,7 @@ func bindRegisterController(ctx *RouterContext) {
 	http.HandleFunc("GET /reg", UseMiddleware(
 		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch rc.Config.GlobalVisibility {
+			switch rc.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return
@@ -38,7 +38,7 @@ func bindRegisterController(ctx *RouterContext) {
 	http.HandleFunc("POST /reg", UseMiddleware(
 		[]Middleware{Logged, RateLimit, ValidPOSTRequestRequired, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch rc.Config.GlobalVisibility {
+			switch rc.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return

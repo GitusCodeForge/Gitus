@@ -1,0 +1,76 @@
+* maintenance announcements
+
+gitus has two related mechanisms:
+
++ the *global visibility* (=public=, =private=, =shutdown=, =maintenance=),
+  described in [[file:operation-mode.org][operation-mode]]. it takes effect immediately.
++ =maintenanceAnnouncement=: an announcement shown *before* a maintenance
+  window, followed by an automatic switch at the start time.
+
+** timeline
+
+| time                  | site                            | banner |
+|-----------------------+---------------------------------+--------|
+| before =startsAt=     | =globalVisibility=              | shown  |
+| =startsAt=..=endsAt=  | announcement's =mode=           | hidden |
+| after =endsAt=        | =mode=, or =globalVisibility=   | hidden |
+
+the site only returns to =globalVisibility= after =endsAt= when
+=autoRestore= is enabled. without it, the announced mode stays in effect
+until an administrator changes it (or removes the announcement); =endsAt= is
+then only informational.
+
+** config
+
+#+begin_src json
+{
+  "maintenanceAnnouncement": {
+    "enabled": true,
+    "message": "The instance will be shut down for database maintenance.",
+    "startsAt": "2026-11-02T02:00:00+08:00",
+    "endsAt": "2026-11-02T04:00:00+08:00",
+    "mode": "shutdown",
+    "autoRestore": true
+  }
+}
+#+end_src
+
++ =enabled= turns the announcement on;
++ =message= is shown in the banner; an enabled announcement with an empty
+  message is a scheduled mode switch without a banner;
++ =startsAt= is RFC3339. an empty value means "announcement only": the site
+  never switches automatically and the banner stays until the announcement is
+  disabled;
++ =endsAt= is optional and is only used for automatic recovery;
++ =mode= is =shutdown= (default) or =maintenance=;
++ =autoRestore= has no effect unless =endsAt= is also set.
+
+times are compared on the server. the admin form uses =datetime-local= and
+saves the value with the server's local UTC offset; hand-edited config files
+should use RFC3339 (for example =2026-11-02T02:00:00+08:00=).
+
+** shutdown vs maintenance
+
+=shutdown= is the recommended mode for a scheduled window: users on the
+=fullAccessUser= list can still log in and reach the admin pages, so the
+window can be cancelled or shortened from the web interface.
+
+=maintenance= blocks everyone, including administrators. use it for a short,
+unattended intervention, or set =autoRestore= and an =endsAt= so the site
+comes back by itself.
+
+** banner
+
+the banner is rendered by =_maintenance-announcement= from =_header-nav=, so
+it appears on every page that has the normal navigation. it shows the
+message, the scheduled start and, when set, the expected end.
+
+the banner is not shown after =startsAt=; at that point the site is already in
+the announced mode and shows the shutdown/maintenance notice instead.
+
+** administration
+
+/admin/site-lockdown has a "Maintenance announcement" fieldset. it saves the
+announcement fields together with the normal visibility settings.
+changing the normal visibility does not cancel a scheduled announcement; use
+the announcement's own checkbox for that.

@@ -22,7 +22,7 @@ func bindRRDocController(ctx *RouterContext) {
 	http.HandleFunc("GET /rrdoc/{p}", UseMiddleware(
 		[]Middleware{ Logged, UseLoginInfo }, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch ctx.Config.GlobalVisibility {
+			switch ctx.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 			case gitus.GLOBAL_VISIBILITY_PRIVATE:

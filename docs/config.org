@@ -41,6 +41,15 @@ Gitus keeps working. An unknown value also falls back to =info= and logs a
 warning, so a typo cannot silence the server by accident. See
 [[file:logging.org][logging]] for the levels and the recommended usage.
 
+** maintenance announcement
+
+=maintenanceAnnouncement= schedules an announcement before a maintenance
+window. the site keeps running and shows a banner until =startsAt=; at that
+time the effective mode becomes =mode= (=shutdown= by default). it returns to
+=globalVisibility= at =endsAt= only when =autoRestore= is enabled. see
+[[file:maintenance.org][maintenance]] for the timeline and the difference
+between =shutdown= and =maintenance=.
+
 ** http clone
 
 =gitConfig.httpCloneProtocol.v1dumb= and =gitConfig.httpCloneProtocol.v2=

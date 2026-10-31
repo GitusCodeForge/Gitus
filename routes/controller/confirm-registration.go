@@ -16,11 +16,11 @@ func bindConfirmRegistrationController(ctx *RouterContext) {
 	http.HandleFunc("GET /confirm-registration", UseMiddleware(
 		[]Middleware{Logged, RateLimit, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_SHUTDOWN {
+			if ctx.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_SHUTDOWN {
 				FoundAt(w, "/shutdown-notice")
 				return
 			}
-			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
+			if ctx.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
 				return
 			}
@@ -43,11 +43,11 @@ func bindConfirmRegistrationController(ctx *RouterContext) {
 	http.HandleFunc("POST /confirm-registration", UseMiddleware(
 		[]Middleware{Logged, RateLimit, UseLoginInfo, ValidPOSTRequestRequired, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_SHUTDOWN {
+			if ctx.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_SHUTDOWN {
 				FoundAt(w, "/shutdown-notice")
 				return
 			}
-			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
+			if ctx.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
 				return
 			}

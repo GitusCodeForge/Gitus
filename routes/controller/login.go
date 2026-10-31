@@ -19,7 +19,7 @@ func bindLoginController(ctx *RouterContext) {
 	http.HandleFunc("GET /login", UseMiddleware(
 		[]Middleware{Logged, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
+			if ctx.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
 				return
 			}
@@ -37,7 +37,7 @@ func bindLoginController(ctx *RouterContext) {
 			Logged, RateLimit, ValidPOSTRequestRequired, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			if rc.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
+			if rc.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
 				return
 			}
@@ -183,7 +183,7 @@ If this isn't you, we advise you to change your password on %s and other platfor
 	http.HandleFunc("GET /login/confirm", UseMiddleware(
 		[]Middleware{Logged, RateLimit, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			if rc.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
+			if rc.Config.EffectiveGlobalVisibility() == gitus.GLOBAL_VISIBILITY_MAINTENANCE {
 				FoundAt(w, "/maintenance-notice")
 				return
 			}

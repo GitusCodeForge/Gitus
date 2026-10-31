@@ -142,8 +142,8 @@ func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) 
 		printGitError("This instance of Gitus is in Browse-Only Mode which does not allow Git over SSH.")
 		os.Exit(1)
 	}
-	if ctx.Config.GlobalVisibility != gitus.GLOBAL_VISIBILITY_PUBLIC &&
-		ctx.Config.GlobalVisibility != gitus.GLOBAL_VISIBILITY_PRIVATE {
+	if mode := ctx.Config.EffectiveGlobalVisibility(); mode != gitus.GLOBAL_VISIBILITY_PUBLIC &&
+		mode != gitus.GLOBAL_VISIBILITY_PRIVATE {
 		printGitError("This instance of Gitus is currently unavailable.")
 		os.Exit(1)
 	}

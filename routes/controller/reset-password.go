@@ -20,7 +20,7 @@ func bindResetPasswordController(ctx *RouterContext) {
 	http.HandleFunc("GET /reset-password/request", UseMiddleware(
 		[]Middleware{Logged, RateLimit, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch rc.Config.GlobalVisibility {
+			switch rc.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return
@@ -45,7 +45,7 @@ func bindResetPasswordController(ctx *RouterContext) {
 			CSRFCheck, UseLoginInfo, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-		switch rc.Config.GlobalVisibility {
+		switch rc.Config.EffectiveGlobalVisibility() {
 		case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 			FoundAt(w, "/maintenance-notice")
 			return
@@ -108,7 +108,7 @@ If this isn't you, you can simply ignore this message.`,
 	http.HandleFunc("GET /reset-password/update-password", UseMiddleware(
 		[]Middleware{Logged, RateLimit, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch rc.Config.GlobalVisibility {
+			switch rc.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return
@@ -153,7 +153,7 @@ If this isn't you, you can simply ignore this message.`,
 			CSRFCheck, UseLoginInfo, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch rc.Config.GlobalVisibility {
+			switch rc.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return

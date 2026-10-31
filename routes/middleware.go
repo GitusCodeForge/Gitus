@@ -169,7 +169,7 @@ func ValidRepositoryNameRequired(s string) Middleware {
 func CheckGlobalVisibleToUser(ctx *RouterContext, loginInfo *templates.LoginInfoModel) bool {
 	if ctx.Config.IsInBrowseOnlyMode() { return true }
 	if ctx.Config.IsInForgeMode() && loginInfo == nil { return false }
-	switch ctx.Config.GlobalVisibility {
+	switch ctx.Config.EffectiveGlobalVisibility() {
 	case gitus.GLOBAL_VISIBILITY_PUBLIC: return true
 	case gitus.GLOBAL_VISIBILITY_PRIVATE: return loginInfo.LoggedIn
 	case gitus.GLOBAL_VISIBILITY_SHUTDOWN:
@@ -182,7 +182,7 @@ func CheckGlobalVisibleToUser(ctx *RouterContext, loginInfo *templates.LoginInfo
 var GlobalVisibility Middleware = func(f HandlerFunc) HandlerFunc {
 	return func(ctx *RouterContext, w http.ResponseWriter, r *http.Request) {
 		if !CheckGlobalVisibleToUser(ctx, ctx.LoginInfo) {
-			switch ctx.Config.GlobalVisibility {
+			switch ctx.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return

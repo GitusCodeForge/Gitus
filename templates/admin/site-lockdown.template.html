@@ -79,6 +79,30 @@
 			<input type="submit" value="Set to Maintenance mode" />
 		  </form>
 		</fieldset>
+
+		<fieldset>
+		  <legend>Maintenance announcement</legend>
+		  <p>Announce a maintenance window before it starts. The site keeps running and shows a banner until the start time. At the start time it enters the selected mode. Times are the server's local time.</p>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="type" value="announcement" />
+			<label><input type="checkbox" name="announcement-enabled" {{if .AnnouncementEnabled}}checked{{end}} /> Enable announcement</label>
+			<label class="field-label" for="ta-announcement-message">Message:</label>
+			<textarea name="announcement-message" id="ta-announcement-message">{{.AnnouncementMessage}}</textarea>
+			<label class="field-label" for="tf-announcement-start">Start time:</label>
+			<input class="field-tf" type="datetime-local" name="announcement-start" id="tf-announcement-start" value="{{.AnnouncementStartsAt}}" />
+			<label class="field-label" for="tf-announcement-end">End time (optional):</label>
+			<input class="field-tf" type="datetime-local" name="announcement-end" id="tf-announcement-end" value="{{.AnnouncementEndsAt}}" />
+			<label class="field-label" for="tf-announcement-mode">Mode at the start time:</label>
+			<select name="announcement-mode" id="tf-announcement-mode">
+			  <option value="shutdown" {{if eq .AnnouncementMode "shutdown"}}selected{{end}}>Shutdown (full-access users keep access)</option>
+			  <option value="maintenance" {{if eq .AnnouncementMode "maintenance"}}selected{{end}}>Maintenance (blocks everyone)</option>
+			</select>
+			<label><input type="checkbox" name="announcement-auto-restore" {{if .AnnouncementAutoRestore}}checked{{end}} /> Return to the current mode automatically at the end time (requires an end time)</label>
+			<input type="submit" value="Save announcement" />
+		  </form>
+		  <p>An announcement without a start time is informational only; it stays until it is disabled.</p>
+		</fieldset>
 	  </div>
 	</main>
 	

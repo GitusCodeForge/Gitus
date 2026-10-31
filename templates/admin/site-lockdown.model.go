@@ -13,5 +13,11 @@ type AdminSiteLockdownTemplateModel struct {
 	ShutdownNoticeMessage string
 	FullAccessUser string
 	MaintenanceNoticeMessage string
+	AnnouncementEnabled bool
+	AnnouncementMessage string
+	AnnouncementStartsAt string
+	AnnouncementEndsAt string
+	AnnouncementMode string
+	AnnouncementAutoRestore bool
 }
 

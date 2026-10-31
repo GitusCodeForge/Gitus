@@ -15,7 +15,7 @@ func bindReceiptController(ctx *RouterContext) {
 	http.HandleFunc("GET /receipt", UseMiddleware(
 		[]Middleware{Logged, RateLimit, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
-			switch rc.Config.GlobalVisibility {
+			switch rc.Config.EffectiveGlobalVisibility() {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
 				FoundAt(w, "/maintenance-notice")
 				return

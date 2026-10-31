@@ -221,6 +221,18 @@ hr {
 }
 .header-nav-submenu{ display: none; }
 .header-nav-submenu:target { display: inherit; }
+
+/* maintenance announcement banner, shown before a scheduled window. */
+.maintenance-announcement {
+	border: 2px solid var(--foreground-color);
+	background-color: var(--foreground-color);
+	color: var(--background-color);
+	padding: 0.6rem 1rem;
+	margin: 0.5rem 0 1rem 0;
+}
+.maintenance-announcement-title { font-weight: bold; }
+.maintenance-announcement-message { white-space: pre-wrap; }
+.maintenance-announcement-time { font-size: 0.9rem; }
 /* ======================================================== */
 
 

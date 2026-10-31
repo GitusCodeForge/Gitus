@@ -1,0 +1,10 @@
+{{define "_maintenance-announcement"}}
+{{if .Config}}{{if .Config.ShouldShowMaintenanceAnnouncement}}
+<div class="maintenance-announcement">
+  <div class="maintenance-announcement-title">Maintenance announcement</div>
+  <div class="maintenance-announcement-message">{{.Config.MaintenanceAnnouncement.Message}}</div>
+  {{if .Config.MaintenanceAnnouncement.StartsAt}}<div class="maintenance-announcement-time">Scheduled start: {{.Config.MaintenanceAnnouncement.StartsAt}}</div>{{end}}
+  {{if .Config.MaintenanceAnnouncement.EndsAt}}<div class="maintenance-announcement-time">Expected end: {{.Config.MaintenanceAnnouncement.EndsAt}}{{if .Config.MaintenanceAnnouncement.AutoRestore}} (the site will return to normal automatically){{end}}</div>{{end}}
+</div>
+{{end}}{{end}}
+{{end}}

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
@@ -146,6 +147,12 @@ type GitusConfig struct {
 	// shown when the instance is in browse-only mode & private mode.
 	PrivateNoticeMessage string `json:"privateNoticeMessage"`
 
+	// Announce a maintenance window before it starts. While the announcement
+	// is active the site keeps running and a banner is shown. At StartsAt the
+	// effective mode becomes Mode (shutdown by default); it returns to
+	// GlobalVisibility at EndsAt only when AutoRestore is explicitly enabled.
+	MaintenanceAnnouncement GitusMaintenanceAnnouncement `json:"maintenanceAnnouncement"`
+
 	// rate limiter
 	// 0 turns off the rate limiter.
 	MaxRequestInSecond float64 `json:"maxRequestInSecond"`
@@ -206,6 +213,20 @@ const (
 	GLOBAL_VISIBILITY_SHUTDOWN = "shutdown"
 	GLOBAL_VISIBILITY_MAINTENANCE = "maintenance"
 )
+
+type GitusMaintenanceAnnouncement struct {
+	Enabled bool `json:"enabled"`
+	Message string `json:"message"`
+	// RFC3339 timestamps. StartsAt empty means "announcement only, do not
+	// switch the site automatically".
+	StartsAt string `json:"startsAt"`
+	EndsAt string `json:"endsAt"`
+	// "shutdown" (default) or "maintenance".
+	Mode string `json:"mode"`
+	// AutoRestore is only effective when EndsAt is set. It is off by default
+	// so an announced window does not end by accident.
+	AutoRestore bool `json:"autoRestore"`
+}
 
 type GitusDatabaseConfig struct {
 	// database type: "sqlite", "postgres", "mysql" or "mariadb".
@@ -456,6 +477,9 @@ func CreateConfigFile(p string) error {
 		IgnoreRepository: nil,
 		GlobalVisibility: "public",
 		FullAccessUser: []string{"admin"},
+		MaintenanceAnnouncement: GitusMaintenanceAnnouncement{
+			Mode: GLOBAL_VISIBILITY_SHUTDOWN,
+		},
 		LogLevel: "info",
 		GitConfig: GitusGitConfig{
 			HTTPCloneProtocol: GitusGitHTTPTransferProtocolDescriptor{
@@ -829,3 +853,56 @@ func (cfg *GitusConfig) SearchAllRepositoryPlain(pattern string) ([]*model.Repos
 	return res, nil
 }
 
+
+
+func parseAnnouncementTime(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" { return time.Time{}, nil }
+	return time.Parse(time.RFC3339, s)
+}
+
+func (a GitusMaintenanceAnnouncement) afterMode() string {
+	if strings.TrimSpace(a.Mode) == GLOBAL_VISIBILITY_MAINTENANCE {
+		return GLOBAL_VISIBILITY_MAINTENANCE
+	}
+	return GLOBAL_VISIBILITY_SHUTDOWN
+}
+
+// EffectiveGlobalVisibilityAt returns the mode that is in effect at now.
+// The announcement is a schedule: before StartsAt the configured
+// GlobalVisibility stays in effect; from StartsAt it becomes the announced
+// mode. EndsAt only restores GlobalVisibility when AutoRestore is enabled.
+func (cfg *GitusConfig) EffectiveGlobalVisibilityAt(now time.Time) string {
+	a := cfg.MaintenanceAnnouncement
+	if !a.Enabled { return cfg.GlobalVisibility }
+	start, err := parseAnnouncementTime(a.StartsAt)
+	if err != nil || start.IsZero() { return cfg.GlobalVisibility }
+	if now.Before(start) { return cfg.GlobalVisibility }
+	if a.AutoRestore {
+		end, err := parseAnnouncementTime(a.EndsAt)
+		if err == nil && !end.IsZero() && !now.Before(end) {
+			return cfg.GlobalVisibility
+		}
+	}
+	return a.afterMode()
+}
+
+func (cfg *GitusConfig) EffectiveGlobalVisibility() string {
+	return cfg.EffectiveGlobalVisibilityAt(time.Now())
+}
+
+// ShouldShowMaintenanceAnnouncementAt reports whether the pre-maintenance
+// banner should be shown. A manual announcement (no StartsAt) remains until
+// it is disabled.
+func (cfg *GitusConfig) ShouldShowMaintenanceAnnouncementAt(now time.Time) bool {
+	a := cfg.MaintenanceAnnouncement
+	if !a.Enabled || strings.TrimSpace(a.Message) == "" { return false }
+	start, err := parseAnnouncementTime(a.StartsAt)
+	if err != nil { return false }
+	if start.IsZero() { return true }
+	return now.Before(start)
+}
+
+func (cfg *GitusConfig) ShouldShowMaintenanceAnnouncement() bool {
+	return cfg.ShouldShowMaintenanceAnnouncementAt(time.Now())
+}
