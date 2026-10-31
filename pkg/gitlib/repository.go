@@ -146,9 +146,9 @@ func (gr LocalGitRepository) LocalForkTo(targetName string, targetAbsDir string)
 		return errors.New(err.Error() + ": " + stderrBuf.String())
 	}
 	if !containsRemote {
-		cmd2 = exec.Command("git", "remote", "add", targetName, targetAbsDir)
+		cmd2 = exec.Command("git", "remote", "add", "--", targetName, targetAbsDir)
 	} else {
-		cmd2 = exec.Command("git", "remote", "set-url", targetName, targetAbsDir)
+		cmd2 = exec.Command("git", "remote", "set-url", "--", targetName, targetAbsDir)
 	}
 	stderrBuf.Reset()
 	cmd2.Stderr = stderrBuf
@@ -160,7 +160,7 @@ func (gr LocalGitRepository) LocalForkTo(targetName string, targetAbsDir string)
 	// Populate the origin's remote-tracking refs for the new fork once, so the
 	// fork page can compare without fetching on every view. Best effort: an
 	// unfetched fork just has no comparison until its next push refreshes it.
-	cmd3 := exec.Command("git", "fetch", targetName)
+	cmd3 := exec.Command("git", "fetch", "--", targetName)
 	cmd3.Dir = gr.GitDirectoryPath
 	cmd3.Run()
 	return nil
@@ -293,7 +293,7 @@ func (gr LocalGitRepository) CheckIfCanFastForward(branch string, remoteName str
 // fresh comparison without fetching itself.
 func (gr LocalGitRepository) FetchRemoteBranch(remoteName string, branch string) error {
 	refspec := fmt.Sprintf("refs/heads/%s:refs/remotes/%s/%s", branch, remoteName, branch)
-	cmd := exec.Command("git", "fetch", remoteName, refspec)
+	cmd := exec.Command("git", "fetch", "--", remoteName, refspec)
 	cmd.Dir = gr.GitDirectoryPath
 	stderrBuf := new(bytes.Buffer)
 	cmd.Stderr = stderrBuf
