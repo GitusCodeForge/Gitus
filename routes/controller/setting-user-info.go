@@ -87,7 +87,22 @@ func bindSettingController(ctx *RouterContext) {
 			switch r.Form.Get("type") {
 			case "info":
 				if len(r.Form.Get("title")) > 0 { user.Title = r.Form.Get("title") }
-				if len(r.Form.Get("email")) > 0 { user.Email = r.Form.Get("email") }
+				if len(r.Form.Get("email")) > 0 {
+					email := strings.TrimSpace(r.Form.Get("email"))
+					if !model.ValidEmail(email) {
+						LogTemplateError(ctx.LoadTemplate("setting/user-info").Execute(w, templates.SettingUserInfoTemplateModel{
+							User: user,
+							Config: ctx.Config,
+							LoginInfo: rc.LoginInfo,
+							ErrorMsg: struct{Type string; Message string}{
+								Type: "info",
+								Message: "Invalid email address.",
+							},
+						}))
+						return
+					}
+					user.Email = email
+				}
 				if len(r.Form.Get("website")) > 0 { user.Website = r.Form.Get("website") }
 				if len(r.Form.Get("bio")) > 0 { user.Bio = r.Form.Get("bio") }
 				err = ctx.DatabaseInterface.UpdateUserInfo(targetUsername, user)

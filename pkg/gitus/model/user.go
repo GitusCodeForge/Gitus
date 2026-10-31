@@ -1,5 +1,7 @@
 package model
 
+import "net/mail"
+
 type GitusUserStatus int
 
 const (
@@ -17,6 +19,16 @@ func ValidUserName(s string) bool {
 		if !(('0' <= k && k <= '9') || ('A' <= k && k <= 'Z') || ('a' <= k && k <= 'z') || k == '_' || k == '-') { return false }
 	}
 	return true
+}
+
+// ValidEmail reports whether s is a bare email address. A display name
+// ("Alice <alice@example.com>") is rejected: the value is stored verbatim and
+// used as a mail recipient and as GIT_AUTHOR_EMAIL, so it has to be exactly an
+// address.
+func ValidEmail(s string) bool {
+	addr, err := mail.ParseAddress(s)
+	if err != nil { return false }
+	return addr.Name == "" && addr.Address == s
 }
 
 // GitusUserLoginInfo is the subset of a user that UseLoginInfo needs on every
