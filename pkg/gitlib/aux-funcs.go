@@ -1,6 +1,7 @@
 package gitlib
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -88,26 +89,50 @@ func readBytesToHex(f io.Reader, l int) (string, error) {
 	return string(res), err
 }
 
-func readZeroTerminatedString(f io.Reader) (string, error) {
-	buf := make([]byte, 1)
-	resbuf := make([]byte, 0)
-	for {
-		_, err := io.ReadFull(f, buf)
-		if err != nil { return "", err }
-		if int(buf[0]) == 0 { break }
-		resbuf = append(resbuf, buf[0])
+// readByte reads one byte. Readers that implement io.ByteReader are asked
+// directly; going through a one-byte io.ReadFull was measurable.
+func readByte(f io.Reader) (byte, error) {
+	if br, ok := f.(io.ByteReader); ok {
+		return br.ReadByte()
 	}
-	return string(resbuf), nil
+	var buf [1]byte
+	_, err := io.ReadFull(f, buf[:])
+	return buf[0], err
+}
+
+// readUntilBytes scans a bytes.Reader in chunks and rewinds it to just after
+// the delimiter, instead of reading (and seeking over) one byte at a time.
+// Tree entries are read through a bytes.Reader, and a tree with a hundred
+// entries used to cost a couple of thousand single-byte reads.
+func readUntilBytes(br *bytes.Reader, c byte) ([]byte, error) {
+	res := make([]byte, 0, 32)
+	var chunk [256]byte
+	for {
+		n, err := br.Read(chunk[:])
+		if i := bytes.IndexByte(chunk[:n], c); i >= 0 {
+			res = append(res, chunk[:i]...)
+			if _, serr := br.Seek(int64(i+1-n), io.SeekCurrent); serr != nil { return nil, serr }
+			return res, nil
+		}
+		res = append(res, chunk[:n]...)
+		if err != nil { return nil, err }
+	}
+}
+
+func readZeroTerminatedString(f io.Reader) (string, error) {
+	res, err := readUntil(f, 0)
+	if err != nil { return "", err }
+	return string(res), nil
 }
 
 func readUntil(f io.Reader, c byte) ([]byte, error) {
-	bytebuf := make([]byte, 1)
+	if br, ok := f.(*bytes.Reader); ok { return readUntilBytes(br, c) }
 	res := make([]byte, 0)
 	for {
-		_, err := io.ReadFull(f, bytebuf)
+		b, err := readByte(f)
 		if err != nil { return nil, err }
-		if int(bytebuf[0]) == int(c) { break }
-		res = append(res, bytebuf[0])
+		if b == c { break }
+		res = append(res, b)
 	}
 	return res, nil
 }
