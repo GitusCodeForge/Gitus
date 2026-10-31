@@ -110,13 +110,20 @@ func bindBranchController(ctx *RouterContext) {
 			}
 			gobj, err = rr.ReadObject(cobj.TreeObjId)
 			if err != nil { rc.ReportInternalError(err.Error(), w, r) }
-			target, err := rr.ResolveTreePath(gobj.(*gitlib.TreeObject), treePath)
+			rootTree := gobj.(*gitlib.TreeObject)
+			target, subItem, err := resolveTreePathAllowSubmodule(rr, rootTree, treePath)
 			if err != nil {
 				if err == gitlib.ErrObjectNotFound {
 					rc.ReportNotFound(treePath, "Path", fmt.Sprintf("repository %s", repo.FullName()), w, r)
 					return
 				}
 				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
+			if subItem != nil {
+				renderSubmoduleView(rc, w, r, repo, rootTree, subItem, treePath,
+					fmt.Sprintf("/repo/%s/branch/%s", rfn, branchName),
+					fmt.Sprintf("%s@%s:%s", rfn, "branch", branchName), "branch", branchName)
 				return
 			}
 

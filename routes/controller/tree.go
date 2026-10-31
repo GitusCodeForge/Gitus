@@ -104,9 +104,18 @@ func bindTreeHandler(ctx *RouterContext) {
 			rootPath := fmt.Sprintf("/repo/%s/%s/%s", rfn, "tree", treeId)
 			permaLink := fmt.Sprintf("/repo/%s/tree/%s/%s", rfn, treeId, treePath)
 			tobj := gobj.(*gitlib.TreeObject)
-			target, err := rr.ResolveTreePath(tobj, treePath)
+			target, subItem, err := resolveTreePathAllowSubmodule(rr, tobj, treePath)
 			if err != nil {
+				if err == gitlib.ErrObjectNotFound {
+					rc.ReportNotFound(treePath, "Path", fmt.Sprintf("repository %s", repo.FullName()), w, r)
+					return
+				}
 				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
+			if subItem != nil {
+				renderSubmoduleView(rc, w, r, repo, tobj, subItem, treePath, rootPath, rootFullName, "tree", treeId)
+				return
 			}
 
 			if target.Type() == gitlib.TREE && len(treePath) > 0 && !strings.HasSuffix(treePath, "/") {

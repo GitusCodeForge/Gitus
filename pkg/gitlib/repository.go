@@ -24,7 +24,6 @@ type LocalGitRepository struct {
 	Config ini.INI
 	isSHA256 bool
 	Hooks map[string]string
-	Submodule map[string]*SubmoduleConfig
 }
 
 func (gr LocalGitRepository) IsSHA256() bool {
@@ -71,7 +70,6 @@ func NewLocalGitRepository(p string) *LocalGitRepository {
 			res.isSHA256 = false
 		}
 	}
-	res.LoadSubmoduleConfig()
 	return &res
 }
 

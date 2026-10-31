@@ -1,0 +1,57 @@
+* submodule
+
+gitus treats a git tree entry with mode =160000= as a submodule (git's name
+for the entry is a "gitlink"). the tree and sidebar list it with the link
+icon and link it to a submodule page instead of trying to open it as a file.
+
+** the submodule page
+
+the page shows:
+
++ the path recorded in the tree;
++ the raw url from =.gitmodules= in the commit being viewed;
++ the =branch= / =update= values, when present;
++ the pinned commit id (the gitlink hash);
++ a link to the repository on this instance when the url points at one, and
+  to the pinned commit when that commit exists in it;
++ the =git clone --recurse-submodules= command for the parent.
+
+gitus never fetches the submodule url itself. it reads the =.gitmodules= blob
+from the tree that is being viewed: a bare repository has no
+={GIT_DIR}/.gitmodules= file, and the file is versioned, so an old commit
+must show the submodules that commit actually had.
+
+** how gitus resolves a submodule url
+
+gitus repository urls are =/repo/<namespace>:<name>=. for display and linking,
+a relative url in =.gitmodules= names a repository in the superproject's
+namespace:
+
+| superproject | .gitmodules url | gitus resolves to |
+|--------------+------------------+-------------------|
+| =abc:def=    | =../ghi.git=     | =abc:ghi=         |
+| =abc:def=    | =ghi.git=        | =abc:ghi=         |
+| =abc:def=    | =../other:ghi=   | =other:ghi=       |
+| =abc:def=    | =https://...=    | external          |
+
+this is gitus's own display/link rule. git clients resolve =.gitmodules=
+themselves and do not know it: from =/repo/abc:def=, git requests
+=../ghi.git= as =/repo/ghi.git=, not as =abc:ghi=. for
+=git clone --recurse-submodules= to work on gitus, write the url as
+=../<namespace>:<name>= (the submodule page shows this suggestion), or use an
+absolute url:
+
+#+begin_src
+[submodule "ghi"]
+	path = libs/ghi
+	url = ../abc:ghi
+#+end_src
+
+** limitations
+
++ nested submodules are not traversed: a submodule inside a submodule is only
+  visible when you browse the inner repository itself;
++ the snapshot/zip export skips submodule contents;
++ a submodule change appears in the diff as the usual =Subproject commit ...=
+  text lines;
++ a private submodule repository is only accessible to users who can see it.

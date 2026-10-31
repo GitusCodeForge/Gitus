@@ -96,13 +96,20 @@ func bindCommitController(ctx *RouterContext) {
 			}
 			gobj, err = rr.ReadObject(cobj.TreeObjId)
 			if err != nil { rc.ReportInternalError(err.Error(), w, r) }
-			target, err := rr.ResolveTreePath(gobj.(*gitlib.TreeObject), treePath)
+			rootTree := gobj.(*gitlib.TreeObject)
+			target, subItem, err := resolveTreePathAllowSubmodule(rr, rootTree, treePath)
 			if err != nil {
 				if err == gitlib.ErrObjectNotFound {
 					rc.ReportNotFound(treePath, "Path", fmt.Sprintf("repository %s", repo.FullName()), w, r)
 					return
 				}
 				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
+			if subItem != nil {
+				renderSubmoduleView(rc, w, r, repo, rootTree, subItem, treePath,
+					fmt.Sprintf("/repo/%s/commit/%s", rfn, commitId),
+					fmt.Sprintf("%s@%s:%s", rfn, "commit", commitId), "commit", commitId)
 				return
 			}
 

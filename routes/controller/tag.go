@@ -178,7 +178,8 @@ func bindTagController(ctx *RouterContext) {
 			}
 
 			if subject.Type() == gitlib.TREE {
-				subject, err = rr.ResolveTreePath(subject.(*gitlib.TreeObject), treePath)
+				rootTree := subject.(*gitlib.TreeObject)
+				target, subItem, err := resolveTreePathAllowSubmodule(rr, rootTree, treePath)
 				if err != nil {
 					if err == gitlib.ErrObjectNotFound {
 						rc.ReportNotFound(treePath, "Path", fmt.Sprintf("tag %s of repository %s", tagName, repo.FullName()), w, r)
@@ -187,6 +188,13 @@ func bindTagController(ctx *RouterContext) {
 					rc.ReportInternalError(err.Error(), w, r)
 					return
 				}
+				if subItem != nil {
+					renderSubmoduleView(rc, w, r, repo, rootTree, subItem, treePath,
+						fmt.Sprintf("/repo/%s/tag/%s", rfn, tagName),
+						fmt.Sprintf("%s@%s:%s", rfn, "tag", tagName), "tag", tagName)
+					return
+				}
+				subject = target
 				if subject.Type() == gitlib.TREE && len(treePath) > 0 && !strings.HasSuffix(treePath, "/") {
 					FoundAt(w, fmt.Sprintf("/repo/%s/tag/%s/%s/", rfn, tagName, treePath))
 					return
@@ -323,10 +331,10 @@ func bindTagController(ctx *RouterContext) {
 						Name: item, RelPath: strings.Join(tp1, "/"),
 					})
 				}
-				target, err := rr.ResolveTreePath(subject.(*gitlib.TreeObject), treePath)
-				if err != nil {
-					rc.ReportInternalError(err.Error(), w, r)
-				}
+				// subject is already the tree at treePath: it was resolved
+				// above. Resolving treePath again from that directory fails
+				// for any nested directory (and then target is nil).
+				targetTree := subject.(*gitlib.TreeObject)
 				treePathModelValue := &templates.TreePathTemplateModel{
 					RootFullName: rootFullName,
 					RootPath: rootPath,
@@ -347,7 +355,7 @@ func bindTagController(ctx *RouterContext) {
 						RepoPath: fmt.Sprintf("/repo/%s", rfn),
 						RootPath: rootPath,
 						TreePath: treePath,
-						FileList: target.(*gitlib.TreeObject).ObjectList,
+						FileList: targetTree.ObjectList,
 					},
 					PermaLink: permaLink,
 					TreePath: treePathModelValue,

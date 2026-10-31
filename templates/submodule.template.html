@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+	<link rel="stylesheet" href="/static/style-const-default.css">
+	<link rel="stylesheet" href="/dynamic-asset/style-const-default.css">
+	<link rel="stylesheet" href="/static/style.css">
+	<title>submodule:{{.SubmodulePath}} @ {{.Repository.Name}} :: {{.Config.DepotName}}</title>
+  </head>
+  <body>
+	<header>
+	  {{template "_header-nav" .}}
+	  {{template "_repo-header" .}}
+	</header>
+	<div class="node-description">
+	  {{if .TreePath}}{{template "_tree-path" .TreePath}}{{end}}
+	</div>
+
+	<hr />
+
+	<main>
+	  <div class="submodule-info">
+		<p><b>Submodule path</b>: <code>{{.SubmodulePath}}</code></p>
+		<p><b>Pinned commit</b>:
+		  {{if and .LocalCommitExists .ResolvedURL}}
+		  <a href="{{.ResolvedURL}}/commit/{{.CommitId}}"><code>{{.CommitId}}</code></a>
+		  {{else}}
+		  <code>{{.CommitId}}</code>
+		  {{end}}
+		</p>
+		{{if .Submodule}}
+		<p><b>URL</b>: {{if .RawURL}}<code>{{.RawURL}}</code>{{else}}—{{end}}</p>
+		{{if .Submodule.Branch}}<p><b>Branch</b>: <code>{{.Submodule.Branch}}</code></p>{{end}}
+		{{if .Submodule.Update}}<p><b>Update</b>: <code>{{.Submodule.Update}}</code></p>{{end}}
+		{{else}}
+		<p>This tree records a gitlink, but there is no matching entry in <code>.gitmodules</code>.</p>
+		{{end}}
+
+		{{if .ResolvedFullName}}
+		<p><b>Gitus repository</b>:
+		  {{if .ResolvedURL}}<a href="{{.ResolvedURL}}">{{.ResolvedFullName}}</a>{{else}}{{.ResolvedFullName}}{{end}}
+		  {{if not .LocalRepository}}<span class="submodule-note">(not found on this instance, or not visible to you)</span>{{end}}
+		</p>
+		{{else if .External}}
+		<p><b>External repository</b>:
+		  {{if .ResolvedURL}}<a href="{{.ResolvedURL}}">{{.RawURL}}</a>{{else}}{{.RawURL}}{{end}}
+		</p>
+		{{end}}
+
+		{{if .SuggestedURL}}
+		<p class="submodule-note">Gitus resolves this URL to <code>{{.ResolvedFullName}}</code>.
+		  Git resolves <code>.gitmodules</code> itself: for <code>git clone --recurse-submodules</code>,
+		  write the URL as <code>{{.SuggestedURL}}</code> (or use an absolute URL).</p>
+		{{end}}
+
+		<p><b>Clone the parent</b>:<br />
+		  <code>git clone --recurse-submodules {{.CloneURL}}</code></p>
+	  </div>
+	</main>
+
+	<hr />
+	<footer>
+	  <a href="{{getRepoPath .Repository.Namespace .Repository.Name}}">Back (Repository)</a>
+	  <a href="/">Back (Depot)</a>
+	  {{template "_footer"}}
+	</footer>
+  </body>
+</html>
