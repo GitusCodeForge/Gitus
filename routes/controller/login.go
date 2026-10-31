@@ -90,7 +90,11 @@ func bindLoginController(ctx *RouterContext) {
 			}
 
 			if u.TFAConfig.Email.Enable {
-				confirmCode := newConfirmCode()
+				confirmCode, err := newConfirmCode()
+				if err != nil {
+					rc.ReportInternalError(fmt.Sprintf("Failed to generate a confirmation code: %s.", err), w, r)
+					return
+				}
 				tempKey, err := bcrypt.GenerateFromPassword([]byte(u.PasswordHash+confirmCode), ctx.Config.PasswordHashStrength)
 				if err != nil {
 					rc.ReportInternalError(fmt.Sprintf("Failed to process generated confirmation code: %s.", err), w, r)
@@ -139,7 +143,11 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				return
 			}
 			
-			ss := session.NewSessionString()
+			ss, err := session.NewSessionString()
+			if err != nil {
+				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
 			_, err = rc.SessionInterface.RegisterSession(un, ss)
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
@@ -229,7 +237,11 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				return
 			}
 			
-			ss := session.NewSessionString()
+			ss, err := session.NewSessionString()
+			if err != nil {
+				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
 			_, err = rc.SessionInterface.RegisterSession(username, ss)
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)

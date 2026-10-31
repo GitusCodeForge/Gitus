@@ -803,7 +803,12 @@ func bindRepositorySettingController(ctx *RouterContext) {
 			repo.WebHookConfig.PayloadType = "json"
 			repo.WebHookConfig.Secret = strings.TrimSpace(repo.WebHookConfig.Secret)
 			if len(repo.WebHookConfig.Secret) <= 16 {
-				repo.WebHookConfig.Secret = auxfuncs.CryptoGenSym(24)
+				secret, err := auxfuncs.CryptoGenSym(24)
+				if err != nil {
+					ctx.ReportInternalError(fmt.Sprintf("Failed to generate a webhook secret: %s", err.Error()), w, r)
+					return
+				}
+				repo.WebHookConfig.Secret = secret
 			}
 			{
 				u, e := url.Parse(strings.TrimSpace(r.Form.Get("target-url")))

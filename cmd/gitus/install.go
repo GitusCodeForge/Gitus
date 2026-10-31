@@ -23,14 +23,15 @@ import (
 )
 
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%_-"
-func mkpass() string {
+func mkpass() (string, error) {
 	res := make([]byte, 0)
 	dlen := big.NewInt(int64(len(passchdict)))
 	for range 16 {
-		r, _ := rand.Int(rand.Reader, dlen)
+		r, err := rand.Int(rand.Reader, dlen)
+		if err != nil { return "", err }
 		res = append(res, passchdict[r.Uint64()])
 	}
-	return string(res)
+	return string(res), nil
 }
 
 func whereIs(cmdname string) (string, error) {
@@ -429,7 +430,10 @@ func InstallGitus(ctx routes.RouterContext) {
 			err = dbif.HardDeleteUserByName("admin")
 			if err != nil { log.Panic(err) }
 		}
-		userPassword := mkpass()
+		userPassword, err := mkpass()
+		if err != nil {
+			log.Panicf("Failed to generate password: %s\n", err.Error())
+		}
 		r, err := bcrypt.GenerateFromPassword([]byte(userPassword), ctx.Config.PasswordHashStrength)
 		if err != nil {
 			log.Panicf("Failed to generate password: %s\n", err.Error())

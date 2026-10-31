@@ -58,7 +58,8 @@ func (ssif *GitusRedisLikeSessionStore) RegisterSession(name string, s string) (
 	tExp := t + int64(ssif.config.MaxSessionLifetime)
 	timestampStr := fmt.Sprintf("%d", t)
 	tExpStr := fmt.Sprintf("%d", tExp)
-	csrf := auxfuncs.CryptoGenSym(64)
+	csrf, err := auxfuncs.CryptoGenSym(64)
+	if err != nil { return nil, err }
 	r1 := ssif.connection.HSet(ctx, lkey, s, timestampStr)
 	if r1.Err() != nil { return nil, r1.Err() }
 	r2 := ssif.connection.HSet(ctx, skey, "csrf", csrf)

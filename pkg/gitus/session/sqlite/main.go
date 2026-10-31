@@ -59,7 +59,8 @@ func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string) (*sess
 	defer tx.Rollback()
 	var t int64 = time.Now().UTC().Unix()
 	var tExp int64 = t + int64(ss.config.MaxSessionLifetime)
-	var csrf = auxfuncs.CryptoGenSym(64)
+	csrf, err := auxfuncs.CryptoGenSym(64)
+	if err != nil { return nil, err }
 	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %ssession(user_name, value, reg_timestamp, expire_timestamp, csrf) VALUES (?,?,?,?,?)", ss.config.Session.TablePrefix), name, s, t, tExp, csrf)
 	if err != nil { return nil, err }
 	err = tx.Commit()

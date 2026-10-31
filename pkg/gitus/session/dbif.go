@@ -27,14 +27,15 @@ type GitusSessionStore interface {
 }
 
 const passchdict = "abcdefghijklmnopqrstuvwxyz0123456789"
-func NewSessionString() string {
+func NewSessionString() (string, error) {
 	res := make([]byte, 0)
 	rmax := big.NewInt(int64(len(passchdict)))
 	for range 48 {
-		n, _ := rand.Int(rand.Reader, rmax)
+		n, err := rand.Int(rand.Reader, rmax)
+		if err != nil { return "", err }
 		res = append(res, passchdict[n.Uint64()])
 	}
-	return string(res)
+	return string(res), nil
 }
 
 

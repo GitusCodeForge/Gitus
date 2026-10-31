@@ -106,7 +106,8 @@ func (rsif *GitusPostgresReceiptSystemInterface) IssueReceipt(timeoutMinute int6
 	tx, err := rsif.pool.Begin(ctx)
 	if err != nil { return "", err }
 	defer tx.Rollback(ctx)
-	rid := receipt.NewReceiptId()
+	rid, err := receipt.NewReceiptId()
+	if err != nil { return "", err }
 	_, err = tx.Exec(ctx, fmt.Sprintf(`
 INSERT INTO %s_receipt(id, command, issue_time, timeout_minute)
 VALUES ($1,$2,$3,$4)

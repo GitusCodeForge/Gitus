@@ -62,7 +62,8 @@ func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session_id s
 	key2 := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, session_id)
 	timestamp := time.Now().Unix()
 	tExp := timestamp + int64(ssif.config.MaxSessionLifetime)
-	csrf := auxfuncs.CryptoGenSym(64)
+	csrf, err := auxfuncs.CryptoGenSym(64)
+	if err != nil { return nil, err }
 	s := &session.GitusSession{
 		Username: name,
 		Id: session_id,

@@ -34,14 +34,15 @@ func GenSym(n int) string {
 	return string(res)
 }
 /** generating symbols using cryptographically safe RNG... */
-func CryptoGenSym(n int) string {
+func CryptoGenSym(n int) (string, error) {
 	res := make([]byte, 0)
 	dlen := big.NewInt(int64(len(passchdict)))
 	for range n {
-		r, _ := crand.Int(crand.Reader, dlen)
+		r, err := crand.Int(crand.Reader, dlen)
+		if err != nil { return "", err }
 		res = append(res, passchdict[r.Uint64()])
 	}
-	return string(res)
+	return string(res), nil
 }
 
 func ChangeLocationOwner(targetPath string, targetUser *user.User) error {

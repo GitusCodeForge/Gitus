@@ -104,7 +104,14 @@ const WEBINSTALLER_COOKIE_KEY_SESSION = "wi_session"
 func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ctx.EntryKey == "" && ctx.SessionKey == "" {
-			ctx.EntryKey = auxfuncs.CryptoGenSym(12)
+			entryKey, err := auxfuncs.CryptoGenSym(12)
+			if err != nil {
+				log.Printf("Failed to generate an entry key: %s\n", err.Error())
+				w.WriteHeader(500)
+				fmt.Fprint(w, "Failed to generate an entry key. Please try again.")
+				return
+			}
+			ctx.EntryKey = entryKey
 			log.Printf("Entry key missing. New entry key: %s\n", ctx.EntryKey)
 			w.Header().Add("WWW-Authenticate", "Basic realm=\"webinstaller\"")
 			w.WriteHeader(401)
@@ -131,7 +138,14 @@ func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.Ha
 				return
 			}
 			ctx.EntryKey = ""
-			ctx.SessionKey = auxfuncs.CryptoGenSym(16)
+			sessionKey, err := auxfuncs.CryptoGenSym(16)
+			if err != nil {
+				log.Printf("Failed to generate a session key: %s\n", err.Error())
+				w.WriteHeader(500)
+				fmt.Fprint(w, "Failed to generate a session key. Please try again.")
+				return
+			}
+			ctx.SessionKey = sessionKey
 			w.Header().Add("Set-Cookie", (&http.Cookie{
 				Name: WEBINSTALLER_COOKIE_KEY_SESSION,
 				Value: ctx.SessionKey,
@@ -452,7 +466,12 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 		ctx.Config.MaxSessionLifetime = 7 * 24 * 60 * 60
 		ctx.Config.JWTSecret = r.Form.Get("jwt-secret")
 		if ctx.Config.JWTSecret == "" {
-			ctx.Config.JWTSecret = auxfuncs.CryptoGenSym(16)
+			secret, err := auxfuncs.CryptoGenSym(16)
+			if err != nil {
+				ctx.reportRedirect("/step8", 0, "Internal Error", "Failed to generate a JWT secret: " + err.Error(), w)
+				return
+			}
+			ctx.Config.JWTSecret = secret
 		}
 		ctx.Config.PasswordHashStrength = 16
 		switch ctx.Config.OperationMode {
@@ -805,7 +824,11 @@ func bindAllWebInstallerRoutes(ctx *WebInstallerRoutingContext) {
 					return false
 				}
 			}
-			userPassword := mkpass()
+			userPassword, err := mkpass()
+			if err != nil {
+				fmt.Fprintf(w, "<p>Failed to generate a password: %s</p>", err.Error())
+				return false
+			}
 			r, err := bcrypt.GenerateFromPassword([]byte(userPassword), ctx.Config.PasswordHashStrength)
 			if err != nil {
 				fmt.Fprintf(w, "<p>Failed to generate password: %s</p>", err.Error())
@@ -1184,7 +1207,11 @@ func WebInstaller() {
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout: 120 * time.Second,
 	}
-	entryKey := auxfuncs.CryptoGenSym(12)
+	entryKey, err := auxfuncs.CryptoGenSym(12)
+	if err != nil {
+		fmt.Printf("Failed to generate an entry key: %s\n", err.Error())
+		os.Exit(1)
+	}
 	bindAllWebInstallerRoutes(&WebInstallerRoutingContext{
 		EntryKey: entryKey,
 		Template: masterTemplate,

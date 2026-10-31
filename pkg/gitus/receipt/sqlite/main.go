@@ -101,7 +101,8 @@ func (rsif *GitusSqliteReceiptSystemInterface) IssueReceipt(timeoutMinute int64,
 	tx, err := rsif.connection.Begin()
 	if err != nil { return "", err }
 	defer tx.Rollback()
-	rid := receipt.NewReceiptId()
+	rid, err := receipt.NewReceiptId()
+	if err != nil { return "", err }
 	_, err = tx.Exec(fmt.Sprintf(`
 INSERT INTO %s_receipt(id, command, issue_time, timeout_minute)
 VALUES (?,?,?,?)

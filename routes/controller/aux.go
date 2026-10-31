@@ -239,14 +239,15 @@ func checkUserPassword(ctx *routes.RouterContext, username string, password stri
 	return true, nil
 }
 
-func newConfirmCode() string {
+func newConfirmCode() (string, error) {
 	res := make([]byte, 0)
 	rmax := big.NewInt(8)
 	for range 6 {
-		n, _ := rand.Int(rand.Reader, rmax)
+		n, err := rand.Int(rand.Reader, rmax)
+		if err != nil { return "", err }
 		res = append(res, "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"[n.Uint64()])
 	}
-	return string(res)
+	return string(res), nil
 }
 
 func getQueryPath(s string) (string, error) {
