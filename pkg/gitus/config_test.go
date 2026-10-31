@@ -96,18 +96,25 @@ func TestShouldShowMaintenanceAnnouncement(t *testing.T) {
 
 func TestEffectiveCommitMessageTags(t *testing.T) {
 	// a configuration file that never mentions the field gets the built-in
-	// convention.
+	// conventions.
 	cfg := &GitusConfig{}
-	if got := cfg.EffectiveCommitMessageTags(); len(got) != 1 ||
-		got[DefaultNoWebhookCommitMessageTag] != COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK {
+	got := cfg.EffectiveCommitMessageTags()
+	if len(got) != 2 ||
+		got[DefaultNoWebhookCommitMessageTag] != COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK ||
+		got[DefaultNoCICommitMessageTag] != COMMIT_MESSAGE_BEHAVIOR_NO_CI {
 		t.Fatalf("default tags = %v", got)
 	}
-	if got := cfg.AllCommitMessageTags(); len(got) != 1 || got[0] != DefaultNoWebhookCommitMessageTag {
-		t.Fatalf("default tag list = %v", got)
+	if l := cfg.AllCommitMessageTags(); len(l) != 2 ||
+		l[0] != DefaultNoCICommitMessageTag || l[1] != DefaultNoWebhookCommitMessageTag {
+		t.Fatalf("default tag list = %v", l)
 	}
-	if got := cfg.CommitMessageTagListForBehavior(COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK); len(got) != 1 ||
-		got[0] != DefaultNoWebhookCommitMessageTag {
-		t.Fatalf("default no-webhook tags = %v", got)
+	if l := cfg.CommitMessageTagListForBehavior(COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK); len(l) != 1 ||
+		l[0] != DefaultNoWebhookCommitMessageTag {
+		t.Fatalf("default no-webhook tags = %v", l)
+	}
+	if l := cfg.CommitMessageTagListForBehavior(COMMIT_MESSAGE_BEHAVIOR_NO_CI); len(l) != 1 ||
+		l[0] != DefaultNoCICommitMessageTag {
+		t.Fatalf("default no-ci tags = %v", l)
 	}
 
 	// an explicitly empty object turns every tag off.

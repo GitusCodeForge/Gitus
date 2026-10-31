@@ -53,9 +53,11 @@ between =shutdown= and =maintenance=.
 ** commit message tags
 
 =commitMessageTags= maps a tag (a line of its own in the commit message) to the
-behaviour it requests. the built-in behaviour is =no-webhook=, which skips the
-webhook of the push that contains the commit. when the field is not mentioned
-at all, ={"!no-webhook": "no-webhook"}= applies; ={}= turns every tag off. see
+behaviour it requests. The built-in behaviours are =no-webhook=, which skips
+the webhook of the push that contains the commit, and =no-ci=, which only marks
+the commit in the webhook payload because Gitus has no CI runner. When the
+field is not mentioned at all, ={"!no-webhook": "no-webhook", "!no-ci":
+"no-ci"}= applies; ={}= turns every tag off. See
 [[file:commit-message.org][commit message]].
 
 ** http clone

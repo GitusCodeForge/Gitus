@@ -157,13 +157,15 @@ type GitusConfig struct {
 	// behaviour they request. A tag is a line of its own in the commit
 	// message, e.g. "!no-webhook"; see docs/commit-message.org.
 	//
-	// Currently the only behaviour is "no-webhook", which skips the webhook
-	// of the push that contains the commit. An unknown behaviour is recorded
-	// in the webhook payload (as a tag) but otherwise ignored.
+	// The built-in behaviours are "no-webhook", which skips the webhook of the
+	// push that contains the commit, and "no-ci", which only marks the commit
+	// as "skip CI" for whoever reads the webhook payload (Gitus has no CI
+	// runner of its own). An unknown behaviour is recorded in the webhook
+	// payload (as a tag) but otherwise ignored.
 	//
 	// A configuration file that does not mention this field at all gets the
-	// built-in "!no-webhook" convention; an explicitly empty object turns
-	// every tag off. See EffectiveCommitMessageTags.
+	// built-in "!no-webhook" and "!no-ci" conventions; an explicitly empty
+	// object turns every tag off. See EffectiveCommitMessageTags.
 	CommitMessageTags map[string]string `json:"commitMessageTags"`
 
 	// rate limiter
@@ -231,10 +233,25 @@ const (
 	// COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK skips the webhook of a push that
 	// contains a commit carrying the tag.
 	COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK = "no-webhook"
-	// the tag that requests COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK when
-	// commitMessageTags is not configured.
+	// COMMIT_MESSAGE_BEHAVIOR_NO_CI marks a commit as "do not run CI for this
+	// push". Gitus does not run CI, so the instance itself does nothing with
+	// it; the tag travels in the webhook payload, which is what usually
+	// triggers CI in the first place.
+	COMMIT_MESSAGE_BEHAVIOR_NO_CI = "no-ci"
+	// the tags that request the behaviours above when commitMessageTags is
+	// not configured.
 	DefaultNoWebhookCommitMessageTag = "!no-webhook"
+	DefaultNoCICommitMessageTag = "!no-ci"
 )
+
+// DefaultCommitMessageTags is the convention used when the configuration file
+// does not mention commitMessageTags at all.
+func DefaultCommitMessageTags() map[string]string {
+	return map[string]string{
+		DefaultNoWebhookCommitMessageTag: COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK,
+		DefaultNoCICommitMessageTag: COMMIT_MESSAGE_BEHAVIOR_NO_CI,
+	}
+}
 
 type GitusMaintenanceAnnouncement struct {
 	Enabled bool `json:"enabled"`
@@ -502,9 +519,7 @@ func CreateConfigFile(p string) error {
 		MaintenanceAnnouncement: GitusMaintenanceAnnouncement{
 			Mode: GLOBAL_VISIBILITY_SHUTDOWN,
 		},
-		CommitMessageTags: map[string]string{
-			DefaultNoWebhookCommitMessageTag: COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK,
-		},
+		CommitMessageTags: DefaultCommitMessageTags(),
 		LogLevel: "info",
 		GitConfig: GitusGitConfig{
 			HTTPCloneProtocol: GitusGitHTTPTransferProtocolDescriptor{
@@ -939,9 +954,7 @@ func (cfg *GitusConfig) ShouldShowMaintenanceAnnouncement() bool {
 // off.
 func (cfg *GitusConfig) EffectiveCommitMessageTags() map[string]string {
 	if cfg.CommitMessageTags == nil {
-		return map[string]string{
-			DefaultNoWebhookCommitMessageTag: COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK,
-		}
+		return DefaultCommitMessageTags()
 	}
 	return cfg.CommitMessageTags
 }

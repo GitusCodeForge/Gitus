@@ -31,6 +31,7 @@ line has to be the tag.
 {
   "commitMessageTags": {
     "!no-webhook": "no-webhook",
+    "!no-ci": "no-ci",
     "skip-webhook": "no-webhook",
     "deploy-ok": ""
   }
@@ -39,11 +40,12 @@ line has to be the tag.
 
 + the key is the tag itself, as it should be written in the commit message;
 + the value is the behaviour. =no-webhook= skips the webhook of the push;
-  an empty value (or any unknown behaviour) only records the tag in the webhook
-  payload, so the receiver of the webhook can act on its own conventions;
+  =no-ci= marks the commit as "do not run CI" (see below); an empty value (or
+  any unknown behaviour) only records the tag in the webhook payload, so the
+  receiver of the webhook can act on its own conventions;
 + when the configuration file does not mention =commitMessageTags= at all, the
-  built-in ={"!no-webhook": "no-webhook"}= convention applies. an explicitly
-  empty object (={}=) turns every tag off.
+  built-in ={"!no-webhook": "no-webhook", "!no-ci": "no-ci"}= convention
+  applies. an explicitly empty object (={}=) turns every tag off.
 
 ** no-webhook
 
@@ -55,6 +57,14 @@ with a request that will never be answered.
 this is best effort and never rejects the push. a message is written to the
 log, which the update hook sends to =/dev/null=; use the webhook log if you need
 to check whether a push was skipped.
+
+** no-ci
+
+Gitus has no CI runner of its own (see [[file:hooks.org][hooks]]), so there is
+nothing for the instance to skip when it sees =!no-ci=. the tag is simply
+carried in the webhook payload; a webhook receiver that starts CI can look at
+=tags= and decide not to. use =no-webhook= if the webhook itself should not be
+sent at all, or an empty behaviour if no code is supposed to act on the tag.
 
 ** payload
 
