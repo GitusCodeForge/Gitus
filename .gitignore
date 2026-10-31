@@ -2,5 +2,7 @@
 *~
 templates/templates.go
 templates/models.go
+templates/static.go
+.gotmp/
 gitus-config*.json
 *.db
