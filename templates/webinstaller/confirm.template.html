@@ -65,6 +65,12 @@
 			  <td>
 				{{if eq .Config.Database.Type "sqlite"}}
 				<span>SQLite</span>
+				{{else if eq .Config.Database.Type "postgres"}}
+				<span>PostgreSQL</span>
+				{{else if eq .Config.Database.Type "mysql"}}
+				<span>MySQL</span>
+				{{else if eq .Config.Database.Type "mariadb"}}
+				<span>MariaDB</span>
 				{{end}}
 			  </td>
 			</tr>

@@ -203,23 +203,24 @@ const (
 )
 
 type GitusDatabaseConfig struct {
-	// database type. currently only support "sqlite".
+	// database type: "sqlite", "postgres", "mysql" or "mariadb".
+	// "mysql" and "mariadb" use the same backend.
 	Type string `json:"type"`
 	// path to the database file. valid only when dbtype is sqlite;
 	// has no effect otherwise.
 	Path string `json:"path"`
 	// TODO: this should be basing on the dir of the config file.
 	properPath string
-	// url to the database. valid only when dbtype is something that
-	// is "hosted" as a server (unlike sqlite which is just one file).
-	// has no effect when dbtype is sqlite.
+	// host:port of a server-backed database (postgres, mysql, mariadb);
+	// has no effect when dbtype is sqlite. an empty value means the driver's
+	// default (127.0.0.1:3306 for mysql/mariadb).
 	URL string `json:"url"`
 	UserName string `json:"userName"`
 	// name of the database. valid only when dbtype is something like
-	// "postgre" or "mariadb". has no effect when dbtype is sqlite.
+	// "postgres", "mysql" or "mariadb". has no effect when dbtype is sqlite.
 	DatabaseName string `json:"databaseName"`
 	// password of the database. valid only when dbtype is something
-	// like "postgre" or "mariadb". has no effect when dbtype is
+	// like "postgres", "mysql" or "mariadb". has no effect when dbtype is
 	// sqlite.
 	Password string `json:"password"`
 	// table prefix of the database - in case you need to host
@@ -288,23 +289,24 @@ type GitusMailerConfig struct {
 // would want to be able to search & filter specific kind of receipts and
 // i couldn't figure out a good way to implement that w/ redis.
 type GitusReceiptSystemConfig struct {
-	// database type. currently only support "sqlite".
+	// database type: "sqlite", "postgres", "mysql" or "mariadb".
+	// "mysql" and "mariadb" use the same backend.
 	Type string `json:"type"`
 	// path to the database file. valid only when dbtype is sqlite;
 	// has no effect otherwise.
 	Path string `json:"path"`
 	// TODO: this should be basing on the dir of the config file.
 	properPath string
-	// url to the database. valid only when dbtype is something that
-	// is "hosted" as a server (unlike sqlite which is just one file).
-	// has no effect when dbtype is sqlite.
+	// host:port of a server-backed database (postgres, mysql, mariadb);
+	// has no effect when dbtype is sqlite. an empty value means the driver's
+	// default (127.0.0.1:3306 for mysql/mariadb).
 	URL string `json:"url"`
 	UserName string `json:"userName"`
 	// name of the database. valid only when dbtype is something like
-	// "postgre" or "mariadb". has no effect when dbtype is sqlite.
+	// "postgres", "mysql" or "mariadb". has no effect when dbtype is sqlite.
 	DatabaseName string `json:"databaseName"`
 	// password of the database. valid only when dbtype is something
-	// like "postgre" or "mariadb". has no effect when dbtype is
+	// like "postgres", "mysql" or "mariadb". has no effect when dbtype is
 	// sqlite.
 	Password string `json:"password"`
 	// table prefix of the database - in case you need to host

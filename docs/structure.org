@@ -15,7 +15,7 @@ NOTE: this should be updated when there's very big changes.
 + =pkg=:
   + =gitus=: main pkg.
     + =db=: database interfaces (see =db/dbif.go=), with one implementation per
-      backend (=db/sqlite/=, =db/postgres/=). The query builder shared by both
+      backend (=db/sqlite/=, =db/postgres/=, =db/mysql/=). The query builder shared by both
       backends lives in =db/builder.go=; per-backend column lists, visibility
       conditions and row scanners live in the =sqlaux.go= of each backend. See
       [[./visibility.org]] and [[./sqlite-database.org]].

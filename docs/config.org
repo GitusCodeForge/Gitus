@@ -25,3 +25,21 @@ The flag is toggled in the site settings (=/admin/site-config=, "Basic
 Settings"). It is never enabled by default, and it should stay off on any
 instance that other people can reach: internal messages may contain absolute
 paths, SQL errors and library versions.
+
+** database type
+
+=database.type= is one of =sqlite=, =postgres=, =mysql= or =mariadb=.
+=mysql= and =mariadb= use the same backend, so either spelling works against
+either server.
+
+For =postgres=, =mysql= and =mariadb=:
+
+- =database.url= is =host:port= of the server (e.g. =127.0.0.1:3306=);
+- =database.userName=, =database.password= and =database.databaseName= are the
+  credentials and the schema to use;
+- =database.tablePrefix= is prepended to every table name, so several
+  instances can share one database.
+
+The database must already exist; Gitus creates its tables inside it when the
+instance is installed (and =EnsureSchema= adds tables/indexes introduced by a
+newer version on startup).

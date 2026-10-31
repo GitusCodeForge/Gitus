@@ -27,6 +27,8 @@
 				<select name="database-type" id="database-type">
 				  <option value="sqlite" {{if eq .Config.Database.Type "sqlite"}}selected{{end}}>SQLite</option>
 				  <option value="postgres" {{if eq .Config.Database.Type "postgres"}}selected{{end}}>PostgreSQL</option>
+				  <option value="mysql" {{if eq .Config.Database.Type "mysql"}}selected{{end}}>MySQL</option>
+				  <option value="mariadb" {{if eq .Config.Database.Type "mariadb"}}selected{{end}}>MariaDB</option>
 				</select>
 			  </td>
 			</tr>
@@ -37,7 +39,8 @@
 			  <td><input name="database-path" id="database-path" value="{{htmlEscape .Config.Database.Path}}" /></td>
 			</tr>
 			
-			<tr><td><label for="database-url" class="field-sub-label">database.url</label>
+			<tr><td><label for="database-url" class="field-sub-label">database.url</label><br />
+				(For PostgreSQL, MySQL and MariaDB: =host:port= of the server.)
 			  </td>
 			  <td><input name="database-url" id="database-url" value="{{htmlEscape .Config.Database.URL}}" /></td>
 			</tr>

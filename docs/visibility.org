@@ -3,7 +3,8 @@
 The browse pages, the search pages, the label page and the user profile pages
 all share one definition of "what the viewer may see", implemented as
 =nsVisibilityCond= and =repoVisibilityCond= in
-=pkg/gitus/db/sqlite/sqlaux.go= and =pkg/gitus/db/postgres/sqlaux.go=.
+=pkg/gitus/db/sqlite/sqlaux.go=, =pkg/gitus/db/postgres/sqlaux.go= and
+=pkg/gitus/db/mysql/sqlaux.go=.
 Changing the rules means changing those functions, not the individual
 queries: the listing query and the count query behind the same page must be
 built from the same helper, otherwise the pagination and the number of items
