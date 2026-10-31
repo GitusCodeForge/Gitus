@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
+	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/routes"
 )
 
@@ -14,7 +18,7 @@ import (
 func HandleUpdateTrigger(ctx *routes.RouterContext, repoFullName string, refFullName string, newrevType string, oldRev string, newRev string) {
 	ctx.Config.RecalculateProperPath()
 	ns, name := splitRepoFullName(ctx, repoFullName)
-	_, err := ctx.DatabaseInterface.GetRepositoryByName(ns, name)
+	repo, err := ctx.DatabaseInterface.GetRepositoryByName(ns, name)
 	if err != nil {
 		printGitError(fmt.Sprintf("Failed to get repository: %s", err))
 		return
@@ -30,7 +34,38 @@ func HandleUpdateTrigger(ctx *routes.RouterContext, repoFullName string, refFull
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to warm the last-commit cache for %s@%s: %s\n", repoFullName, newRev, err.Error())
 	}
+	// The fork page compares a fork against the upstream repository without
+	// fetching (P13). Refresh the upstream's remote-tracking ref for the branch
+	// that was just pushed, so the next page view has a fresh comparison.
+	refreshForkComparison(ctx, repo, refFullName, newrevType)
 	// The webhook is the notification channel for repositories that enabled one;
 	// HandleWebHook returns immediately when it is disabled.
 	HandleWebHook(ctx, repoFullName, refFullName, newrevType, oldRev, newRev)
+}
+
+// refreshForkComparison updates the upstream repository's remote-tracking ref
+// for a branch that was just pushed to a fork. It is best effort: the page view
+// only needs the ref, and a failure here just means the comparison stays as it
+// was until the next push.
+func refreshForkComparison(ctx *routes.RouterContext, repo *model.Repository, refFullName string, newrevType string) {
+	if repo == nil || newrevType == "delete" { return }
+	if !strings.HasPrefix(refFullName, "refs/heads/") { return }
+	if repo.ForkOriginName == "" && repo.ForkOriginNamespace == "" { return }
+	upstreamPath := path.Join(ctx.Config.GitRoot, repo.ForkOriginNamespace, repo.ForkOriginName)
+	if !gitlib.IsValidGitDirectory(upstreamPath) {
+		fmt.Fprintf(os.Stderr, "Cannot refresh fork comparison: %s is not a git repository\n", upstreamPath)
+		return
+	}
+	upstream, err := model.CreateLocalRepository(model.REPO_TYPE_GIT, repo.ForkOriginNamespace, repo.ForkOriginName, upstreamPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Cannot refresh fork comparison for %s: %s\n", repo.FullName(), err.Error())
+		return
+	}
+	gr, ok := upstream.(*gitlib.LocalGitRepository)
+	if !ok { return }
+	remoteName := fmt.Sprintf("%s/%s", repo.Namespace, repo.Name)
+	branch := strings.TrimPrefix(refFullName, "refs/heads/")
+	if err := gr.FetchRemoteBranch(remoteName, branch); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to refresh fork comparison for %s/%s: %s\n", repo.FullName(), branch, err.Error())
+	}
 }

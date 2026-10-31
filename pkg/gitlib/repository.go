@@ -157,6 +157,12 @@ func (gr LocalGitRepository) LocalForkTo(targetName string, targetAbsDir string)
 	if err != nil {
 		return errors.New(err.Error() + ": " + stderrBuf.String())
 	}
+	// Populate the origin's remote-tracking refs for the new fork once, so the
+	// fork page can compare without fetching on every view. Best effort: an
+	// unfetched fork just has no comparison until its next push refreshes it.
+	cmd3 := exec.Command("git", "fetch", targetName)
+	cmd3.Dir = gr.GitDirectoryPath
+	cmd3.Run()
 	return nil
 }
 
@@ -188,18 +194,20 @@ type BranchComparisonInfo struct {
 }
 
 // NOTE: localBranch should *NOT* be full name.
+//
+// This runs on every repository page of a fork, so it must not fetch: it
+// compares against the remote-tracking ref that the update hook refreshes when
+// the fork is pushed. If that ref does not exist yet (a fork created before the
+// hook did this, or a branch that was never pushed) there is nothing to
+// compare, and the caller gets nil.
 func (gr LocalGitRepository) CompareBranchWithRemote(localBranch string, remoteName string) (*BranchComparisonInfo, error) {
 	hasRemote, err := gr.HasRemote(remoteName)
 	if err != nil { return nil, err }
 	if !hasRemote { return nil, nil }
-	cmd1 := exec.Command("git", "fetch", remoteName)
-	cmd1.Dir = gr.GitDirectoryPath
-	stderrBuf := new(bytes.Buffer)
-	cmd1.Stderr = stderrBuf
-	err = cmd1.Run()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to git-fetch: %s; %s", err, stderrBuf.String())
+	if !gr.refExists(fmt.Sprintf("refs/remotes/%s/%s", remoteName, localBranch)) {
+		return nil, nil
 	}
+	stderrBuf := new(bytes.Buffer)
 	cmd2 := exec.Command("git", "merge-base", fmt.Sprintf("refs/heads/%s", localBranch), fmt.Sprintf("%s/%s", remoteName, localBranch))
 	cmd2.Dir = gr.GitDirectoryPath
 	stdoutBuf := new(bytes.Buffer)
@@ -256,14 +264,10 @@ func (gr LocalGitRepository) CheckIfCanFastForward(branch string, remoteName str
 	hasRemote, err := gr.HasRemote(remoteName)
 	if err != nil { return false, err }
 	if !hasRemote { return false, nil }
-	cmd1 := exec.Command("git", "fetch", remoteName)
-	cmd1.Dir = gr.GitDirectoryPath
-	stderrBuf := new(bytes.Buffer)
-	cmd1.Stderr = stderrBuf
-	err = cmd1.Run()
-	if err != nil {
-		return false, fmt.Errorf("Failed to git-fetch: %s; %s", err, stderrBuf.String())
+	if !gr.refExists(fmt.Sprintf("refs/remotes/%s/%s", remoteName, branch)) {
+		return false, nil
 	}
+	stderrBuf := new(bytes.Buffer)
 	cmd2 := exec.Command("git", "merge-base", fmt.Sprintf("refs/heads/%s", branch), fmt.Sprintf("%s/%s", remoteName, branch))
 	cmd2.Dir = gr.GitDirectoryPath
 	stdoutBuf := new(bytes.Buffer)
@@ -281,6 +285,29 @@ func (gr LocalGitRepository) CheckIfCanFastForward(branch string, remoteName str
 		return false, fmt.Errorf("Failed to read local branch ref: %s", err)
 	}
 	return base == strings.TrimSpace(string(f1)), nil
+}
+
+// FetchRemoteBranch updates refs/remotes/<remote>/<branch> from the remote.
+// Unlike FetchRemote it does not walk every branch of the remote; the update
+// hook calls it with the ref a fork push just changed, so the fork page has a
+// fresh comparison without fetching itself.
+func (gr LocalGitRepository) FetchRemoteBranch(remoteName string, branch string) error {
+	refspec := fmt.Sprintf("refs/heads/%s:refs/remotes/%s/%s", branch, remoteName, branch)
+	cmd := exec.Command("git", "fetch", remoteName, refspec)
+	cmd.Dir = gr.GitDirectoryPath
+	stderrBuf := new(bytes.Buffer)
+	cmd.Stderr = stderrBuf
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Failed to git-fetch %s: %s; %s", branch, err, stderrBuf.String())
+	}
+	return nil
+}
+
+// refExists reports whether a ref can be resolved (including packed refs).
+func (gr LocalGitRepository) refExists(ref string) bool {
+	cmd := exec.Command("git", "rev-parse", "--verify", "--quiet", ref)
+	cmd.Dir = gr.GitDirectoryPath
+	return cmd.Run() == nil
 }
 
 func (gr LocalGitRepository) FetchRemote(remote string) error {

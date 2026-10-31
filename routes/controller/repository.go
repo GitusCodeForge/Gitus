@@ -196,6 +196,14 @@ func bindRepositoryController(ctx *RouterContext) {
 				upstreamPath := path.Join(ctx.Config.GitRoot, s.ForkOriginNamespace, s.ForkOriginName)
 				upstream, _ = model.CreateLocalRepository(model.REPO_TYPE_GIT, s.ForkOriginNamespace, s.ForkOriginName, upstreamPath)
 				remoteName := fmt.Sprintf("%s/%s", s.Namespace, s.Name)
+				// The comparison itself never fetches; an explicit sync request
+				// refreshes the remote-tracking refs first.
+				if r.URL.Query().Has("ff") {
+					if err := upstream.(*gitlib.LocalGitRepository).FetchRemote(remoteName); err != nil {
+						rc.ReportInternalError(fmt.Sprintf("Failed to refresh the fork comparison: %s", err), w, r)
+						return
+					}
+				}
 				compareInfo, err = upstream.(*gitlib.LocalGitRepository).CompareBranchWithRemote(br.Name, remoteName)
 			}
 			
