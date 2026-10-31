@@ -35,7 +35,13 @@ func newTCacheTimer(d time.Duration) *tCacheTimer {
 
 func (tc *TCache) timerFunc(t *tCacheTimer) {
 	<-t.t.C
-	delete(tc.val, t.associatedKey)
+	tc.lock.Lock()
+	// Only drop the entry this timer belongs to: the key may have been
+	// deleted (and registered again) while the timer was running.
+	if v, ok := tc.val[t.associatedKey]; ok && v.timer == t {
+		delete(tc.val, t.associatedKey)
+	}
+	tc.lock.Unlock()
 	tc.timerPool.Put(t)
 }
 
@@ -92,7 +98,9 @@ func (tc *TCache) Get(key string) (string, bool) {
 func (tc *TCache) Delete(key string) {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
-	tm := tc.val[key].timer
+	v, ok := tc.val[key]
+	if !ok { return }
+	tm := v.timer
 	tm.t.Stop()
 	tc.timerPool.Put(tm)
 	delete(tc.val, key)
