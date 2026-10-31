@@ -723,13 +723,13 @@ func (cfg *GitusConfig) ReadRepositoryHostModeConfig(namespace string, name stri
 	return model.ReadRepositoryConfigFromFile(f)
 }
 
-func (cfg *GitusConfig) GetAllRepositoryPlain() ([]*model.Repository, error) {
+func (cfg *GitusConfig) GetAllRepositoryFromFilesystem() ([]*model.Repository, error) {
 	if cfg.UseNamespace {
-		m, err := cfg.GetAllNamespacePlain()
+		m, err := cfg.GetAllNamespaceFromFilesystem()
 		if err != nil { return nil, err }
 		res := make([]*model.Repository, 0)		
 		for k := range m {
-			r, err := cfg.GetAllRepositoryByNamespacePlain(k)
+			r, err := cfg.GetAllRepositoryByNamespaceFromFilesystem(k)
 			if err != nil { return nil, err }
 			for _, i := range r {
 				i.Namespace = k
@@ -775,7 +775,7 @@ func (cfg *GitusConfig) GetAllRepositoryPlain() ([]*model.Repository, error) {
 	return res, nil
 }
 
-func (cfg *GitusConfig) GetAllRepositoryByNamespacePlain(ns string) (map[string]*model.Repository, error) {
+func (cfg *GitusConfig) GetAllRepositoryByNamespaceFromFilesystem(ns string) (map[string]*model.Repository, error) {
 	gitPath := cfg.GitRoot
 	res := make(map[string]*model.Repository, 0)
 	nsPath := path.Join(gitPath, ns)
@@ -816,7 +816,7 @@ func (cfg *GitusConfig) GetAllRepositoryByNamespacePlain(ns string) (map[string]
 	return res, nil
 }
 
-func (cfg *GitusConfig) GetAllNamespacePlain() (map[string]*model.Namespace, error) {
+func (cfg *GitusConfig) GetAllNamespaceFromFilesystem() (map[string]*model.Namespace, error) {
 	res := make(map[string]*model.Namespace, 0)
 	if !cfg.UseNamespace {
 		ns, err := model.NewNamespace("", cfg.GitRoot)
@@ -869,8 +869,8 @@ func (cfg *GitusConfig) GetAllNamespacePlain() (map[string]*model.Namespace, err
 }
 
 // TODO: find a better & more efficient way to do this.
-func (cfg *GitusConfig) SearchAllNamespacePlain(pattern string) (map[string]*model.Namespace, error) {
-	preres, err := cfg.GetAllNamespacePlain()
+func (cfg *GitusConfig) SearchAllNamespaceFromFilesystem(pattern string) (map[string]*model.Namespace, error) {
+	preres, err := cfg.GetAllNamespaceFromFilesystem()
 	if err != nil { return nil, err }
 	res := make(map[string]*model.Namespace, 0)
 	for k, v := range preres {
@@ -881,8 +881,8 @@ func (cfg *GitusConfig) SearchAllNamespacePlain(pattern string) (map[string]*mod
 	return res, nil
 }
 
-func (cfg *GitusConfig) SearchAllRepositoryPlain(pattern string) ([]*model.Repository, error) {
-	preres, err := cfg.GetAllRepositoryPlain()
+func (cfg *GitusConfig) SearchAllRepositoryFromFilesystem(pattern string) ([]*model.Repository, error) {
+	preres, err := cfg.GetAllRepositoryFromFilesystem()
 	if err != nil { return nil, err }
 	res := make([]*model.Repository, 0)
 	for _, v := range preres {

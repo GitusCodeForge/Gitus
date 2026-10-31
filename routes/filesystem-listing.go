@@ -7,7 +7,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 )
 
-// PlainModeListingCache memoizes the directory scans that instances without a
+// FilesystemListingCache memoizes the directory scans that instances without a
 // database (browse-only mode, host mode) perform for namespaces and
 // repositories.
 //
@@ -19,7 +19,7 @@ import (
 //
 // Entries go stale after ttl; browse-only mode is read-mostly and does not need
 // to see a change the instant it happens on disk.
-type PlainModeListingCache struct {
+type FilesystemListingCache struct {
 	mu sync.Mutex
 	ttl time.Duration
 
@@ -30,11 +30,11 @@ type PlainModeListingCache struct {
 	repositoriesAt map[string]time.Time
 }
 
-const plainModeListingCacheTTL = 2 * time.Second
+const filesystemListingCacheTTL = 2 * time.Second
 
-func NewPlainModeListingCache() *PlainModeListingCache {
-	return &PlainModeListingCache{
-		ttl: plainModeListingCacheTTL,
+func NewFilesystemListingCache() *FilesystemListingCache {
+	return &FilesystemListingCache{
+		ttl: filesystemListingCacheTTL,
 		repositories: make(map[string]map[string]*model.Repository),
 		repositoriesAt: make(map[string]time.Time),
 	}

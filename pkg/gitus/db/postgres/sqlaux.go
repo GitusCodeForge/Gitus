@@ -165,7 +165,7 @@ func (dbif *PostgresGitusDatabaseInterface) belongingNamespaceCond(b *db.QueryBu
 }
 
 // buildRepository turns one row of repositoryColumns into a model. It is shared
-// by the plain listing scanner and by GetRepositoryWithNamespace, which reads a
+// by the filesystem listing scanner and by GetRepositoryWithNamespace, which reads a
 // repository and its namespace in a single query.
 func (dbif *PostgresGitusDatabaseInterface) buildRepository(repoType int, ns, name, desc, owner, acl string, status int, forkOriginNs, forkOriginName, labelList, webhookStr string, absId int64) (*model.Repository, error) {
 	a, err := model.ParseACL(acl)

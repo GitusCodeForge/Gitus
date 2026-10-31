@@ -169,7 +169,7 @@ func (dbif *SqliteGitusDatabaseInterface) belongingNamespaceCond(b *db.QueryBuil
 }
 
 // buildRepository turns one row of repositoryColumns into a model. It is shared
-// by the plain listing scanner and by GetRepositoryWithNamespace, which reads a
+// by the filesystem listing scanner and by GetRepositoryWithNamespace, which reads a
 // repository and its namespace in a single query.
 func (dbif *SqliteGitusDatabaseInterface) buildRepository(repoType uint8, ns, name, desc, owner, acl string, status int64, forkOriginNs, forkOriginName, labelList, webhookStr string, rowid int64) (*model.Repository, error) {
 	a, err := model.ParseACL(acl)

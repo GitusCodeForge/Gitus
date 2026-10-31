@@ -27,9 +27,9 @@ func bindAllController(ctx *routes.RouterContext) {
 				var pageInfo *templates.PageInfoModel
 				if !ctx.Config.IsInForgeMode() {
 					if len(q) > 0 {
-						nsl, err = ctx.Config.SearchAllNamespacePlain(q)
+						nsl, err = ctx.Config.SearchAllNamespaceFromFilesystem(q)
 					} else {
-						err = ctx.SyncAllNamespacePlain()
+						err = ctx.SyncAllNamespaceFromFilesystem()
 						nsl = ctx.GitNamespaceList
 					}
 					if err != nil {
@@ -93,9 +93,9 @@ func bindAllController(ctx *routes.RouterContext) {
 			var pageInfo *templates.PageInfoModel
 			if !ctx.Config.IsInForgeMode() {
 				if len(q) > 0 {
-					repol, err = ctx.Config.SearchAllRepositoryPlain(q)
+					repol, err = ctx.Config.SearchAllRepositoryFromFilesystem(q)
 				} else {
-					repol, err = ctx.Config.GetAllRepositoryPlain()
+					repol, err = ctx.Config.GetAllRepositoryFromFilesystem()
 				}
 				if err != nil {
 					ctx.ReportInternalError(err.Error(), w, r)

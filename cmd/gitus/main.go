@@ -299,7 +299,7 @@ func main() {
 
 	context.RateLimiter = routes.NewRateLimiter(config)
 	context.CloneLimiter = routes.NewCloneLimiter(config.GitConfig.MaxConcurrentClone)
-	context.PlainModeListingCache = routes.NewPlainModeListingCache()
+	context.FilesystemListingCache = routes.NewFilesystemListingCache()
 
 	if context.DatabaseInterface != nil {
 		// Tables that were added after this instance was installed; idempotent.

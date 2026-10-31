@@ -33,8 +33,8 @@ type RouterContext struct {
 	MasterTemplate *template.Template
 	GitRepositoryList map[string]*model.Repository
 	GitNamespaceList map[string]*model.Namespace
-	// shared by every request of the process; see plainmode.go.
-	PlainModeListingCache *PlainModeListingCache
+	// shared by every request of the process; see filesystem-listing.go.
+	FilesystemListingCache *FilesystemListingCache
 	DatabaseInterface db.GitusDatabaseInterface
 	SessionInterface session.GitusSessionStore
 	SSHKeyManagingContext *ssh.SSHKeyManagingContext
@@ -59,7 +59,7 @@ func (ctx *RouterContext) NewLocal() *RouterContext {
 		MasterTemplate: ctx.MasterTemplate,
 		GitRepositoryList: ctx.GitRepositoryList,
 		GitNamespaceList: ctx.GitNamespaceList,
-		PlainModeListingCache: ctx.PlainModeListingCache,
+		FilesystemListingCache: ctx.FilesystemListingCache,
 		DatabaseInterface: ctx.DatabaseInterface,
 		SessionInterface: ctx.SessionInterface,
 		SSHKeyManagingContext: ctx.SSHKeyManagingContext,
@@ -217,22 +217,22 @@ func (ctx *RouterContext) ReportSingleButtonCallback(
 	}))
 }
 
-// plainModeCache returns the listing cache shared by every request. A context
+// filesystemListingCache returns the listing cache shared by every request. A context
 // that was not built by main (tests, mostly) gets a private one, which simply
 // means no caching across requests.
-func (ctx *RouterContext) plainModeCache() *PlainModeListingCache {
-	if ctx.PlainModeListingCache == nil {
-		ctx.PlainModeListingCache = NewPlainModeListingCache()
+func (ctx *RouterContext) filesystemListingCache() *FilesystemListingCache {
+	if ctx.FilesystemListingCache == nil {
+		ctx.FilesystemListingCache = NewFilesystemListingCache()
 	}
-	return ctx.PlainModeListingCache
+	return ctx.FilesystemListingCache
 }
 
-func (ctx *RouterContext) SyncAllNamespacePlain() error {
-	c := ctx.plainModeCache()
+func (ctx *RouterContext) SyncAllNamespaceFromFilesystem() error {
+	c := ctx.filesystemListingCache()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.namespaces == nil || time.Since(c.namespacesAt) >= c.ttl {
-		m, err := ctx.Config.GetAllNamespacePlain()
+		m, err := ctx.Config.GetAllNamespaceFromFilesystem()
 		if err != nil { return err }
 		c.namespaces = m
 		c.namespacesAt = time.Now()
@@ -241,12 +241,12 @@ func (ctx *RouterContext) SyncAllNamespacePlain() error {
 	return nil
 }
 
-func (ctx *RouterContext) SyncNamespacePlain(ns *model.Namespace) error {
-	c := ctx.plainModeCache()
+func (ctx *RouterContext) SyncNamespaceFromFilesystem(ns *model.Namespace) error {
+	c := ctx.filesystemListingCache()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if at, ok := c.repositoriesAt[ns.Name]; !ok || time.Since(at) >= c.ttl {
-		m, err := ctx.Config.GetAllRepositoryByNamespacePlain(ns.Name)
+		m, err := ctx.Config.GetAllRepositoryByNamespaceFromFilesystem(ns.Name)
 		if err != nil { return err }
 		c.repositories[ns.Name] = m
 		c.repositoriesAt[ns.Name] = time.Now()
@@ -291,14 +291,14 @@ func (ctx *RouterContext) ResolveRepositoryFullName(str string) (string, string,
 	if ctx.Config.IsInBrowseOnlyMode() || ctx.Config.IsInHostMode() {
 		ns, ok = ctx.GitNamespaceList[namespaceName]
 		if !ok {
-			err := ctx.SyncAllNamespacePlain()
+			err := ctx.SyncAllNamespaceFromFilesystem()
 			if err != nil { return "", "", nil, nil, err }
 			ns, ok = ctx.GitNamespaceList[namespaceName]
 			if !ok {
 				return "", "", nil, nil, ErrNotFound
 			}
 		}
-		err = ctx.SyncNamespacePlain(ns)
+		err = ctx.SyncNamespaceFromFilesystem(ns)
 		if err != nil { return "", "", nil, nil, err }
 		rp, ok = ns.RepositoryList[repoName]
 		if !ok {

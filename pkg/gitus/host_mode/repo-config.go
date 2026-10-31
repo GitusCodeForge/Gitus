@@ -1,4 +1,4 @@
-package simple_mode
+package host_mode
 
 import (
 	"path"
@@ -8,7 +8,7 @@ import (
 )
 
 // repo config manager.
-// used only in simple mode.
+// used only in host mode.
 
 type RepoConfigManager struct {
 	rootPath string
