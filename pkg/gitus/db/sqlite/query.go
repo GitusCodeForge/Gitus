@@ -579,53 +579,6 @@ VALUES (?,?,?,?,?,?,?,?)
 	}, nil
 }
 
-func (dbif *SqliteGitusDatabaseInterface) GetAllVisibleNamespace(username string) (map[string]*model.Namespace, error) {
-	pfx := dbif.config.Database.TablePrefix
-	var rs *sql.Rows
-	var err error
-	if len(username) > 0 {
-		stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE (ns_status = 1 OR ns_status = 3) OR (ns_owner = ? OR ns_acl LIKE ? ESCAPE ?)
-`, pfx))
-		if err != nil { return nil, err }
-		rs, err = stmt1.Query(username, db.ToSqlSearchPattern(username), "\\")
-		if err != nil { return nil, err }
-	} else {
-		stmt1, err := dbif.prepare(fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl
-FROM %s_namespace
-WHERE ns_status = 1
-`, pfx,))
-		if err != nil { return nil, err }
-		rs, err = stmt1.Query(username, db.ToSqlSearchPattern(username), "\\")
-		if err != nil { return nil, err }
-	}
-	defer rs.Close()
-	res := make(map[string]*model.Namespace, 0)
-	for rs.Next() {
-		var name, title, desc, email, owner, acl string
-		var regtime int64
-		var status int64
-		err = rs.Scan(&name, &title, &desc, &email, &owner, &regtime, &status, &acl)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		res[name] = &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: desc,
-			Email: email,
-			Owner: owner,
-			RegisterTime: regtime,
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		}
-	}
-	return res, nil
-}
-
 func (dbif *SqliteGitusDatabaseInterface) GetAllNamespace() (map[string]*model.Namespace, error) {
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`

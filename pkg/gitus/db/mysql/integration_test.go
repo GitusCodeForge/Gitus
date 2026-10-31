@@ -132,9 +132,6 @@ func TestMysqlBackend(t *testing.T) {
 	if l, err := dbif.GetAllComprisingNamespace("bob"); err != nil || l["alice"] == nil {
 		t.Fatalf("GetAllComprisingNamespace did not see the ACL entry: %+v %v", l, err)
 	}
-	if l, err := dbif.GetAllVisibleNamespace("bob"); err != nil || l["alice"] == nil {
-		t.Fatalf("GetAllVisibleNamespace did not see the ACL entry: %+v %v", l, err)
-	}
 	if err = dbif.UpdateNamespaceStatus("bob", model.NAMESPACE_NORMAL_PRIVATE); err != nil { t.Fatal(err) }
 	if n, err := dbif.GetNamespaceByName("bob"); err != nil || n.Status != model.NAMESPACE_NORMAL_PRIVATE {
 		t.Fatalf("namespace status: %+v %v", n, err)

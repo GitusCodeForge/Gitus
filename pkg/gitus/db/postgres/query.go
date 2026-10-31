@@ -383,39 +383,6 @@ FROM %s_namespace
 	return  res, nil
 }
 
-func (dbif *PostgresGitusDatabaseInterface) GetAllVisibleNamespace(username string) (map[string]*model.Namespace, error) {
-	pfx := dbif.config.Database.TablePrefix
-	ctx := context.Background()
-	stmt, err := dbif.pool.Query(ctx, fmt.Sprintf(`
-SELECT ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_acl, ns_status
-FROM %s_namespace
-WHERE ns_owner = $1 OR ns_acl->'ACL' ? $2
-`, pfx))
-	if err != nil { return nil, err }
-	defer stmt.Close()
-	res := make(map[string]*model.Namespace, 0)
-	var name, title, description, email, owner, acl string
-	var datetime time.Time
-	var status int
-	for stmt.Next() {
-		err = stmt.Scan(&name, &title, &description, &email, &owner, &datetime, &acl, &status)
-		if err != nil { return nil, err }
-		a, err := model.ParseACL(acl)
-		if err != nil { return nil, err }
-		res[name] = &model.Namespace{
-			Name: name,
-			Title: title,
-			Description: description,
-			Email: email,
-			Owner: owner,
-			RegisterTime: datetime.Unix(),
-			ACL: a,
-			Status: model.GitusNamespaceStatus(status),
-		}
-	}
-	return  res, nil
-}
-
 func (dbif *PostgresGitusDatabaseInterface) GetAllVisibleNamespacePaginated(username string, pageNum int64, pageSize int64) (map[string]*model.Namespace, error) {
 	return dbif.listVisibleNamespaces(username, "", pageNum, pageSize)
 }
