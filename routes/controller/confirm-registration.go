@@ -14,7 +14,7 @@ import (
 
 func bindConfirmRegistrationController(ctx *RouterContext) {
 	http.HandleFunc("GET /confirm-registration", UseMiddleware(
-		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
+		[]Middleware{Logged, RateLimit, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_SHUTDOWN {
 				FoundAt(w, "/shutdown-notice")
@@ -41,7 +41,7 @@ func bindConfirmRegistrationController(ctx *RouterContext) {
 		},
 	))
 	http.HandleFunc("POST /confirm-registration", UseMiddleware(
-		[]Middleware{Logged, UseLoginInfo, ValidPOSTRequestRequired, ErrorGuard}, ctx,
+		[]Middleware{Logged, RateLimit, UseLoginInfo, ValidPOSTRequestRequired, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			if ctx.Config.GlobalVisibility == gitus.GLOBAL_VISIBILITY_SHUTDOWN {
 				FoundAt(w, "/shutdown-notice")
@@ -71,6 +71,15 @@ func bindConfirmRegistrationController(ctx *RouterContext) {
 					fmt.Sprintf("Failed while confirming: %s. Please contact site admin for this issue.", err.Error()),
 					w, r,
 				)
+				return
+			}
+			// The receipt is only valid while the account is waiting for this
+			// confirmation and its address is still the one the receipt was
+			// issued for. An old receipt must not be able to re-activate an
+			// account that was since confirmed, banned or changed address.
+			if u.Status != model.NORMAL_USER_CONFIRM_NEEDED || u.Email != re.Command[2] {
+				ctx.ReceiptSystem.CancelReceipt(rid)
+				ctx.ReportRedirect("/", 5, "Invalid Receipt", "This confirmation is no longer valid. Please contact the site owner.", w, r)
 				return
 			}
 			err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(r.Form.Get("confirmation-password")))

@@ -13,7 +13,7 @@ import (
 func bindVerifyEmailController(ctx *routes.RouterContext) {
 	http.HandleFunc("GET /verify-email", UseMiddleware(
 		[]Middleware{
-			Logged, GlobalVisibility,
+			Logged, RateLimit, LoginRequired, GlobalVisibility,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rid := strings.TrimSpace(r.URL.Query().Get("id"))
@@ -31,6 +31,13 @@ func bindVerifyEmailController(ctx *routes.RouterContext) {
 			if len(re.Command) != 3 || re.Command[0] != receipt.VERIFY_EMAIL {
 				rc.ReceiptSystem.CancelReceipt(rid)
 				rc.ReportRedirect("/", 5, "Invalid Receipt", "The receipt you've provided is invalid. Please try again.", w, r)
+				return
+			}
+			// The receipt verifies an address of the account it was issued
+			// for. Without this, a forwarded link could verify an address on
+			// somebody else's account.
+			if re.Command[1] != rc.LoginInfo.UserName {
+				rc.ReportRedirect("/", 5, "Invalid Receipt", "This receipt does not belong to your account.", w, r)
 				return
 			}
 			err = rc.DatabaseInterface.VerifyRegisteredEmail(re.Command[1], re.Command[2])

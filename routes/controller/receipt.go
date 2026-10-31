@@ -13,7 +13,7 @@ import (
 func bindReceiptController(ctx *RouterContext) {
 	//     /receipt?id={receipt id}
 	http.HandleFunc("GET /receipt", UseMiddleware(
-		[]Middleware{Logged, ErrorGuard}, ctx,
+		[]Middleware{Logged, RateLimit, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			switch rc.Config.GlobalVisibility {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
