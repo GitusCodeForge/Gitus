@@ -12,7 +12,6 @@ import (
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 	"github.com/gomarkdown/markdown"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/niklasfasching/go-org/org"
 )
 
@@ -174,7 +173,7 @@ func bindRepositoryController(ctx *RouterContext) {
 				// minimal as possible, but i'm not ready to make a whole
 				// markdown-to-html renderer, at least not yet.
 				readmeString = string(markdown.ToHTML([]byte(readmeString), nil, nil))
-				readmeString = bluemonday.StrictPolicy().Sanitize(readmeString)
+				readmeString = strictSanitizer.Sanitize(readmeString)
 			case ".org":
 				// NOTE: due to go-org having no documentations and I can't see
 				// a way to inject prefix into the rendering process, we might
@@ -183,13 +182,13 @@ func bindRepositoryController(ctx *RouterContext) {
 				doc := org.New().Parse(strings.NewReader(readmeString), "")
 				out, err := doc.Write(org.NewHTMLWriter())
 				if err != nil {
-					readmeString = bluemonday.StrictPolicy().Sanitize(readmeString)
+					readmeString = strictSanitizer.Sanitize(readmeString)
 					readmeString = fmt.Sprintf("<pre class=\"repo-readme\">>%s</pre>", readmeString)
 				} else {
-					readmeString = bluemonday.StrictPolicy().Sanitize(out)
+					readmeString = strictSanitizer.Sanitize(out)
 				}
 			default:
-				readmeString = bluemonday.StrictPolicy().Sanitize(readmeString)
+				readmeString = strictSanitizer.Sanitize(readmeString)
 				readmeString = fmt.Sprintf("<pre>%s</pre>", readmeString)
 			}
 			// resolve branch comparison info...

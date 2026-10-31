@@ -15,7 +15,6 @@ import (
 	"github.com/gomarkdown/markdown"
 
 	// "github.com/gomarkdown/markdown"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/niklasfasching/go-org/org"
 )
 
@@ -62,21 +61,21 @@ func bindRRDocController(ctx *RouterContext) {
 			switch e {
 			case ".md":
 				sourceString = string(markdown.ToHTML(source, nil, nil))
-				sourceString = bluemonday.UGCPolicy().Sanitize(sourceString)
+				sourceString = ugcSanitizer.Sanitize(sourceString)
 			case ".org":
 				doc := org.New().Parse(bytes.NewReader(source), "")
 				out, err := doc.Write(org.NewHTMLWriter())
 				if err != nil {
-					sourceString = bluemonday.UGCPolicy().Sanitize(string(source))
+					sourceString = ugcSanitizer.Sanitize(string(source))
 					sourceString = fmt.Sprintf("<pre>%s</pre>", sourceString)
 				} else {
-					sourceString = bluemonday.UGCPolicy().Sanitize(out)
+					sourceString = ugcSanitizer.Sanitize(out)
 				}
 			case ".htm": fallthrough
 			case ".html":
-				sourceString = bluemonday.UGCPolicy().Sanitize(string(source))
+				sourceString = ugcSanitizer.Sanitize(string(source))
 			default:
-				sourceString = bluemonday.UGCPolicy().Sanitize(string(source))
+				sourceString = ugcSanitizer.Sanitize(string(source))
 				sourceString = fmt.Sprintf("<pre>%s</pre>", sourceString)
 			}
 		_sourceStringRendered:

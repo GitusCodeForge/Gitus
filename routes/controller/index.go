@@ -10,7 +10,6 @@ import (
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 	"github.com/gomarkdown/markdown"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/niklasfasching/go-org/org"
 )
 
@@ -37,7 +36,7 @@ func bindIndexController(ctx *RouterContext) {
 				case "html":
 					frontPageHtml = f
 				}
-				frontPageHtml = bluemonday.UGCPolicy().Sanitize(frontPageHtml)
+				frontPageHtml = ugcSanitizer.Sanitize(frontPageHtml)
 				LogTemplateError(rc.LoadTemplate("index-static").Execute(w, templates.IndexStaticTemplateModel{
 					Config: rc.Config,
 					LoginInfo: rc.LoginInfo,

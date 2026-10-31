@@ -15,9 +15,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/alecthomas/chroma/v2"
-	chromaHtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/alecthomas/chroma/v2/styles"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -217,13 +215,10 @@ func colorSyntax(filename string, s string) (string, error) {
 	if lexer == nil {
 		return html.EscapeString(s), nil
 	}
-	style := styles.Get("algol")
-	if style == nil { style = styles.Fallback }
-	formatter := chromaHtml.New(chromaHtml.PreventSurroundingPre(true))
 	iterator, err := lexer.Tokenise(nil, s)
 	if err != nil { return "", err }
 	buf := new(bytes.Buffer)
-	err = formatter.Format(buf, style, iterator)
+	err = chromaFormatter.Format(buf, chromaStyle, iterator)
 	if err != nil { return "", err }
 	return buf.String(), nil
 }
