@@ -2,17 +2,18 @@ package routes
 
 import (
 	"html/template"
-	"log"
 	"net/http"
+	"os"
 	"strconv"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/templates"
 )
 
 func LogIfError(err error) {
 	if err != nil {
-		log.Print(err.Error())
+		log.Warn(err.Error())
 	}
 }
 
@@ -21,13 +22,13 @@ const CSRF_KEY = "__csrf_token"
 // go don't have ufcs so i'll have to suffer.
 func WithLog(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf(" %s %s %s\n", r.RemoteAddr, r.Method, r.URL.Path)
+		log.Infof("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
 		f(w, r)
 	}
 }
 func WithLogHandler(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf(" %s %s %s\n", r.RemoteAddr, r.Method, r.URL.Path)
+		log.Infof("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
 		f.ServeHTTP(w, r)
 	}
 }
@@ -40,12 +41,15 @@ func FoundAt(w http.ResponseWriter, p string) {
 
 func LoadTemplate(t *template.Template, name string) *template.Template {
 	res := t.Lookup(name)
-	if res == nil { log.Fatalf("Failed to find template \"%s\"", name) }
+	if res == nil {
+		log.Errorf("Failed to find template %q", name)
+		os.Exit(1)
+	}
 	return res
 }
 
 func LogTemplateError(e error) {
-	if e != nil { log.Print(e) }
+	if e != nil { log.Errorf("%s", e.Error()) }
 }
 
 func GetUsernameFromCookie(r *http.Request) (string, error) {

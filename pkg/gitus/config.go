@@ -178,6 +178,11 @@ type GitusConfig struct {
 	// development and for debugging a live instance, not for normal operation.
 	DebugMode bool `json:"debugMode"`
 
+	// log level.
+	// one of "info", "warn", "error" or "none"; an empty value means "info".
+	// see docs/logging.org.
+	LogLevel string `json:"logLevel"`
+
 	// max session lifetime (seconds)
 	MaxSessionLifetime int `json:"maxSessionLifetime"`
 
@@ -442,6 +447,7 @@ func CreateConfigFile(p string) error {
 		IgnoreRepository: nil,
 		GlobalVisibility: "public",
 		FullAccessUser: []string{"admin"},
+		LogLevel: "info",
 		GitConfig: GitusGitConfig{
 			HTTPCloneProtocol: GitusGitHTTPTransferProtocolDescriptor{
 				V1Dumb: true,

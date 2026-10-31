@@ -1,0 +1,92 @@
+* logging
+
+Gitus writes its own log lines through ~pkg/gitus/log~. The package has three
+levels and a single output stream (stderr by default). Every line is prefixed
+with an RFC 3339 timestamp and the level name:
+
+#+begin_example
+2026-10-31T18:08:29+08:00 INFO Start serving at 127.0.0.1:8000
+2026-10-31T18:08:31+08:00 WARN Specified static assets directory cannot be
+found; assuming "static".
+2026-10-31T18:08:31+08:00 ERROR Failed to dispose the database interface:
+disk I/O error
+#+end_example
+
+(The real output is one line per message; the example wraps for readability.)
+
+** levels
+
+| level   | use it for                                                                 |
+|---------+----------------------------------------------------------------------------|
+| ~INFO~  | the normal happenings of the program, and debugging aid. Requests, warm-up |
+|         | progress, startup and shutdown.                                             |
+| ~WARN~  | an error that is handled with a fallback, or an unexpected state that does |
+|         | not stop the operation: a missing optional configuration value, a webhook  |
+|         | that could not be delivered, a stale cache entry.                           |
+| ~ERROR~ | an error that cannot be handled in a non-failing way: a failed database    |
+|         | commit, a repository that cannot be opened, a template that cannot be      |
+|         | executed.                                                                   |
+
+A log line is written when its level is at or below the configured minimum.
+The default is ~INFO~, which writes everything; ~WARN~ hides ~INFO~;
+~ERROR~ only writes ~ERROR~; ~none~ turns logging off. The level is set in the
+configuration file:
+
+#+begin_src json
+{
+  "logLevel": "info"
+}
+#+end_src
+
+~gitus install~ and ~gitus -init~ run before the configuration is loaded (or
+before it exists at all), so they always log at ~INFO~.
+
+** primitives
+
+All functions live in ~github.com/GitusCodeForge/Gitus/pkg/gitus/log~. The
+package is always imported as ~log~; the standard library ~log~ package is not
+used for application output any more.
+
+- ~log.Infof(format, args...)~ — write an ~INFO~ line using ~fmt.Sprintf~
+  formatting.
+- ~log.Info(args...)~ — write an ~INFO~ line from the operands of ~fmt.Sprint~.
+- ~log.Warnf(format, args...)~, ~log.Warn(...)~ — write a ~WARN~ line.
+- ~log.Errorf(format, args...)~, ~log.Error(...)~ — write an ~ERROR~ line.
+- ~log.SetLevel(log.LevelWarn)~ — set the minimum level. ~LevelNone~ turns the
+  output off entirely.
+- ~log.GetLevel()~ — read the current minimum level.
+- ~log.SetOutput(w)~ — send log lines somewhere else (a file, a buffer in a
+  test). Passing ~nil~ discards them.
+- ~log.Enabled(level)~ — check whether a line of that level would be written.
+  Use it to skip building an expensive message.
+- ~log.ParseLevel("warn")~ — parse the value of ~logLevel~ from the
+  configuration file. Accepts ~info~, ~warn~, ~error~, ~none~ and returns an
+  error for anything else.
+
+** recommended usage
+
+- ~INFO~ is the default. Use it for things an administrator would want when
+  reading the log after the fact: startup and shutdown, the address being
+  served, a request being handled, a hook or cache warm-up that completed.
+- Use ~WARN~ for a failure that the caller recovers from. The operation still
+  succeeds (possibly with less functionality), so the program keeps going.
+  Write what failed and what the fallback is, not just the error text.
+- Use ~ERROR~ for a failure that prevents the operation from completing. When
+  the error is returned to a visitor, log the full text here and show only the
+  generic error page (see ~debugMode~ in [[file:config.org][config]]).
+- Never log secrets: passwords, session keys, CSRF tokens, JWT signing keys or
+  webhook secrets. Log the identifier of the object, not the credential.
+- Do not log from a library that has a caller able to report the error; return
+  the error and let the caller choose the level. (~pkg/gitlib~ follows this,
+  with the exception of a few invariants that panic.)
+- Commands that speak a protocol on stdout — ~gitus ssh~, ~gitus web-hooks~ and
+  ~gitus update-trigger~ — must keep protocol data on stdout. Their
+  diagnostics go through the log package, which writes to stderr, so the two
+  cannot be mixed up.
+
+** tests
+
+The package has tests for level filtering, ~ParseLevel~ and the line format.
+When testing code that logs, call ~log.SetOutput(&buf)~ and restore it with
+~t.Cleanup~; ~log.SetLevel~ is process-wide, so tests that change it must not
+run in parallel with each other.

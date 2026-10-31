@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -15,11 +14,16 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/routes"
 )
 
 func ipcServerLog(msg string) {
-	log.Printf("[IPC_SERV] %s\n", msg)
+	log.Infof("[IPC_SERV] %s", msg)
+}
+
+func ipcServerWarnf(format string, args ...any) {
+	log.Warnf("[IPC_SERV] "+format, args...)
 }
 
 // removeStaleIPCSocket deletes p when nothing is listening on it, and reports
@@ -66,7 +70,7 @@ func StartIPCServer(ctx *routes.RouterContext) (net.Listener, error) {
 			// NOTE: main() only warns about this and keeps going; the server is
 			// still perfectly usable without the IPC channel, it just cannot be
 			// warmed up from the outside.
-			ipcServerLog(fmt.Sprintf("Failed to start the socket server: %s", err.Error()))
+			ipcServerWarnf("Failed to start the socket server: %s", err.Error())
 			return nil, err
 		}
 		go func(){
@@ -74,7 +78,7 @@ func StartIPCServer(ctx *routes.RouterContext) (net.Listener, error) {
 			for {
 				conn, err := listener.Accept()
 				if err != nil {
-					ipcServerLog(fmt.Sprintf("Failed to accept client: %s", err))
+					ipcServerWarnf("Failed to accept client: %s", err)
 					break
 				}
 				go handleIPCServerConnection(ctx, conn)
@@ -111,7 +115,7 @@ func handleIPCServerConnection(ctx *routes.RouterContext, conn net.Conn) {
 		// A peer that connects and hangs up without saying anything is normal
 		// (it is also how a socket is probed for liveness).
 		if !errors.Is(err, io.EOF) {
-			ipcServerLog(fmt.Sprintf("Failed to read command: %s", err))
+			ipcServerWarnf("Failed to read command: %s", err)
 		}
 		return
 	}
@@ -121,24 +125,24 @@ func handleIPCServerConnection(ctx *routes.RouterContext, conn net.Conn) {
 	// repository's full name may contain colons of its own.
 	c := strings.SplitN(s, ":", 2)
 	if len(c) < 2 {
-		ipcServerLog(fmt.Sprintf("Invalid incoming command: %s", s))
+		ipcServerWarnf("Invalid incoming command: %s", s)
 		return
 	}
 	cmdType, err := strconv.Atoi(strings.TrimSpace(c[0]))
 	if err != nil {
-		ipcServerLog(fmt.Sprintf("Invalid incoming command: %s", s))
+		ipcServerWarnf("Invalid incoming command: %s", s)
 		return
 	}
 	vscmd := auxfuncs.ParseCSV(c[1])
 	if len(vscmd) <= 0 {
-		ipcServerLog(fmt.Sprintf("Invalid incoming command: %s", s))
+		ipcServerWarnf("Invalid incoming command: %s", s)
 		return
 	}
 	switch cmdType {
 	case IPC_COMMAND_WARM_LAST_COMMIT_CACHE:
 		// 2:{repo_full_name},{commit_id}
 		if len(vscmd) < 2 {
-			ipcServerLog(fmt.Sprintf("Invalid last-commit cache warm-up command: %s", s))
+			ipcServerWarnf("Invalid last-commit cache warm-up command: %s", s)
 			return
 		}
 		warmLastCommitCache(ctx, vscmd[0], vscmd[1])
@@ -152,27 +156,27 @@ func warmLastCommitCache(ctx *routes.RouterContext, repoFullName string, commitI
 	ns, name := splitRepoFullName(ctx, repoFullName)
 	repo, err := ctx.DatabaseInterface.GetRepositoryByName(ns, name)
 	if err != nil {
-		ipcServerLog(fmt.Sprintf("Failed to warm last-commit cache: cannot find repository %s: %s", repoFullName, err.Error()))
+		ipcServerWarnf("Failed to warm last-commit cache: cannot find repository %s: %s", repoFullName, err.Error())
 		return
 	}
 	rr, ok := repo.Repository.(*gitlib.LocalGitRepository)
 	if !ok {
-		ipcServerLog(fmt.Sprintf("Failed to warm last-commit cache: %s is not a git repository", repoFullName))
+		ipcServerWarnf("Failed to warm last-commit cache: %s is not a git repository", repoFullName)
 		return
 	}
 	o, err := rr.ReadObject(commitId)
 	if err != nil {
-		ipcServerLog(fmt.Sprintf("Failed to warm last-commit cache: cannot read commit %s: %s", commitId, err.Error()))
+		ipcServerWarnf("Failed to warm last-commit cache: cannot read commit %s: %s", commitId, err.Error())
 		return
 	}
 	cobj, ok := o.(*gitlib.CommitObject)
 	if !ok {
-		ipcServerLog(fmt.Sprintf("Failed to warm last-commit cache: %s is not a commit", commitId))
+		ipcServerWarnf("Failed to warm last-commit cache: %s is not a commit", commitId)
 		return
 	}
 	_, err = rr.ResolveLastCommitAtDir(cobj, "")
 	if err != nil {
-		ipcServerLog(fmt.Sprintf("Failed to warm last-commit cache for %s@%s: %s", repoFullName, commitId, err.Error()))
+		ipcServerWarnf("Failed to warm last-commit cache for %s@%s: %s", repoFullName, commitId, err.Error())
 		return
 	}
 	ipcServerLog(fmt.Sprintf("Warmed last-commit cache for %s@%s", repoFullName, commitId))

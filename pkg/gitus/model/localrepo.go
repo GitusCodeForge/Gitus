@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 )
 
 type LocalRepository any
@@ -72,7 +72,8 @@ func GetLocalRepositoryLocalPath(r LocalRepository) string {
 	case REPO_TYPE_GIT:
 		return r.(*gitlib.LocalGitRepository).GitDirectoryPath
 	default:
-		log.Panic(ErrNotSupported)
+		log.Errorf("%s", ErrNotSupported.Error())
+		panic(ErrNotSupported)
 	}
 	return ""
 }
@@ -95,7 +96,8 @@ func AddFileToRepoString(
 			commitMessage, content,
 		)
 	default:
-		log.Panic(ErrNotSupported)
+		log.Errorf("%s", ErrNotSupported.Error())
+		panic(ErrNotSupported)
 	}
 	return "", nil
 }
@@ -118,7 +120,8 @@ func AddFileToRepoReader(
 			commitMessage, content, contentSize,
 		)
 	default:
-		log.Panic(ErrNotSupported)
+		log.Errorf("%s", ErrNotSupported.Error())
+		panic(ErrNotSupported)
 	}
 	return "", nil
 }
@@ -141,7 +144,8 @@ func AddMultipleFileToRepoString(
 			commitMessage, content,
 		)
 	default:
-		log.Panic(ErrNotSupported)
+		log.Errorf("%s", ErrNotSupported.Error())
+		panic(ErrNotSupported)
 	}
 	return "", nil
 }

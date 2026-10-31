@@ -3,10 +3,10 @@ package controller
 import (
 	"fmt"
 	"html"
-	"log"
 	"net/http"
 	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 	"github.com/gomarkdown/markdown"
@@ -47,7 +47,7 @@ func bindIndexController(ctx *RouterContext) {
 				if rc.Config.UseNamespace {
 					FoundAt(w, "/all/namespace")
 				} else {
-					log.Println("Inconsistency: all/namespace front page but instance does not support namespaces. config changed to all/repository.")
+					log.Warnf("Inconsistency: all/namespace front page but instance does not support namespaces; using all/repository.")
 					rc.Config.FrontPage.Type = "all/repository"
 					rc.Config.Sync()
 					FoundAt(w, "/all/repo")

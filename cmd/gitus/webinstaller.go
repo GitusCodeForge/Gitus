@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -22,6 +21,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
 	dbinit "github.com/GitusCodeForge/Gitus/pkg/gitus/db/init"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
@@ -82,7 +82,7 @@ type WebInstallerRoutingContext struct {
 }
 
 func logTemplateError(e error) {
-	if e != nil { log.Print(e) }
+	if e != nil { log.Errorf("%s", e.Error()) }
 }
 
 func (ctx *WebInstallerRoutingContext) loadTemplate(name string) *template.Template {
@@ -106,13 +106,13 @@ func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.Ha
 		if ctx.EntryKey == "" && ctx.SessionKey == "" {
 			entryKey, err := auxfuncs.CryptoGenSym(12)
 			if err != nil {
-				log.Printf("Failed to generate an entry key: %s\n", err.Error())
+				log.Errorf("Failed to generate an entry key: %s", err.Error())
 				w.WriteHeader(500)
 				fmt.Fprint(w, "Failed to generate an entry key. Please try again.")
 				return
 			}
 			ctx.EntryKey = entryKey
-			log.Printf("Entry key missing. New entry key: %s\n", ctx.EntryKey)
+			log.Infof("Entry key missing. New entry key: %s", ctx.EntryKey)
 			w.Header().Add("WWW-Authenticate", "Basic realm=\"webinstaller\"")
 			w.WriteHeader(401)
 			return
@@ -140,7 +140,7 @@ func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.Ha
 			ctx.EntryKey = ""
 			sessionKey, err := auxfuncs.CryptoGenSym(16)
 			if err != nil {
-				log.Printf("Failed to generate a session key: %s\n", err.Error())
+				log.Errorf("Failed to generate a session key: %s", err.Error())
 				w.WriteHeader(500)
 				fmt.Fprint(w, "Failed to generate a session key. Please try again.")
 				return
@@ -187,7 +187,7 @@ func withLoginGuard(ctx *WebInstallerRoutingContext, f http.HandlerFunc) http.Ha
 
 func withLog(f http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf(" %s %s\n", r.Method, r.URL.Path)
+		log.Infof("%s %s", r.Method, r.URL.Path)
 		f(w, r)
 	}
 }
@@ -1206,24 +1206,26 @@ func WebInstaller() {
 		Template: masterTemplate,
 		Config: &gitus.GitusConfig{},
 	})
-	log.Println("Please use these credentials for login when asked:")
-	log.Println("Username: gitus")
-	log.Printf("Password: %s\n", entryKey)
+	log.Info("Please use these credentials for login when asked:")
+	log.Info("Username: gitus")
+	log.Infof("Password: %s", entryKey)
 	go func() {
-		log.Printf("Trying to serve at %s:%d\n", "0.0.0.0", portNum)
+		log.Infof("Trying to serve at %s:%d", "0.0.0.0", portNum)
 		err := server.ListenAndServe()
 		if err != http.ErrServerClosed {
-			log.Fatalf("HTTP server error: %v", err)
+			log.Errorf("HTTP server error: %s", err.Error())
+			os.Exit(1)
 		}
-		log.Println("Stopped serving new connections.")
+		log.Info("Stopped serving new connections.")
 	}()
 
 	<-sigChan
 	
 	if err := server.Shutdown(context.TODO()); err != nil {
-		log.Fatalf("HTTP shutdown fail: %v", err)
+		log.Errorf("HTTP shutdown fail: %s", err.Error())
+		os.Exit(1)
 	}
 	
-	log.Println("Graceful shutdown complete.")
+	log.Info("Graceful shutdown complete.")
 }
 

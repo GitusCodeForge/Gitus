@@ -2,11 +2,12 @@ package gitlib
 
 import (
 	"bytes"
-	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 )
 
 // parser for git-blame output...
@@ -167,7 +168,7 @@ func (gr *LocalGitRepository) Blame(c *CommitObject, p string) (*PorcelainBlame,
 	cmd.Stderr = stderrBuf
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println(stderrBuf.String())
+		log.Warnf("git blame: %s", stderrBuf.String())
 		return nil, err
 	}
 	pb, err := parsePorcelainBlame(newTrueLineReader(stdoutBuf))

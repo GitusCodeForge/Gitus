@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/routes"
 )
@@ -32,7 +32,7 @@ func HandleUpdateTrigger(ctx *routes.RouterContext, repoFullName string, refFull
 	// which may involve a slow endpoint.
 	err = sendIPCCommand(ctx, IPC_COMMAND_WARM_LAST_COMMIT_CACHE, repoFullName, newRev)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to warm the last-commit cache for %s@%s: %s\n", repoFullName, newRev, err.Error())
+		log.Warnf("Failed to warm the last-commit cache for %s@%s: %s", repoFullName, newRev, err.Error())
 	}
 	// The fork page compares a fork against the upstream repository without
 	// fetching (P13). Refresh the upstream's remote-tracking ref for the branch
@@ -53,12 +53,12 @@ func refreshForkComparison(ctx *routes.RouterContext, repo *model.Repository, re
 	if repo.ForkOriginName == "" && repo.ForkOriginNamespace == "" { return }
 	upstreamPath := path.Join(ctx.Config.GitRoot, repo.ForkOriginNamespace, repo.ForkOriginName)
 	if !gitlib.IsValidGitDirectory(upstreamPath) {
-		fmt.Fprintf(os.Stderr, "Cannot refresh fork comparison: %s is not a git repository\n", upstreamPath)
+		log.Warnf("Cannot refresh fork comparison: %s is not a git repository", upstreamPath)
 		return
 	}
 	upstream, err := model.CreateLocalRepository(model.REPO_TYPE_GIT, repo.ForkOriginNamespace, repo.ForkOriginName, upstreamPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot refresh fork comparison for %s: %s\n", repo.FullName(), err.Error())
+		log.Warnf("Cannot refresh fork comparison for %s: %s", repo.FullName(), err.Error())
 		return
 	}
 	gr, ok := upstream.(*gitlib.LocalGitRepository)
@@ -66,6 +66,6 @@ func refreshForkComparison(ctx *routes.RouterContext, repo *model.Repository, re
 	remoteName := fmt.Sprintf("%s/%s", repo.Namespace, repo.Name)
 	branch := strings.TrimPrefix(refFullName, "refs/heads/")
 	if err := gr.FetchRemoteBranch(remoteName, branch); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to refresh fork comparison for %s/%s: %s\n", repo.FullName(), branch, err.Error())
+		log.Warnf("Failed to refresh fork comparison for %s/%s: %s", repo.FullName(), branch, err.Error())
 	}
 }

@@ -2,11 +2,11 @@ package routes
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"slices"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/templates"
 )
@@ -41,7 +41,7 @@ func UseMiddleware(w []Middleware, ctx *RouterContext, f HandlerFunc) http.Handl
 
 var Logged Middleware = func(f HandlerFunc) HandlerFunc {
 	return func(ctx *RouterContext, w http.ResponseWriter, r *http.Request) {
-		log.Printf(" %s %s %s\n", r.RemoteAddr, r.Method, r.URL.Path)
+		log.Infof("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
 		f(ctx, w, r)
 	}
 }

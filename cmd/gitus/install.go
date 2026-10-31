@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"os"
 	"os/exec"
@@ -16,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -118,7 +118,7 @@ func askYesNo(prompt string) bool {
 	for {
 		var answer string
 		_, err := fmt.Scan(&answer)
-		if err != nil { log.Panic(err) }
+		if err != nil { log.Errorf("%s", err.Error()); os.Exit(1) }
 		if answer == "y" || answer == "Y" {
 			result = true
 			break
@@ -356,7 +356,7 @@ func InstallGitus(ctx routes.RouterContext) {
 		fmt.Println("This folder does not exist yet; we will create it for you.")
 		err = os.MkdirAll(cfg.GitRoot, os.ModeDir|0755)
 		if err != nil {
-			log.Panic(err)
+			log.Errorf("%s", err.Error()); os.Exit(1)
 		}
 		fmt.Println("Git root creation done.")
 	}
@@ -368,12 +368,12 @@ func InstallGitus(ctx routes.RouterContext) {
 		os.Exit(1)
 	}
 	s, err := dbif.IsDatabaseUsable()
-	if err != nil { log.Panic(err) }
+	if err != nil { log.Errorf("%s", err.Error()); os.Exit(1) }
 	if !s {
 		fmt.Println("Setting up tables...")
 		err = dbif.InstallTables()
 		if err != nil {
-			log.Panic(err)
+			log.Errorf("%s", err.Error()); os.Exit(1)
 		}
 	}	
 
@@ -384,12 +384,12 @@ func InstallGitus(ctx routes.RouterContext) {
 		os.Exit(1)
 	}
 	s, err = ssif.IsSessionStoreUsable()
-	if err != nil { log.Panic(err) }
+	if err != nil { log.Errorf("%s", err.Error()); os.Exit(1) }
 	if !s {
 		fmt.Println("Setting up session store...")
 		err = ssif.Install()
 		if err != nil {
-			log.Panic(err)
+			log.Errorf("%s", err.Error()); os.Exit(1)
 		}
 	}
 
@@ -400,12 +400,12 @@ func InstallGitus(ctx routes.RouterContext) {
 		os.Exit(1)
 	}
 	s, err = ctx.ReceiptSystem.IsReceiptSystemUsable()
-	if err != nil { log.Panic(err) }
+	if err != nil { log.Errorf("%s", err.Error()); os.Exit(1) }
 	if !s {
 		fmt.Println("Setting up receipt...")
 		err = ctx.ReceiptSystem.Install()
 		if err != nil {
-			log.Panic(err)
+			log.Errorf("%s", err.Error()); os.Exit(1)
 		}
 	}
 	
@@ -416,7 +416,7 @@ func InstallGitus(ctx routes.RouterContext) {
 	if err == db.ErrEntityNotFound {
 		adminExists = false
 	} else if err != nil {
-		log.Panic(err)
+		log.Errorf("%s", err.Error()); os.Exit(1)
 	} else {
 		adminExists = true
 	}
@@ -428,19 +428,19 @@ func InstallGitus(ctx routes.RouterContext) {
 	if reinstallAdmin {
 		if adminExists {
 			err = dbif.HardDeleteUserByName("admin")
-			if err != nil { log.Panic(err) }
+			if err != nil { log.Errorf("%s", err.Error()); os.Exit(1) }
 		}
 		userPassword, err := mkpass()
 		if err != nil {
-			log.Panicf("Failed to generate password: %s\n", err.Error())
+			log.Errorf("Failed to generate password: %s", err.Error()); os.Exit(1)
 		}
 		r, err := bcrypt.GenerateFromPassword([]byte(userPassword), ctx.Config.PasswordHashStrength)
 		if err != nil {
-			log.Panicf("Failed to generate password: %s\n", err.Error())
+			log.Errorf("Failed to generate password: %s", err.Error()); os.Exit(1)
 		}
 		_, err = dbif.RegisterUser("admin", "", string(r), model.SUPER_ADMIN)
 		if err != nil {
-			log.Panicf("Failed to register user: %s\n", err.Error())
+			log.Errorf("Failed to register user: %s", err.Error()); os.Exit(1)
 		}
 		fmt.Print(`Admin user setup complete. Please use the reset-admin command to change the password:
 

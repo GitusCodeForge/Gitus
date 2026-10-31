@@ -3,10 +3,12 @@ package gitlib
 import (
 	"errors"
 	"fmt"
-	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 )
 
 type AuthorTime struct {
@@ -36,7 +38,8 @@ func parseAuthorTime(s string) AuthorTime {
 	re := reAuthorTime
 	matchres := re.FindSubmatch([]byte(s))
 	if len(matchres) <= 0 {
-		log.Fatalf("Cannot parse author-time: %s\n", s)
+		log.Errorf("Cannot parse author-time: %s", s)
+		os.Exit(1)
 	}
 	res.AuthorName = string(matchres[1])
 	res.AuthorEmail = string(matchres[2])
@@ -46,7 +49,10 @@ func parseAuthorTime(s string) AuthorTime {
 	if err != nil { timeStampInt = 0 }
 	timePiece := time.Unix(timeStampInt, 0).UTC()
 	timezoneOffsetInt, err := parseTimezoneOffset(timezoneOffsetString)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Errorf("Cannot parse the timezone offset of author-time: %s", err.Error())
+		os.Exit(1)
+	}
 	timezone := time.FixedZone("UTC" + timezoneOffsetString, timezoneOffsetInt)
 	res.Time = timePiece.In(timezone)
 	return res

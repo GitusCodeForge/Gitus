@@ -4,7 +4,6 @@ import (
 	gocontext "context"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +15,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/confirm_code"
 	dbinit "github.com/GitusCodeForge/Gitus/pkg/gitus/db/init"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/mail"
 	rsinit "github.com/GitusCodeForge/Gitus/pkg/gitus/receipt/init"
 	ssinit "github.com/GitusCodeForge/Gitus/pkg/gitus/session/init"
@@ -41,7 +41,7 @@ func main() {
 	configPath := *configArg
 	root, err := os.Executable()
 	if err != nil {
-		fmt.Printf("Failed to resolve absolute path for config file: %s\n", err.Error())
+		log.Errorf("Failed to resolve absolute path for config file: %s", err.Error())
 		os.Exit(1)
 	}
 	if !path.IsAbs(configPath) {
@@ -61,7 +61,7 @@ func main() {
 		}
 		err := gitus.CreateConfigFile(configPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create configuration file: %s\n", err.Error())
+			log.Errorf("Failed to create configuration file: %s", err.Error())
 			os.Exit(1)
 		}
 		fmt.Printf("Configuration file created. (Please further edit it to fit your exact requirements.)\n")
@@ -99,11 +99,21 @@ func main() {
 		if isSsh {
 			fmt.Print(gitlib.ToPktLine(fmt.Sprintf("ERR failed to load configuration file: %s\n", err.Error())))
 		} else {
-			fmt.Fprintf(os.Stderr, "Failed to load configuration file: %s\n", err.Error())
+			log.Errorf("Failed to load configuration file: %s", err.Error())
 		}
 		os.Exit(1)
 	}
-	
+
+	// Apply the log level as early as possible. An unknown value falls back to
+	// "info" and warns, so a typo in the configuration file cannot silence the
+	// server by accident.
+	if lvl, lerr := log.ParseLevel(config.LogLevel); lerr != nil {
+		log.SetLevel(log.LevelInfo)
+		log.Warnf("%s; using \"info\"", lerr.Error())
+	} else {
+		log.SetLevel(lvl)
+	}
+
 	masterTemplate := templates.LoadTemplate()
 	context := routes.RouterContext{
 		Config: config,
@@ -115,7 +125,7 @@ func main() {
 		if dbifNeeded {
 			dbif, err := dbinit.InitializeDatabase(config)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to load database: %s\n", err.Error())
+				log.Errorf("Failed to load database: %s", err.Error())
 				os.Exit(1)
 			}
 			context.DatabaseInterface = dbif
@@ -124,7 +134,7 @@ func main() {
 		if ssifNeeded {
 			ssif, err := ssinit.InitializeDatabase(config)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to initialize session store: %s\n", err.Error())
+				log.Errorf("Failed to initialize session store: %s", err.Error())
 				os.Exit(1)
 			}
 			context.SessionInterface = ssif
@@ -133,8 +143,8 @@ func main() {
 		if keyctxNeeded {
 			keyctx, err := ssh.ToContext(config)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create key managing context: %s\n", err.Error())
-				fmt.Fprintf(os.Stderr, "You should try to fix the problem and run Gitus again, or else you might not be able to clone/push through SSH.\n")
+				log.Errorf("Failed to create key managing context: %s", err.Error())
+				log.Errorf("You should try to fix the problem and run Gitus again, or else you might not be able to clone/push through SSH.")
 				os.Exit(1)
 			}
 			context.SSHKeyManagingContext = keyctx
@@ -143,8 +153,8 @@ func main() {
 		if rsifNeeded {
 			rs, err := rsinit.InitializeReceiptSystem(config)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create receipt system interface: %s\n", err.Error())
-				fmt.Fprintf(os.Stderr, "You should try to fix the problem and run Gitus again, or things like user registration & password resetting wouldn't work properly.\n")
+				log.Errorf("Failed to create receipt system interface: %s", err.Error())
+				log.Errorf("You should try to fix the problem and run Gitus again, or things like user registration & password resetting wouldn't work properly.")
 				os.Exit(1)
 			}
 			context.ReceiptSystem = rs
@@ -154,8 +164,8 @@ func main() {
 			ml, err := mail.InitializeMailer(config)
 			// TODO: somehow if err != nil `ml` still seems to be non-nil. fix this.
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create mailer interface: %s\n", err.Error())
-				fmt.Fprintf(os.Stderr, "You should try to fix the problem and run Gitus again, or things thar depends on sending emails wouldn't work properly.\n")
+				log.Errorf("Failed to create mailer interface: %s", err.Error())
+				log.Errorf("You should try to fix the problem and run Gitus again, or things that depend on sending emails wouldn't work properly.")
 				ml = nil
 			}
 			context.Mailer = ml
@@ -164,15 +174,15 @@ func main() {
 		if ccmNeeded {
 			ccm, err := confirm_code.InitializeConfirmCodeManager(config)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create confirm code manager: %s\n", err.Error())
-				fmt.Fprintf(os.Stderr, "You should try to fix the problem and run Gitus again, or things thar depends on sending emails wouldn't work properly.\n")
+				log.Errorf("Failed to create confirm code manager: %s", err.Error())
+				log.Errorf("You should try to fix the problem and run Gitus again, or things that depend on sending emails wouldn't work properly.")
 			}
 			context.ConfirmCodeManager = ccm
 		}
 
 		ok, err := forgeModeGitusReadyCheck(context)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "Gitus Ready Check failed: %s\n", err.Error())
+			log.Errorf("Gitus Ready Check failed: %s", err.Error())
 			// NOTE(2026.2.14): deprecation of cli installer
 			// InstallGitus(context)
 			WebInstaller()
@@ -182,8 +192,8 @@ func main() {
 
 	gitUser, err := user.Lookup(context.Config.GitUser)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to find Git user %s: %s\n", context.Config.GitUser, err.Error())
-		fmt.Fprintf(os.Stderr, "You should try to fix the problem and run Gitus again, or else you might not be able to clone/push through SSH.\n")
+		log.Errorf("Failed to find Git user %s: %s", context.Config.GitUser, err.Error())
+		log.Errorf("You should try to fix the problem and run Gitus again, or else you might not be able to clone/push through SSH.")
 		os.Exit(1)
 	}
 	context.GitUserHomeDirectory = gitUser.HomeDir
@@ -199,7 +209,7 @@ func main() {
 			return
 		case "reset-admin":
 			if noConfig {
-				fmt.Fprintf(os.Stderr, "No config file specified. Cannot continue.\n")
+				log.Errorf("No config file specified. Cannot continue.")
 			} else {
 				ResetAdmin(&context)
 			}
@@ -256,7 +266,7 @@ func main() {
 	http.Handle("GET /favicon.ico", routes.WithLogHandler(fs))
 	http.Handle("GET /static/", http.StripPrefix("/static/",
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf(" %s %s %s\n", r.RemoteAddr, r.Method, r.URL.Path)
+			log.Infof("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
 			// TODO: add this to config as an advanced config option.
 			w.Header().Add("Cache-Control", "public, max-age=3600")
 			fs.ServeHTTP(w, r)
@@ -275,7 +285,7 @@ func main() {
 	if context.DatabaseInterface != nil {
 		// Tables that were added after this instance was installed; idempotent.
 		if err := context.DatabaseInterface.EnsureSchema(); err != nil {
-			log.Printf("WARNING: failed to apply schema updates: %s\n", err.Error())
+			log.Warnf("Failed to apply schema updates: %s", err.Error())
 		}
 	}
 	
@@ -283,20 +293,21 @@ func main() {
 
 	ipcServer, err := StartIPCServer(&context)
 	if err != nil {
-		log.Printf("WARNING: IPC server failed to start. Some functionalities might not be working...\nWARNING: %s\n", err.Error())
+		log.Warnf("IPC server failed to start; some functionalities might not be working: %s", err.Error())
 	}
 
 	if config.DebugMode {
-		log.Printf("WARNING: debug mode is on; internal error messages (file paths, database errors, ...) will be shown to visitors.\nWARNING: turn it off in the site settings once you are done debugging.\n")
+		log.Warnf("Debug mode is on; internal error messages (file paths, database errors, ...) will be shown to visitors. Turn it off in the site settings once you are done debugging.")
 	}
 	
 	go func() {
-		log.Printf("Start serving at %s:%d\n", config.BindAddress, config.BindPort)
+		log.Infof("Start serving at %s:%d", config.BindAddress, config.BindPort)
 		err := server.ListenAndServe()
 		if err != http.ErrServerClosed {
-			log.Fatalf("HTTP server error: %v", err)
+			log.Errorf("HTTP server error: %s", err.Error())
+			os.Exit(1)
 		}
-		log.Println("Stopped serving new connections.")
+		log.Info("Stopped serving new connections.")
 	}()
 
 
@@ -321,26 +332,27 @@ func main() {
 	defer shutdownRelease()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("HTTP shutdown err: %s", err.Error())
+		log.Errorf("HTTP shutdown error: %s", err.Error())
+		os.Exit(1)
 	}
 
 	if err := ipcServer.Close(); err != nil {
-		log.Printf("Failed to shutdown socket server: %s\n", err.Error())
+		log.Errorf("Failed to shutdown socket server: %s", err.Error())
 	}
 
 	if context.DatabaseInterface != nil {
 		if err = context.DatabaseInterface.Dispose(); err != nil {
-			log.Printf("Failed to dispose database interface: %s\n", err.Error())
+			log.Errorf("Failed to dispose database interface: %s", err.Error())
 		}
 	}
 	if context.SessionInterface != nil {
 		if err = context.SessionInterface.Dispose(); err != nil {
-			log.Printf("Failed to dispose session store: %s\n", err.Error())
+			log.Errorf("Failed to dispose session store: %s", err.Error())
 		}
 	}
 	if context.ReceiptSystem != nil {
 		if err = context.ReceiptSystem.Dispose(); err != nil {
-			log.Printf("Failed to dispose receipt system: %s\n", err.Error())
+			log.Errorf("Failed to dispose receipt system: %s", err.Error())
 		}
 	}
 
@@ -348,7 +360,7 @@ func main() {
 		os.RemoveAll(path.Join(gitUser.HomeDir, "gitus.sock"))
 	}
 	
-	log.Println("Graceful shutdown complete.")
+	log.Info("Graceful shutdown complete.")
 }
 
 

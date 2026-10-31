@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"path"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/confirm_code"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/mail"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/receipt"
@@ -112,7 +112,7 @@ func (ctx RouterContext) ReportInternalError(msg string, w http.ResponseWriter, 
 	// SQL errors and other internals, so it is only rendered to the visitor when
 	// the site is explicitly put in debug mode (see the site settings).
 	ref := newErrorReference()
-	log.Printf("[INTERNAL ERROR] %s %s %s (ref %s): %s", r.RemoteAddr, r.Method, r.URL.Path, ref, msg)
+	log.Errorf("[INTERNAL ERROR] %s %s %s (ref %s): %s", r.RemoteAddr, r.Method, r.URL.Path, ref, msg)
 	shown := msg
 	if !ctx.Config.DebugMode {
 		shown = fmt.Sprintf("An unexpected error occurred. Please contact the administrator and mention reference %s.", ref)
