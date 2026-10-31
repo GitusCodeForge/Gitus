@@ -93,3 +93,45 @@ func TestShouldShowMaintenanceAnnouncement(t *testing.T) {
 		}
 	}
 }
+
+func TestEffectiveCommitMessageTags(t *testing.T) {
+	// a configuration file that never mentions the field gets the built-in
+	// convention.
+	cfg := &GitusConfig{}
+	if got := cfg.EffectiveCommitMessageTags(); len(got) != 1 ||
+		got[DefaultNoWebhookCommitMessageTag] != COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK {
+		t.Fatalf("default tags = %v", got)
+	}
+	if got := cfg.AllCommitMessageTags(); len(got) != 1 || got[0] != DefaultNoWebhookCommitMessageTag {
+		t.Fatalf("default tag list = %v", got)
+	}
+	if got := cfg.CommitMessageTagListForBehavior(COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK); len(got) != 1 ||
+		got[0] != DefaultNoWebhookCommitMessageTag {
+		t.Fatalf("default no-webhook tags = %v", got)
+	}
+
+	// an explicitly empty object turns every tag off.
+	off := &GitusConfig{CommitMessageTags: map[string]string{}}
+	if got := off.EffectiveCommitMessageTags(); len(got) != 0 {
+		t.Fatalf("disabled tags = %v", got)
+	}
+	if got := off.AllCommitMessageTags(); len(got) != 0 {
+		t.Fatalf("disabled tag list = %v", got)
+	}
+
+	// custom tags can alias a behaviour, or carry none at all.
+	custom := &GitusConfig{CommitMessageTags: map[string]string{
+		"skip-webhook": "no-webhook",
+		"deploy-ok":    "",
+	}}
+	if got := custom.AllCommitMessageTags(); len(got) != 2 || got[0] != "deploy-ok" || got[1] != "skip-webhook" {
+		t.Fatalf("custom tag list = %v", got)
+	}
+	noWebhook := custom.CommitMessageTagListForBehavior(COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK)
+	if len(noWebhook) != 1 || noWebhook[0] != "skip-webhook" {
+		t.Fatalf("custom no-webhook tags = %v", noWebhook)
+	}
+	if got := custom.CommitMessageTagListForBehavior("nonexistent"); len(got) != 0 {
+		t.Fatalf("tags for an unknown behaviour = %v", got)
+	}
+}

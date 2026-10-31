@@ -1,4 +1,75 @@
 * commit message
 
+Git itself puts no meaning in the message body; the following conventions are
+interpreted by Gitus.
+
+** co-authored-by
+
 + =Co-Authored-By: ...= (=^\s*[cC]o-[aA]uthored-[bB]y:\s*(.*)$=): coauthor.
-  
+  every matching line is collected into =CoAuthorInfo= and shown as one of the
+  authors of the commit.
+
+** tags
+
+a /tag/ is a line of its own in the commit message:
+
+#+begin_src text
+fix: fixes, part 1
+
+should not trigger webhook since this is not done.
+
+!no-webhook
+#+end_src
+
+matching ignores case and surrounding whitespace, so =!No-Webhook= with a
+leading indent counts as well. a tag inside a sentence does not count: the whole
+line has to be the tag.
+
+=commitMessageTags= maps a tag to the behaviour it requests:
+
+#+begin_src json
+{
+  "commitMessageTags": {
+    "!no-webhook": "no-webhook",
+    "skip-webhook": "no-webhook",
+    "deploy-ok": ""
+  }
+}
+#+end_src
+
++ the key is the tag itself, as it should be written in the commit message;
++ the value is the behaviour. =no-webhook= skips the webhook of the push;
+  an empty value (or any unknown behaviour) only records the tag in the webhook
+  payload, so the receiver of the webhook can act on its own conventions;
++ when the configuration file does not mention =commitMessageTags= at all, the
+  built-in ={"!no-webhook": "no-webhook"}= convention applies. an explicitly
+  empty object (={}=) turns every tag off.
+
+** no-webhook
+
+a push sends one webhook per updated ref. if /any/ commit in the push carries a
+tag whose behaviour is =no-webhook=, the webhook for that push is not sent and
+nothing is registered in the webhook log, so the result report page is not left
+with a request that will never be answered.
+
+this is best effort and never rejects the push. a message is written to the
+log, which the update hook sends to =/dev/null=; use the webhook log if you need
+to check whether a push was skipped.
+
+** payload
+
+the webhook payload carries the recognized tags of each commit:
+
+#+begin_src json
+{
+  "commits": [
+    {
+      "id": "…",
+      "message": "fix: …\n\n!no-webhook\n",
+      "tags": ["!no-webhook"]
+    }
+  ]
+}
+#+end_src
+
+=tags= is omitted when the commit has none.

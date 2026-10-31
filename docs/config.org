@@ -50,6 +50,14 @@ time the effective mode becomes =mode= (=shutdown= by default). it returns to
 [[file:maintenance.org][maintenance]] for the timeline and the difference
 between =shutdown= and =maintenance=.
 
+** commit message tags
+
+=commitMessageTags= maps a tag (a line of its own in the commit message) to the
+behaviour it requests. the built-in behaviour is =no-webhook=, which skips the
+webhook of the push that contains the commit. when the field is not mentioned
+at all, ={"!no-webhook": "no-webhook"}= applies; ={}= turns every tag off. see
+[[file:commit-message.org][commit message]].
+
 ** http clone
 
 =gitConfig.httpCloneProtocol.v1dumb= and =gitConfig.httpCloneProtocol.v2=

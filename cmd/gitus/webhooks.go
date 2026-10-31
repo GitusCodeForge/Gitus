@@ -16,6 +16,8 @@ import (
 
 	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/golang-jwt/jwt/v5"
@@ -31,6 +33,8 @@ type WebHookEntityInfo struct{
 type WebHookCommitInfo struct{
 	Id string `json:"id"`
 	Message string `json:"message"`
+	// tags the instance recognizes in the commit message, e.g. "!no-webhook".
+	Tags []string `json:"tags,omitempty"`
 	URL string `json:"url"`
 	Author WebHookEntityInfo `json:"author"`
 	Committer WebHookEntityInfo `json:"committer"`
@@ -170,6 +174,9 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 	commitIdList := strings.Split(stdoutBuf.String(), "\n")
 	commits := make([]*WebHookCommitInfo, 0)
 	localgr := repo.Repository.(*gitlib.LocalGitRepository)
+	allTags := ctx.Config.AllCommitMessageTags()
+	noWebhookTags := ctx.Config.CommitMessageTagListForBehavior(gitus.COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK)
+	skipWebhook := false
 	for _, k := range commitIdList {
 		id := strings.TrimSpace(k)
 		if len(id) <= 0 { break }
@@ -185,9 +192,12 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 		}
 		authorUsername, _ := resolveUsername(ctx, cobj.AuthorInfo.AuthorEmail)
 		committerUsername, _ := resolveUsername(ctx, cobj.CommitterInfo.AuthorEmail)
+		commitTags := gitlib.CommitMessageTagList(cobj.CommitMessage, allTags)
+		if hasAnyTag(commitTags, noWebhookTags) { skipWebhook = true }
 		commits = append(commits, &WebHookCommitInfo{
 			Id: cobj.Id,
 			Message: cobj.CommitMessage,
+			Tags: commitTags,
 			URL: resolveURL(ctx, repo, cobj),
 			Author: WebHookEntityInfo{
 				Name: cobj.AuthorInfo.AuthorName,
@@ -201,6 +211,14 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 			},
 			Timestamp: cobj.CommitTime.Unix(),
 		})
+	}
+	// A commit message tag can ask the instance not to notify the webhook.
+	// The tag applies to the whole push, since there is one webhook per ref
+	// update. Nothing is registered in the database either, so the result
+	// report page is not left with a dangling request.
+	if skipWebhook {
+		log.Infof("Skipping the webhook of %s@%s: a commit message tag requests it", repo.FullName(), newRev)
+		return
 	}
 	owner, err := ctx.DatabaseInterface.GetUserByName(repo.Owner)
 	if err != nil {
@@ -301,3 +319,12 @@ func HandleWebHook(ctx *routes.RouterContext, repoFullName string, refFullName s
 	}
 }
 
+// hasAnyTag reports whether any of the tags appears in list.
+func hasAnyTag(list []string, tags []string) bool {
+	for _, t := range list {
+		for _, k := range tags {
+			if t == k { return true }
+		}
+	}
+	return false
+}

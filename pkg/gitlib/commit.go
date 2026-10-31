@@ -89,6 +89,35 @@ func (rgo RawGitObject) readAsCommitObjectNoDeflate() (*CommitObject, error) {
 
 var reCoAuthoredBy = regexp.MustCompile(`^\s*[cC]o-[aA]uthored-[bB]y:\s*([^<>]+)\s*<([^>]*)>\s*$`)
 
+// CommitMessageTagList returns the tags, from the given list, that appear on a
+// line of their own in the commit message. Matching ignores case and
+// surrounding whitespace; the result keeps the configured spelling, in the
+// order the tags appear and without duplicates.
+//
+// Tags are a convention on top of Git, like Co-Authored-By: a line such as
+// "!no-webhook" means nothing to Git itself but the instance can act on it.
+// See docs/commit-message.org.
+func CommitMessageTagList(message string, tags []string) []string {
+	if len(tags) <= 0 { return nil }
+	wanted := make(map[string]string, len(tags))
+	for _, t := range tags {
+		t = strings.TrimSpace(t)
+		if len(t) <= 0 { continue }
+		wanted[strings.ToLower(t)] = t
+	}
+	if len(wanted) <= 0 { return nil }
+	res := make([]string, 0)
+	seen := make(map[string]bool)
+	for line := range strings.SplitSeq(message, "\n") {
+		k := strings.ToLower(strings.TrimSpace(line))
+		t, ok := wanted[k]
+		if !ok || seen[k] { continue }
+		seen[k] = true
+		res = append(res, t)
+	}
+	return res
+}
+
 func parseCommitObject(objid string, f io.Reader) (*CommitObject, error) {
 	sourceBytes, err := io.ReadAll(f)
 	if err != nil { return nil, err }

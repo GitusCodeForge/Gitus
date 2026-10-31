@@ -153,6 +153,19 @@ type GitusConfig struct {
 	// GlobalVisibility at EndsAt only when AutoRestore is explicitly enabled.
 	MaintenanceAnnouncement GitusMaintenanceAnnouncement `json:"maintenanceAnnouncement"`
 
+	// Tags that the instance recognizes in commit messages, mapped to the
+	// behaviour they request. A tag is a line of its own in the commit
+	// message, e.g. "!no-webhook"; see docs/commit-message.org.
+	//
+	// Currently the only behaviour is "no-webhook", which skips the webhook
+	// of the push that contains the commit. An unknown behaviour is recorded
+	// in the webhook payload (as a tag) but otherwise ignored.
+	//
+	// A configuration file that does not mention this field at all gets the
+	// built-in "!no-webhook" convention; an explicitly empty object turns
+	// every tag off. See EffectiveCommitMessageTags.
+	CommitMessageTags map[string]string `json:"commitMessageTags"`
+
 	// rate limiter
 	// 0 turns off the rate limiter.
 	MaxRequestInSecond float64 `json:"maxRequestInSecond"`
@@ -212,6 +225,15 @@ const (
 	GLOBAL_VISIBILITY_PRIVATE = "private"
 	GLOBAL_VISIBILITY_SHUTDOWN = "shutdown"
 	GLOBAL_VISIBILITY_MAINTENANCE = "maintenance"
+)
+
+const (
+	// COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK skips the webhook of a push that
+	// contains a commit carrying the tag.
+	COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK = "no-webhook"
+	// the tag that requests COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK when
+	// commitMessageTags is not configured.
+	DefaultNoWebhookCommitMessageTag = "!no-webhook"
 )
 
 type GitusMaintenanceAnnouncement struct {
@@ -479,6 +501,9 @@ func CreateConfigFile(p string) error {
 		FullAccessUser: []string{"admin"},
 		MaintenanceAnnouncement: GitusMaintenanceAnnouncement{
 			Mode: GLOBAL_VISIBILITY_SHUTDOWN,
+		},
+		CommitMessageTags: map[string]string{
+			DefaultNoWebhookCommitMessageTag: COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK,
 		},
 		LogLevel: "info",
 		GitConfig: GitusGitConfig{
@@ -905,4 +930,45 @@ func (cfg *GitusConfig) ShouldShowMaintenanceAnnouncementAt(now time.Time) bool 
 
 func (cfg *GitusConfig) ShouldShowMaintenanceAnnouncement() bool {
 	return cfg.ShouldShowMaintenanceAnnouncementAt(time.Now())
+}
+
+
+// EffectiveCommitMessageTags returns the tag -> behaviour map in effect. When
+// the configuration file never mentions commitMessageTags, the built-in
+// "!no-webhook" convention applies; an explicitly empty object turns every tag
+// off.
+func (cfg *GitusConfig) EffectiveCommitMessageTags() map[string]string {
+	if cfg.CommitMessageTags == nil {
+		return map[string]string{
+			DefaultNoWebhookCommitMessageTag: COMMIT_MESSAGE_BEHAVIOR_NO_WEBHOOK,
+		}
+	}
+	return cfg.CommitMessageTags
+}
+
+// AllCommitMessageTags returns every configured tag, sorted, whatever the
+// behaviour it requests.
+func (cfg *GitusConfig) AllCommitMessageTags() []string {
+	m := cfg.EffectiveCommitMessageTags()
+	res := make([]string, 0, len(m))
+	for tag := range m {
+		if len(strings.TrimSpace(tag)) <= 0 { continue }
+		res = append(res, tag)
+	}
+	slices.Sort(res)
+	return res
+}
+
+// CommitMessageTagListForBehavior returns the configured tags that request the
+// given behaviour, sorted.
+func (cfg *GitusConfig) CommitMessageTagListForBehavior(behavior string) []string {
+	m := cfg.EffectiveCommitMessageTags()
+	res := make([]string, 0)
+	for tag, b := range m {
+		if b != behavior { continue }
+		if len(strings.TrimSpace(tag)) <= 0 { continue }
+		res = append(res, tag)
+	}
+	slices.Sort(res)
+	return res
 }
