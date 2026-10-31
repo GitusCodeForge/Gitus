@@ -71,7 +71,7 @@ func bindRepositoryForkController(ctx *RouterContext) {
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			rfn := r.PathValue("repoName")
-			originNs, originName, _, _, err := rc.ResolveRepositoryFullName(rfn)
+			originNs, originName, ns, originRepo, err := rc.ResolveRepositoryFullName(rfn)
 			if err == ErrNotFound {
 				rc.ReportNotFound(rfn, "Repository", "Depot", w, r)
 				return
@@ -79,6 +79,20 @@ func bindRepositoryForkController(ctx *RouterContext) {
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
 				return
+			}
+			// The clone below hands the source to the requester. Without this
+			// check anybody could fork a private repository they cannot open
+			// and read the full content of their own copy. Same rule as the
+			// repository page: repository ACL first, then namespace ACL.
+			if !rc.Config.IsInBrowseOnlyMode() && originRepo.Status == model.REPO_NORMAL_PRIVATE {
+				priv := originRepo.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName)
+				if priv == nil {
+					priv = ns.ACL.GetUserPrivilege(rc.LoginInfo.UserName)
+				}
+				if priv == nil {
+					rc.ReportNotFound(rfn, "Repository", "Depot", w, r)
+					return
+				}
 			}
 			namespace := r.Form.Get("namespace")
 			name := r.Form.Get("name")
