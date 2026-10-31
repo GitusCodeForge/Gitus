@@ -298,6 +298,7 @@ func main() {
 	}
 
 	context.RateLimiter = routes.NewRateLimiter(config)
+	context.CloneLimiter = routes.NewCloneLimiter(config.GitConfig.MaxConcurrentClone)
 	context.PlainModeListingCache = routes.NewPlainModeListingCache()
 
 	if context.DatabaseInterface != nil {

@@ -41,6 +41,18 @@ Gitus keeps working. An unknown value also falls back to =info= and logs a
 warning, so a typo cannot silence the server by accident. See
 [[file:logging.org][logging]] for the levels and the recommended usage.
 
+** http clone
+
+=gitConfig.httpCloneProtocol.v1dumb= and =gitConfig.httpCloneProtocol.v2=
+switch the two HTTP clone protocols on and off; see
+[[file:http-clone.org][http-clone]] for what they are.
+
+=gitConfig.maxConcurrentClone= (=8= by default) is the maximum number of HTTP
+clone requests that may run =git upload-pack= at the same time. A request
+over the limit gets =503 Service Unavailable= with =Retry-After: 1=. =0= also
+means the default. This bounds the process/fork cost of a burst of clones; it
+does not make a very large public repository cheap to clone.
+
 ** database type
 
 =database.type= is one of =sqlite=, =postgres=, =mysql= or =mariadb=.

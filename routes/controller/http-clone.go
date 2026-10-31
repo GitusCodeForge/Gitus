@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,10 +14,27 @@ import (
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/routes"
 	. "github.com/GitusCodeForge/Gitus/routes"
 )
+
+// maxCloneRequestBytes bounds the request body of a v2 clone request. The
+// body is a list of wants/haves, not a pack, so it is normally small.
+const maxCloneRequestBytes = 10 << 20
+
+// gitProtocolEnv returns the current environment with GIT_PROTOCOL replaced,
+// so a parent process that happens to have GIT_PROTOCOL set cannot override
+// the protocol the client asked for.
+func gitProtocolEnv(protocol string) []string {
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "GIT_PROTOCOL=") { continue }
+		env = append(env, e)
+	}
+	return append(env, "GIT_PROTOCOL="+protocol)
+}
 
 func printGitError(w io.Writer, s string) {
 	ss, _ := gitlib.ToPktLine(fmt.Sprintf("ERR %s\n", s))
@@ -83,15 +101,27 @@ func bindHttpCloneController(ctx *RouterContext) {
 			if (r.URL.Query().Has("service") && allowV2) {
 				switch r.URL.Query().Get("service") {
 				case "git-upload-pack":
-					cmd := exec.Command("git", "upload-pack", repo.LocalPath, "--http-backend-info-refs")
-					cmd.Dir = repo.LocalPath
+					release, ok := ctx.AcquireCloneSlot()
+					if !ok {
+						w.Header().Set("Retry-After", "1")
+						http.Error(w, "Too many concurrent clone requests; please retry.", http.StatusServiceUnavailable)
+						return
+					}
+					defer release()
+					gitDir := repo.Repository.(*gitlib.LocalGitRepository).GitDirectoryPath
+					cmd := exec.CommandContext(r.Context(), "git", "upload-pack", gitDir, "--http-backend-info-refs")
+					cmd.Dir = gitDir
 					protocol := r.Header.Get("Git-Protocol")
 					if protocol == "" { protocol = "version=2" }
-					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_PROTOCOL=%s", protocol))
+					cmd.Env = gitProtocolEnv(protocol)
 					stdout := new(bytes.Buffer)
+					stderr := new(bytes.Buffer)
 					cmd.Stdout = stdout
+					cmd.Stderr = stderr
 					err := cmd.Run()
 					if err != nil {
+						if r.Context().Err() != nil { return }
+						log.Warnf("git upload-pack --http-backend-info-refs for %s failed: %s; %s", rfn, err.Error(), strings.TrimSpace(stderr.String()))
 						w.WriteHeader(500)
 						printGitError(w, err.Error())
 						return
@@ -168,24 +198,55 @@ func bindHttpCloneController(ctx *RouterContext) {
 				w.Write([]byte("Repository not Git."))
 				return
 			}
-			isNamespacePublic := ns.Status == model.NAMESPACE_NORMAL_PUBLIC
-			isRepoPublic := repo.Status == model.REPO_NORMAL_PUBLIC
-			isRepoArchived := repo.Status == model.REPO_ARCHIVED
-			if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
-				w.WriteHeader(404)
-				w.Write([]byte("404 Not Found"))
+			if !ctx.Config.IsInBrowseOnlyMode() {
+				// In browse-only mode visibility is controlled by the
+				// ignored namespace/repository config, which the Resolve
+				// method above has already applied.
+				isNamespacePublic := ns.Status == model.NAMESPACE_NORMAL_PUBLIC
+				isRepoPublic := repo.Status == model.REPO_NORMAL_PUBLIC
+				isRepoArchived := repo.Status == model.REPO_ARCHIVED
+				if !isNamespacePublic || !(isRepoPublic || isRepoArchived) {
+					w.WriteHeader(404)
+					w.Write([]byte("404 Not Found"))
+					return
+				}
+			}
+			release, ok := ctx.AcquireCloneSlot()
+			if !ok {
+				w.Header().Set("Retry-After", "1")
+				http.Error(w, "Too many concurrent clone requests; please retry.", http.StatusServiceUnavailable)
 				return
 			}
+			defer release()
+
+			body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxCloneRequestBytes))
+			if err != nil {
+				var maxErr *http.MaxBytesError
+				if errors.As(err, &maxErr) {
+					w.WriteHeader(http.StatusRequestEntityTooLarge)
+					fmt.Fprint(w, "Clone request body is too large.")
+					return
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, "Failed to read the clone request body.")
+				return
+			}
+
 			w.Header().Set("Content-Type", "application/x-git-upload-pack-response")
 			w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
 			w.WriteHeader(200)
-			cmd := exec.Command("git", "upload-pack", repo.LocalPath, "--stateless-rpc")
-			cmd.Stdin = r.Body
+			gitDir := repo.Repository.(*gitlib.LocalGitRepository).GitDirectoryPath
+			cmd := exec.CommandContext(r.Context(), "git", "upload-pack", gitDir, "--stateless-rpc")
+			cmd.Stdin = bytes.NewReader(body)
 			protocol := r.Header.Get("Git-Protocol")
 			if protocol == "" { protocol = "version=2" }
-			cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_PROTOCOL=%s", protocol))
+			cmd.Env = gitProtocolEnv(protocol)
+			stderr := new(bytes.Buffer)
 			cmd.Stdout = w
-			cmd.Run()
+			cmd.Stderr = stderr
+			if err := cmd.Run(); err != nil && r.Context().Err() == nil {
+				log.Warnf("git upload-pack --stateless-rpc for %s failed: %s; %s", rfn, err.Error(), strings.TrimSpace(stderr.String()))
+			}
 		}))
 	http.HandleFunc("GET /repo/{repoName}/HEAD", UseMiddleware(
 		[]Middleware{ Logged }, ctx,

@@ -82,3 +82,22 @@ the first two packet, i.e. the ~# service=git-upload-pack~ and the flush packet 
 
 the requirement about Content-Type seems to be only for ~info/refs~; all subsequent conversations seems to ignore http content-type altogether.
 
+** resource limits
+
+the two routes that spawn a process — the v2 =info/refs= advertisement and the
+=git-upload-pack= POST — share a process-wide concurrency limit,
+=gitConfig.maxConcurrentClone= (=8= by default). requests over the limit get
+=503= with =Retry-After: 1= instead of queueing, so a burst of clones cannot
+exhaust the host with =git upload-pack= processes. the limit is per process,
+not per client or per repository.
+
+the POST body is limited to 10 MiB. a v2 upload-pack request is a list of
+wants and haves, not a pack, so the body is normally small; the limit stops a
+client from feeding an unbounded stream to the process.
+
+this is a mitigation, not a complete defense: a large public repository is
+still expensive to clone. an administrator who hosts repositories larger than
+a few hundred MiB should consider turning off unauthenticated HTTP clone with
+=gitConfig.httpCloneProtocol=, as was recommended after the Sourceware botnet
+incident in 2025. gitus runs =git upload-pack= for each v2 request; it does not
+reimplement pack generation in Go.

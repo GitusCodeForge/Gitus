@@ -240,8 +240,17 @@ type GitusGitHTTPTransferProtocolDescriptor struct {
 	V1Dumb bool `json:"v1dumb"`
 	V2 bool `json:"v2"`
 }
+
+// DefaultMaxConcurrentClone is the number of HTTP clone requests that may
+// spawn a `git upload-pack` process at the same time when the configuration
+// does not set gitConfig.maxConcurrentClone.
+const DefaultMaxConcurrentClone = 8
+
 type GitusGitConfig struct {
 	HTTPCloneProtocol GitusGitHTTPTransferProtocolDescriptor `json:"httpCloneProtocol"`
+	// maximum number of HTTP clone requests that may run `git upload-pack`
+	// at the same time. 0 uses DefaultMaxConcurrentClone.
+	MaxConcurrentClone int `json:"maxConcurrentClone"`
 }
 
 type GitusSessionConfig struct {
@@ -453,6 +462,7 @@ func CreateConfigFile(p string) error {
 				V1Dumb: true,
 				V2: true,
 			},
+			MaxConcurrentClone: DefaultMaxConcurrentClone,
 		},
 		Database: GitusDatabaseConfig{
 			Type: "sqlite",

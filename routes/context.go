@@ -43,6 +43,7 @@ type RouterContext struct {
 	LoginInfo *templates.LoginInfoModel
 	LastError error
 	RateLimiter *RateLimiter
+	CloneLimiter *CloneLimiter
 	ConfirmCodeManager confirm_code.GitusConfirmCodeManager
 	HostModeConfigCache model.HostModeConfigCache
 }
@@ -67,6 +68,7 @@ func (ctx *RouterContext) NewLocal() *RouterContext {
 		LoginInfo: &templates.LoginInfoModel{},
 		LastError: ctx.LastError,
 		RateLimiter: ctx.RateLimiter,
+		CloneLimiter: ctx.CloneLimiter,
 		ConfirmCodeManager: ctx.ConfirmCodeManager,
 	}
 }
