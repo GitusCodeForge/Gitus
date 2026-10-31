@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	auxfuncs "github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	. "github.com/GitusCodeForge/Gitus/routes"
@@ -97,6 +98,22 @@ func bindNamespaceSettingController(ctx *RouterContext) {
 						"You are neither owner nor an admin, thus cannot change this namespace's ownership.",
 						w, r,
 					)
+					return
+				}
+				// The owner is a user name, not free text: a typo here used to
+				// hand the namespace to a user that does not exist, and only an
+				// admin could undo that.
+				_, err = rc.DatabaseInterface.GetUserByName(newOwner)
+				if err == db.ErrEntityNotFound {
+					rc.ReportRedirect(fmt.Sprintf("/s/%s/setting", namespaceName), 0,
+						"Invalid Owner",
+						"The user you specified as the new owner does not exist.",
+						w, r,
+					)
+					return
+				}
+				if err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
 					return
 				}
 				ns.Owner = newOwner

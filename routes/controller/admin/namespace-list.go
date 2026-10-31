@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -66,7 +67,7 @@ func bindAdminNamespaceListController(ctx *RouterContext) {
 				rc.ReportNormalError("Invalid request", w, r)
 				return
 			}
-			owner := r.Form.Get("owner")
+			owner := strings.TrimSpace(r.Form.Get("owner"))
 			name := r.Form.Get("name")
 			if !model.ValidNamespaceName(name) {
 				rc.ReportRedirect("/admin/namespace-list", 5, "Invalid Namespace Name", "Invalid namespace name; namespace name must only contains uppercase & lowercase letters (a-z, A-Z), 0-9, underscore and hyphen.\n", w, r)
@@ -78,6 +79,17 @@ func bindAdminNamespaceListController(ctx *RouterContext) {
 			i, err := strconv.ParseInt(r.Form.Get("status"), 10, 32)
 			if err != nil {
 				rc.ReportNormalError("Invalid request", w, r)
+				return
+			}
+			// The owner has to be an existing user; otherwise the namespace is
+			// created ownerless and nobody but an admin can manage it.
+			_, err = rc.DatabaseInterface.GetUserByName(owner)
+			if err == db.ErrEntityNotFound {
+				rc.ReportRedirect("/admin/namespace-list", 5, "Invalid Owner", fmt.Sprintf("The user %q does not exist; a namespace cannot be created for it.", owner), w, r)
+				return
+			}
+			if err != nil {
+				rc.ReportInternalError(err.Error(), w, r)
 				return
 			}
 			ns, err := rc.DatabaseInterface.RegisterNamespace(name, owner)
