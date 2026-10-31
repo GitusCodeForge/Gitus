@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"slices"
 	"strconv"
 )
 
@@ -298,9 +297,11 @@ func (gr LocalGitRepository) resolveObject(obj GitObject) (GitObject, error) {
 		return obj, nil
 	}
 	
-	res := make([]byte, 0)
+	// append into one buffer: slices.Concat reallocated and copied the whole
+	// result for every command, which is quadratic on long delta chains.
+	res := make([]byte, 0, 256)
 	for _, cmd := range commandList {
-		res = slices.Concat(res, cmd.Execute(baseObj.RawData()))
+		res = append(res, cmd.Execute(baseObj.RawData())...)
 	}
 	br := bytesReader{r: bytes.NewReader(res)}
 	resrgo := RawGitObject{
