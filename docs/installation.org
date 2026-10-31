@@ -66,4 +66,26 @@ WantedBy=multi-user.target
 
 ... and run ~systemctl enable gitus~ and ~systemctl start gitus~.
 
+** running as root
+
+the web server and the commands that run inside a repository — =ssh=,
+=web-hooks=, =update-trigger=, =host-mode= and =install-hooks= — refuse to
+start as root. they parse untrusted input and write repositories, hooks and
+SSH keys; files created by root break the git user's later pushes and key
+management, and a bug in the server would be a root compromise.
+
+the installation commands are exempt: =gitus -init= and
+=gitus -config [config] install= need root to create the git user, chown the
+git root and install =authorized_keys=. =reset-admin= is allowed as root but
+logs a warning, because the database and its journal may be left owned by
+root.
+
+for containers, where there is no other user to switch to, =--allow-root= or
+=GITUS_ALLOW_ROOT=1= permits the service to start as root and logs a warning.
+do not use this on a normal host.
+
+gitus also warns when the process user is not the =gitUser= from the
+configuration: repositories and hooks may then be created with the wrong
+owner, even when the process is not root.
+
 

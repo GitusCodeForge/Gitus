@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/confirm_code"
 	dbinit "github.com/GitusCodeForge/Gitus/pkg/gitus/db/init"
@@ -20,7 +21,6 @@ import (
 	rsinit "github.com/GitusCodeForge/Gitus/pkg/gitus/receipt/init"
 	ssinit "github.com/GitusCodeForge/Gitus/pkg/gitus/session/init"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/ssh"
-	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/routes/controller"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -34,6 +34,7 @@ func main() {
 	}
 	initFlag := argparse.Bool("init", false, "Create an initial configuration file at the location specified with [config].")
 	configArg := argparse.String("config", "", "Speicfy the path to the config fire.")
+	allowRoot := argparse.Bool("allow-root", false, "Allow the service to run as root (not recommended; intended for containers).")
 	argparse.Parse(os.Args[1:])
 
 	// attempt to resolve config file path.
@@ -114,9 +115,24 @@ func main() {
 		log.SetLevel(lvl)
 	}
 
+	// The installer needs root to create the git user and fix ownership; the
+	// web server and the commands that run inside repositories do not. Check
+	// this before opening the database or creating anything on disk.
+	runCommand := "web-server"
+	if containsCommand {
+		runCommand = mainCall[0]
+	}
+	if err = checkRunUser(config, runCommand, *allowRoot); err != nil {
+		// A refusal is a fatal startup error, not a log line: show it even when
+		// the configured log level would hide it.
+		log.SetLevel(log.LevelError)
+		log.Errorf("%s", err.Error())
+		os.Exit(1)
+	}
+
 	masterTemplate := templates.LoadTemplate()
 	context := routes.RouterContext{
-		Config: config,
+		Config:         config,
 		MasterTemplate: masterTemplate,
 	}
 
@@ -252,7 +268,9 @@ func main() {
 			return
 		case "install-hooks":
 			repoFullName := ""
-			if len(mainCall) > 1 { repoFullName = mainCall[1] }
+			if len(mainCall) > 1 {
+				repoFullName = mainCall[1]
+			}
 			if failures := HandleInstallHooks(&context, repoFullName); failures > 0 {
 				os.Exit(1)
 			}
@@ -273,10 +291,10 @@ func main() {
 		}),
 	))
 	server := &http.Server{
-		Addr: fmt.Sprintf("%s:%d", config.BindAddress, config.BindPort),
-		ReadTimeout: 30 * time.Second,
+		Addr:         fmt.Sprintf("%s:%d", config.BindAddress, config.BindPort),
+		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
-		IdleTimeout: 120 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	context.RateLimiter = routes.NewRateLimiter(config)
@@ -288,7 +306,7 @@ func main() {
 			log.Warnf("Failed to apply schema updates: %s", err.Error())
 		}
 	}
-	
+
 	controller.InitializeRoute(&context)
 
 	ipcServer, err := StartIPCServer(&context)
@@ -299,7 +317,7 @@ func main() {
 	if config.DebugMode {
 		log.Warnf("Debug mode is on; internal error messages (file paths, database errors, ...) will be shown to visitors. Turn it off in the site settings once you are done debugging.")
 	}
-	
+
 	go func() {
 		log.Infof("Start serving at %s:%d", config.BindAddress, config.BindPort)
 		err := server.ListenAndServe()
@@ -309,7 +327,6 @@ func main() {
 		}
 		log.Info("Stopped serving new connections.")
 	}()
-
 
 	// apparently go kills absolutely everything when main returns -
 	// all the goroutines and things would be just gone and not even
@@ -359,8 +376,6 @@ func main() {
 	if context.Config.IsInHostMode() {
 		os.RemoveAll(path.Join(gitUser.HomeDir, "gitus.sock"))
 	}
-	
+
 	log.Info("Graceful shutdown complete.")
 }
-
-
