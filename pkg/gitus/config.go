@@ -182,7 +182,6 @@ type GitusConfig struct {
 	MaxSessionLifetime int `json:"maxSessionLifetime"`
 
 	IPCServer GitusIPCServerConfig `json:"ipcServer"`
-	GlobalCache GitusGlobalCacheConfig `json:"globalCache"`
 
 	// ====================================================================
 	// configs below this line are advanced configs.
@@ -357,25 +356,6 @@ type GitusIPCServerConfig struct {
 	properUnixSocketPath string 
 }
 
-type GitusGlobalCacheConfig struct {
-	// currently only support:
-	// + "in-memory"
-	// + redis-like dbs: "redis", "keydb", "valkey"
-	//   + "valkey" is not tested, but should work fine.
-	// + "memcached"
-	Type string `json:"type"`
-
-	// used as prefix of keys.
-	StorageTablePrefix string `json:"storageTablePrefix"`
-	// only applicable when type is redis-like or "memcached".
-	// when it's "in-memory" it's ignored.
-	StorageHost string `json:"storageHost"`
-	StorageUserName string `json:"storageUserName"`
-	StoragePassword string `json:"storagePassword"`
-	// applicable only when type is redis-like
-	StorageDatabaseNumber int `json:"storageDatabaseNumber"`
-}
-
 // proper http host name. no trailing slash.
 func (cfg *GitusConfig) ProperHTTPHostName() string {
 	// proper http host name. no trailing slash.
@@ -523,9 +503,6 @@ func CreateConfigFile(p string) error {
 		IPCServer: GitusIPCServerConfig{
 			Type: "unix",
 			UnixSocketPath: "gitus.lock",
-		},
-		GlobalCache: GitusGlobalCacheConfig{
-			Type: "in-memory",
 		},
 		JWTSecret: "",
 		PasswordHashStrength: 16,

@@ -19,7 +19,6 @@ import (
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/confirm_code"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
-	"github.com/GitusCodeForge/Gitus/pkg/gitus/global_cache"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/mail"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/receipt"
@@ -46,7 +45,6 @@ type RouterContext struct {
 	RateLimiter *RateLimiter
 	ConfirmCodeManager confirm_code.GitusConfirmCodeManager
 	HostModeConfigCache model.HostModeConfigCache
-	GlobalCache global_cache.GitusGlobalCacheInterface
 }
 
 func (ctx RouterContext) LoadTemplate(name string) *template.Template {
@@ -58,7 +56,6 @@ func (ctx *RouterContext) NewLocal() *RouterContext {
 		GitUserHomeDirectory: ctx.GitUserHomeDirectory,
 		Config: ctx.Config,
 		MasterTemplate: ctx.MasterTemplate,
-		GlobalCache: ctx.GlobalCache,
 		GitRepositoryList: ctx.GitRepositoryList,
 		GitNamespaceList: ctx.GitNamespaceList,
 		PlainModeListingCache: ctx.PlainModeListingCache,

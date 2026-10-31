@@ -88,7 +88,6 @@ func StartIPCServer(ctx *routes.RouterContext) (net.Listener, error) {
 }
 
 const (
-	IPC_COMMAND_UPDATE_GLOBAL_CACHE = 1
 	// IPC_COMMAND_WARM_LAST_COMMIT_CACHE asks the running web server to resolve
 	// the last commit of a directory listing ahead of time, so that the first
 	// visitor of a freshly pushed commit does not have to walk the history.
@@ -96,6 +95,10 @@ const (
 	// It is a hint, not a source of truth: the listing is always computed on
 	// demand when it is missing, so a message that never arrives (web server
 	// down, hook failed, push done by hand) only costs one slow page.
+	//
+	// The value is 2, and 1 is not reused: it was the never implemented
+	// global-cache update command, and keeping 2 means a hook or CLI installed
+	// by an older build still agrees with a newer server during an upgrade.
 	IPC_COMMAND_WARM_LAST_COMMIT_CACHE = 2
 )
 
@@ -132,12 +135,6 @@ func handleIPCServerConnection(ctx *routes.RouterContext, conn net.Conn) {
 		return
 	}
 	switch cmdType {
-	case IPC_COMMAND_UPDATE_GLOBAL_CACHE:
-		// 1:{key},{expiry_second},{value}
-		// key := vscmd[0]
-		// expiryString := vscmd[1]
-		// value := vscmd[2]
-		// ctx.GlobalCache.Write(
 	case IPC_COMMAND_WARM_LAST_COMMIT_CACHE:
 		// 2:{repo_full_name},{commit_id}
 		if len(vscmd) < 2 {
