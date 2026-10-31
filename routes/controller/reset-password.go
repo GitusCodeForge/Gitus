@@ -18,7 +18,7 @@ import (
 
 func bindResetPasswordController(ctx *RouterContext) {
 	http.HandleFunc("GET /reset-password/request", UseMiddleware(
-		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
+		[]Middleware{Logged, RateLimit, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			switch rc.Config.GlobalVisibility {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
@@ -41,7 +41,7 @@ func bindResetPasswordController(ctx *RouterContext) {
 	))
 
 	http.HandleFunc("POST /reset-password/request", UseMiddleware(
-		[]Middleware{Logged, ValidPOSTRequestRequired,
+		[]Middleware{Logged, RateLimit, ValidPOSTRequestRequired,
 			CSRFCheck, UseLoginInfo, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
@@ -106,7 +106,7 @@ If this isn't you, you can simply ignore this message.`,
 	))
 
 	http.HandleFunc("GET /reset-password/update-password", UseMiddleware(
-		[]Middleware{Logged, UseLoginInfo, ErrorGuard}, ctx,
+		[]Middleware{Logged, RateLimit, UseLoginInfo, ErrorGuard}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			switch rc.Config.GlobalVisibility {
 			case gitus.GLOBAL_VISIBILITY_MAINTENANCE:
@@ -149,7 +149,7 @@ If this isn't you, you can simply ignore this message.`,
 	))
 
 	http.HandleFunc("POST /reset-password/update-password", UseMiddleware(
-		[]Middleware{Logged, ValidPOSTRequestRequired,
+		[]Middleware{Logged, RateLimit, ValidPOSTRequestRequired,
 			CSRFCheck, UseLoginInfo, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

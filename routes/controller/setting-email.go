@@ -3,7 +3,9 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/receipt"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -51,8 +53,8 @@ func bindSettingEmailController(ctx *RouterContext) {
 				rc.ReportNormalError("Invalid request", w, r)
 				return
 			}
-			email := r.Form.Get("email")
-			if len(email) <= 0 {
+			email := strings.TrimSpace(r.Form.Get("email"))
+			if len(email) <= 0 || !model.ValidEmail(email) {
 				rc.ReportNormalError("Invalid request", w, r)
 				return
 			}
@@ -67,7 +69,7 @@ func bindSettingEmailController(ctx *RouterContext) {
 	
 	http.HandleFunc("GET /setting/email/verify", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, GlobalVisibility, ErrorGuard,
+			Logged, RateLimit, LoginRequired, GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
 			err := r.ParseForm()
@@ -80,7 +82,34 @@ func bindSettingEmailController(ctx *RouterContext) {
 				rc.ReportRedirect("/setting/email", 5, "Invalid Mailer Setup", "Email verification is not supported due to an invalid mailer configuration. Please contact the administrator.", w, r)
 				return
 			}
-			email := r.URL.Query().Get("email")
+			email := strings.TrimSpace(r.URL.Query().Get("email"))
+			if len(email) <= 0 || !model.ValidEmail(email) {
+				rc.ReportNormalError("Invalid request", w, r)
+				return
+			}
+			// Only send a verification message for an address this user has
+			// added. Otherwise the route is a free mail-sending primitive for
+			// any address the caller names.
+			el, err := rc.DatabaseInterface.GetAllRegisteredEmailOfUser(rc.LoginInfo.UserName)
+			if err != nil {
+				rc.ReportInternalError(fmt.Sprintf("Failed to retrieve registered emails: %s", err), w, r)
+				return
+			}
+			owned := false
+			for _, e := range el {
+				if e.Email == email {
+					owned = true
+					if e.Verified {
+						rc.ReportRedirect("/setting/email", 3, "Email Already Verified", "This email address has already been verified.", w, r)
+						return
+					}
+					break
+				}
+			}
+			if !owned {
+				rc.ReportRedirect("/setting/email", 5, "Email Not Registered", "Add this email address to your account before asking for a verification message.", w, r)
+				return
+			}
 			command := make([]string, 3)
 			command[0] = receipt.VERIFY_EMAIL
 			command[1] = rc.LoginInfo.UserName
