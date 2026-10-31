@@ -150,41 +150,179 @@ func (gr LocalGitRepository) CheckBranchMergeConflict(localBranch string, remote
 	return preres, nil
 }
 
-func (gr LocalGitRepository) Merge(remote string, remoteBranch string, localBranch string, author string, email string) error {
-	buf := new(bytes.Buffer)
-	cmd1 := exec.Command("git", "fetch", remote, remoteBranch)
-	cmd1.Dir = gr.GitDirectoryPath
-	cmd1.Stderr = buf
-	err := cmd1.Run()
-	if err != nil { return fmt.Errorf("%s: %s", err.Error(), buf.String()) }
-	buf.Reset()
+// Merge methods supported by Merge. "merge" creates a merge commit with two
+// parents, "squash" creates a single commit out of the merged tree, and
+// "rebase" replays the provider commits onto the receiver branch.
+const (
+	MERGE_METHOD_MERGE = "merge"
+	MERGE_METHOD_SQUASH = "squash"
+	MERGE_METHOD_REBASE = "rebase"
+)
+
+// ErrMergeConflict is returned when a merge cannot be performed because the
+// branches conflict.
+var ErrMergeConflict = errors.New("the pull request has merge conflicts")
+
+// MergeMethods lists the methods in the order they are offered to users.
+var MergeMethods = []string{
+	MERGE_METHOD_MERGE,
+	MERGE_METHOD_SQUASH,
+	MERGE_METHOD_REBASE,
+}
+
+func ValidMergeMethod(method string) bool {
+	for _, m := range MergeMethods {
+		if m == method { return true }
+	}
+	return false
+}
+
+// emptyTreeOid is the object id of the empty tree. It is used as the merge
+// base when replaying a root commit during a rebase.
+const emptyTreeOid = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+func runGitCommand(dir string, env []string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if len(env) > 0 { cmd.Env = append(os.Environ(), env...) }
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	err := cmd.Run()
+	if err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if len(msg) > 0 {
+			return "", fmt.Errorf("git %s: %s: %s", args[0], err.Error(), msg)
+		}
+		return "", fmt.Errorf("git %s: %s", args[0], err.Error())
+	}
+	return strings.TrimSpace(stdout.String()), nil
+}
+
+func commitIdentity(name string, email string) []string {
+	return []string{
+		fmt.Sprintf("GIT_AUTHOR_NAME=%s", name),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", email),
+		fmt.Sprintf("GIT_COMMITTER_NAME=%s", name),
+		fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", email),
+	}
+}
+
+// writeMergeTree merges provider into the commit-ish base and returns the id of
+// the resulting tree. A non-zero exit status means the merge has conflicts.
+func writeMergeTree(dir string, base string, provider string, mergeBase string) (string, error) {
+	args := []string{"merge-tree", "--write-tree"}
+	if len(mergeBase) > 0 { args = append(args, fmt.Sprintf("--merge-base=%s", mergeBase)) }
+	args = append(args, base, provider)
+	return runGitCommand(dir, nil, args...)
+}
+
+// mergeCommit creates a commit with both branches as parents.
+func (gr LocalGitRepository) mergeCommit(localBranch string, providerFullName string, message string, name string, email string) (string, error) {
+	treeId, err := writeMergeTree(gr.GitDirectoryPath, localBranch, providerFullName, "")
+	if err != nil { return "", err }
+	return runGitCommand(gr.GitDirectoryPath, commitIdentity(name, email),
+		"commit-tree", treeId, "-m", message, "-p", localBranch, "-p", providerFullName)
+}
+
+// squashCommit creates a single commit whose tree is the merged result and
+// whose only parent is the receiver branch.
+func (gr LocalGitRepository) squashCommit(localBranch string, providerFullName string, message string, name string, email string) (string, error) {
+	treeId, err := writeMergeTree(gr.GitDirectoryPath, localBranch, providerFullName, "")
+	if err != nil { return "", err }
+	return runGitCommand(gr.GitDirectoryPath, commitIdentity(name, email),
+		"commit-tree", treeId, "-m", message, "-p", localBranch)
+}
+
+// isAncestor reports whether ancestor is reachable from descendant.
+func (gr LocalGitRepository) isAncestor(ancestor string, descendant string) bool {
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", ancestor, descendant)
+	cmd.Dir = gr.GitDirectoryPath
+	return cmd.Run() == nil
+}
+
+// copyCommitAuthor returns the author identity and date of the commit, which
+// a rebase keeps so the replayed commit still credits the original author.
+func (gr LocalGitRepository) copyCommitAuthor(commitId string) ([]string, string, error) {
+	out, err := runGitCommand(gr.GitDirectoryPath, nil, "show", "-s", "--format=%an%x00%ae%x00%aI%x00%B", commitId)
+	if err != nil { return nil, "", err }
+	parts := strings.SplitN(out, "\x00", 4)
+	if len(parts) != 4 { return nil, "", fmt.Errorf("unexpected commit metadata for %s", commitId) }
+	return []string{
+		fmt.Sprintf("GIT_AUTHOR_NAME=%s", parts[0]),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", parts[1]),
+		fmt.Sprintf("GIT_AUTHOR_DATE=%s", parts[2]),
+	}, parts[3], nil
+}
+
+// rebaseCommits replays the commits that are only reachable from the provider
+// branch onto the receiver branch, one merge-tree/commit-tree pair per commit.
+// Nothing is written to the ref until every commit has been replayed.
+func (gr LocalGitRepository) rebaseCommits(localBranch string, providerFullName string, name string, email string) (string, error) {
+	out, err := runGitCommand(gr.GitDirectoryPath, nil,
+		"rev-list", "--reverse", "--no-merges", fmt.Sprintf("%s..%s", localBranch, providerFullName))
+	if err != nil { return "", err }
+	commits := make([]string, 0)
+	if len(out) > 0 { commits = strings.Fields(out) }
+	tip := localBranch
+	for _, commitId := range commits {
+		tipTree, err := runGitCommand(gr.GitDirectoryPath, nil, "rev-parse", fmt.Sprintf("%s^{tree}", tip))
+		if err != nil { return "", err }
+		mergeBase, err := runGitCommand(gr.GitDirectoryPath, nil, "rev-parse", fmt.Sprintf("%s^", commitId))
+		if err != nil { mergeBase = emptyTreeOid }
+		treeId, err := writeMergeTree(gr.GitDirectoryPath, tip, commitId, mergeBase)
+		if err != nil {
+			short, _ := runGitCommand(gr.GitDirectoryPath, nil, "rev-parse", "--short", commitId)
+			return "", fmt.Errorf("cannot rebase commit %s: %s", short, err.Error())
+		}
+		// A commit that no longer changes anything is dropped, like git-rebase
+		// does by default.
+		if treeId == tipTree { continue }
+		authorEnv, message, err := gr.copyCommitAuthor(commitId)
+		if err != nil { return "", err }
+		env := append(authorEnv,
+			fmt.Sprintf("GIT_COMMITTER_NAME=%s", name),
+			fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", email),
+		)
+		tip, err = runGitCommand(gr.GitDirectoryPath, env, "commit-tree", treeId, "-m", message, "-p", tip)
+		if err != nil { return "", err }
+	}
+	return tip, nil
+}
+
+// Merge merges remoteBranch of remote into localBranch and moves the local
+// branch to the result. message is used as the subject of the squashed commit;
+// it is ignored by the other methods.
+func (gr LocalGitRepository) Merge(remote string, remoteBranch string, localBranch string, method string, name string, email string, message string) error {
+	if !ValidMergeMethod(method) { return fmt.Errorf("unknown merge method: %s", method) }
+	_, err := runGitCommand(gr.GitDirectoryPath, nil, "fetch", "--", remote, remoteBranch)
+	if err != nil { return err }
 	providerFullName := fmt.Sprintf("%s/%s", remote, remoteBranch)
-	cmd2 := exec.Command("git", "merge-tree", "--write-tree", localBranch, providerFullName)
-	cmd2.Dir = gr.GitDirectoryPath
-	cmd2.Stdout = buf
-	err = cmd2.Run()
-	if err != nil { return fmt.Errorf("Failed while merge-tree: %s", err.Error()) }
-	treeId := strings.TrimSpace(buf.String())
-	mergeMessage := fmt.Sprintf("merge: from %s/%s to %s", remote, remoteBranch, localBranch)
-	buf.Reset()
-	cmd3 := exec.Command("git", "commit-tree", treeId, "-m", mergeMessage, "-p", localBranch, "-p", providerFullName)
-	cmd3.Dir = gr.GitDirectoryPath
-	cmd3.Env = os.Environ()
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_AUTHOR_NAME=%s", author))
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", email))
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_COMMITTER_NAME=%s", author))
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", email))
-	err = cmd3.Run()
-	if err != nil { return fmt.Errorf("Failed while commit-tree: %s", err.Error()) }
-	commitId := strings.TrimSpace(buf.String())
-	buf.Reset()
-	localBranchFullName := fmt.Sprintf("refs/heads/%s", localBranch)
-	cmd4 := exec.Command("git", "update-ref", localBranchFullName, commitId)
-	cmd4.Dir = gr.GitDirectoryPath
-	cmd4.Stderr = buf
-	err = cmd4.Run()
-	if err != nil { return fmt.Errorf("Failed while update-ref: %s; %s", err.Error(), buf.String()) }
-	return nil
+	if len(message) <= 0 {
+		message = fmt.Sprintf("%s: from %s to %s", method, providerFullName, localBranch)
+	}
+	var commitId string
+	switch method {
+	case MERGE_METHOD_MERGE:
+		commitId, err = gr.mergeCommit(localBranch, providerFullName,
+			fmt.Sprintf("merge: from %s to %s", providerFullName, localBranch), name, email)
+	case MERGE_METHOD_SQUASH:
+		commitId, err = gr.squashCommit(localBranch, providerFullName, message, name, email)
+	case MERGE_METHOD_REBASE:
+		// a fork that is simply ahead is fast-forwarded instead of being
+		// replayed commit by commit.
+		if gr.isAncestor(localBranch, providerFullName) {
+			commitId, err = runGitCommand(gr.GitDirectoryPath, nil, "rev-parse", providerFullName)
+		} else {
+			commitId, err = gr.rebaseCommits(localBranch, providerFullName, name, email)
+		}
+	}
+	if err != nil { return err }
+	if len(commitId) <= 0 { return fmt.Errorf("merge produced no commit") }
+	_, err = runGitCommand(gr.GitDirectoryPath, nil,
+		"update-ref", fmt.Sprintf("refs/heads/%s", localBranch), commitId)
+	return err
 }
 
 

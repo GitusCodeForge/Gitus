@@ -51,7 +51,7 @@ type PullRequestEvent struct {
 	// type=3: string (commit id)
 	// type=4: empty
 	// type=5: empty
-	// type=6: empty
+	// type=6: the merge method used ("merge", "squash" or "rebase")
 	// type=7: empty
 	EventContent string
 }

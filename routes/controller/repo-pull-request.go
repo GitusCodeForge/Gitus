@@ -191,17 +191,24 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 				}
 				FoundAt(w, returnPath)
 			case "merge-check":
-				e, err := rc.DatabaseInterface.CheckPullRequestMergeConflict(pr.PRAbsId)
-				fmt.Println("ee", e)
+				_, err := rc.DatabaseInterface.CheckPullRequestMergeConflict(pr.PRAbsId)
 				if err != nil {
 					rc.ReportInternalError(err.Error(), w, r)
 					return
 				}
 				FoundAt(w, returnPath)
 			case "close-as-merged":
-				err = rc.DatabaseInterface.CheckAndMergePullRequest(pr.PRAbsId, rc.LoginInfo.UserName)
+				method := strings.TrimSpace(r.Form.Get("merge-method"))
+				if method == "" { method = gitlib.MERGE_METHOD_MERGE }
+				if !gitlib.ValidMergeMethod(method) {
+					rc.ReportRedirect(returnPath, 5, "Invalid Merge Method", fmt.Sprintf("Unknown merge method: %s", method), w, r)
+					return
+				}
+				err = rc.DatabaseInterface.CheckAndMergePullRequest(pr.PRAbsId, rc.LoginInfo.UserName, method)
 				if err != nil {
-					rc.ReportInternalError(err.Error(), w, r)
+					// a conflict or a failed rebase is a normal outcome of
+					// clicking merge, not an internal error.
+					rc.ReportRedirect(returnPath, 10, "Merge Failed", err.Error(), w, r)
 					return
 				}
 				FoundAt(w, returnPath)

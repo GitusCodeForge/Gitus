@@ -69,6 +69,30 @@ the conflicted file info line seems to be formatted as follows:
 as stated in [[https://git-scm.com/docs/git-merge-tree#OUTPUT][the document of git-merge-tree]] only the file name would be returned if the =--name-only= option is passed. the file name would be quoted if the config =core.quotePath= is set to true (which is the default value) and you don't provide the =-z= option to git-merge-tree, so it's better to use the =-z= option, with which there is no quoting and the file name part can be used as-is.
 
 
+** merge methods
+
+the pull request page offers three merge methods when a pull request has a
+successful merge check:
+
+| method   | result                                                           |
+|----------+------------------------------------------------------------------|
+| =merge=  | a merge commit with the receiver branch and the provider branch as parents |
+| =squash= | a single commit whose tree is the merge result; its only parent is the receiver branch and its subject is the pull request title |
+| =rebase= | the provider commits are replayed one by one onto the receiver branch |
+
+=squash= leaves the provider commits out of the receiver's history; =rebase=
+keeps them but rewrites their ids. the replayed commits keep their original
+author and author date; the committer is the user who clicked merge.
+
+the merge check itself is a single 3-way merge, so it only answers "does the
+final tree conflict?". =rebase= can additionally fail on an intermediate
+commit even when the final tree merges cleanly; in that case the merge is
+reported as failed and the receiver branch is left untouched. commits that
+would become empty during a rebase are dropped, like =git-rebase= does.
+
+the method used is recorded in the "closed as merged" pull request event and
+shown on the pull request page.
+
 ** merge
 
 Gitus deals with bare repository so common commands like =git-merge= will not work. Fortunately Git documentation provides an example for using the low-level "plumbing commands" (as per Git lingo). The process shall goes as follows:
@@ -85,6 +109,16 @@ Gitus deals with bare repository so common commands like =git-merge= will not wo
     + =GIT_AUTHOR_EMAIL=
 + =git update-ref $receiverBranchFullName $commitId=
   + =$receiverBranchFullName= must be "local full name", i.e. the one that starts with =refs/=. For any local branch =$branch=, this would be =refs/heads/$branch= (e.g. the local full name of branch =myLocal= would be =refs/heads/myLocal=).
+
+=squash= is the same =merge-tree= step followed by a =commit-tree= with only the
+receiver branch as parent.
+
+=rebase= walks =git rev-list --reverse --no-merges $receiverBranch..$provider=
+and, for every commit, runs =git merge-tree --write-tree --merge-base=$commit^
+$newTip $commit= to get the cherry-picked tree, then writes it with
+=git commit-tree= using the original author and message. the receiver branch is
+only updated after every commit has been replayed, so a conflict in the middle
+of the series cannot leave a half-rebased branch behind.
   
 
 

@@ -92,17 +92,11 @@
 
 		  {{else if eq .EventType 6}}
 		  <div class="pull-request-event-list-item pull-request-close-as-merged">
-			<div><a href="/u/{{.EventAuthor}}">{{.EventAuthor}}</a> closed this pull request as merged @ {{toFuzzyTime .EventTimestamp}}</div>
+			<div><a href="/u/{{.EventAuthor}}">{{.EventAuthor}}</a> closed this pull request as merged{{if .EventContent}} ({{.EventContent}}){{end}} @ {{toFuzzyTime .EventTimestamp}}</div>
 			<div class="precise-time">{{toPreciseTime .EventTimestamp}}</div>
 		  </div>
 
 		  
-		  {{else if eq .EventType 6}}
-		  <div class="pull-request-event-list-item pull-request-close-as-merged">
-			<div><a href="/u/{{.EventAuthor}}">{{.EventAuthor}}</a> closed this pull request as merged @ {{toFuzzyTime .EventTimestamp}}</div>
-			<div class="precise-time">{{toPreciseTime .EventTimestamp}}</div>
-		  </div>
-
 		  {{else if eq .EventType 7}}
 		  <div class="pull-request-event-list-item pull-request-reopen">
 			<div><a href="/u/{{.EventAuthor}}">{{.EventAuthor}}</a> reopened this pull request @ {{toFuzzyTime .EventTimestamp}}</div>
@@ -168,6 +162,13 @@
 		  <form action="" method="POST">
 			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="close-as-merged" />
+			<label class="field-label" for="merge-method">Merge method:</label>
+			<select class="field-select" name="merge-method" id="merge-method">
+			  <option value="merge">Create a merge commit</option>
+			  <option value="squash">Squash into one commit</option>
+			  <option value="rebase">Rebase onto the target branch</option>
+			</select>
+			<p class="merge-check-result-description">Squash puts the whole pull request into one commit. Rebase replays the commits one by one and fails if an intermediate commit does not apply.</p>
 			<input type="submit" value="Merge & Close" />
 		  </form>
 		  {{end}}

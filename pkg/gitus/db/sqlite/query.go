@@ -1,14 +1,11 @@
 package sqlite
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path"
 	"slices"
 	"strings"
@@ -1924,7 +1921,7 @@ ORDER BY event_timestamp ASC LIMIT ? OFFSET ?
 	return res, nil
 }
 
-func (dbif *SqliteGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, username string) error {
+func (dbif *SqliteGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, username string, method string) error {
 	// WARNING: currently only works when when the source &
 	// the target is git repo. currently (2025.7.28) this check
 	// is performed at the controller side, i.e. users cannot
@@ -1932,10 +1929,10 @@ func (dbif *SqliteGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, 
 	// code can still be called. DO NOT CALL UNLESS YOU KNOW
 	// WHAT YOU'RE DOING.
 	// TODO: fix this after figuring things out.
+	if !gitlib.ValidMergeMethod(method) { return fmt.Errorf("unknown merge method: %s", method) }
 	r, err := dbif.CheckPullRequestMergeConflict(absId)
 	if err != nil { return err }
-	// TODO: this would need to be fixed in the future...
-	if !r.Successful { return nil }
+	if !r.Successful { return gitlib.ErrMergeConflict }
 	pfx := dbif.config.Database.TablePrefix
 	stmt0, err := dbif.prepare(fmt.Sprintf(`
 SELECT user_email, user_title FROM %s_user WHERE user_name = ?
@@ -1946,41 +1943,18 @@ SELECT user_email, user_title FROM %s_user WHERE user_name = ?
 	var email, userTitle string
 	err = rr.Scan(&email, &userTitle)
 	if err != nil { return err }
-	// fetch
-	buf := new(bytes.Buffer)
-	cmd1 := exec.Command("git", "fetch", r.ProviderRemoteName, r.ProviderBranch)
-	cmd1.Dir = r.ReceiverLocation
-	cmd1.Stderr = buf
-	err = cmd1.Run()
-	if err != nil { return errors.New(err.Error() + ": " + buf.String()) }
-	buf.Reset()
-	providerFullName := fmt.Sprintf("%s/%s", r.ProviderRemoteName, r.ProviderBranch)
-	cmd2 := exec.Command("git", "merge-tree", "--write-tree", r.ReceiverBranch, providerFullName)
-	cmd2.Dir = r.ReceiverLocation
-	cmd2.Stdout = buf
-	err = cmd2.Run()
-	if err != nil { return fmt.Errorf("Failed while merge-tree: %s", err.Error()) }
-	treeId := strings.TrimSpace(buf.String())
-	mergeMessage := fmt.Sprintf("merge: from %s/%s to %s", r.ProviderRemoteName, r.ProviderBranch, r.ReceiverBranch)
-	buf.Reset()
-	cmd3 := exec.Command("git", "commit-tree", treeId, "-m", mergeMessage, "-p", r.ReceiverBranch, "-p", providerFullName)
-	cmd3.Dir = r.ReceiverLocation
-	cmd3.Stdout = buf
-	cmd3.Env = os.Environ()
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_AUTHOR_NAME=%s", userTitle))
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", email))
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_COMMITTER_NAME=%s", userTitle))
-	cmd3.Env = append(cmd3.Env, fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", email))
-	err = cmd3.Run()
-	if err != nil { return fmt.Errorf("Failed while commit-tree: %s", err.Error()) }
-	commitId := strings.TrimSpace(buf.String())
-	buf.Reset()
-	receiverBranchFullName := fmt.Sprintf("refs/heads/%s", r.ReceiverBranch)
-	cmd4 := exec.Command("git", "update-ref", receiverBranchFullName, commitId)
-	cmd4.Dir = r.ReceiverLocation
-	cmd4.Stderr = buf
-	err = cmd4.Run()
-	if err != nil { return fmt.Errorf("Failed while update-ref: %s; %s", err.Error(), buf.String()) }
+	stmtTitle, err := dbif.prepare(fmt.Sprintf(`
+SELECT title FROM %s_pull_request WHERE rowid = ?
+`, pfx))
+	if err != nil { return err }
+	var title string
+	err = stmtTitle.QueryRow(absId).Scan(&title)
+	if err != nil { return err }
+	// the squash commit takes the pull request title; the other methods
+	// build their own message.
+	lgr := gitlib.NewLocalGitRepository(r.ReceiverLocation)
+	err = lgr.Merge(r.ProviderRemoteName, r.ProviderBranch, r.ReceiverBranch, method, userTitle, email, title)
+	if err != nil { return err }
 	tx, err := dbif.connection.Begin()
 	if err != nil { return err }
 	defer tx.Rollback()
@@ -1996,7 +1970,7 @@ INSERT INTO %s_pull_request_event(pull_request_abs_id, event_type, event_timesta
 VALUES (?,?,?,?,?)
 `, pfx))
 	if err != nil { return err }
-	_, err = stmt2.Exec(absId, model.PULL_REQUEST_EVENT_CLOSE_AS_MERGED, t, username, "")
+	_, err = stmt2.Exec(absId, model.PULL_REQUEST_EVENT_CLOSE_AS_MERGED, t, username, method)
 	if err != nil { return err }
 	err = tx.Commit()
 	if err != nil { return err }

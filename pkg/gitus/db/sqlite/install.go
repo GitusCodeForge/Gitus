@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS %s_pull_request_event (
 	-- 3 - update on provider branch.
 	-- 4 - merge conflict check.
 	-- 5 - close as not merged.
-	-- 6 - close (merged).
+	-- 6 - close (merged); event_content is the merge method.
     -- 7 - reopen
 	event_type INTEGER,
 	event_timestamp INTEGER,
