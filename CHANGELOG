@@ -1,5 +1,28 @@
 Copyright 2025 Zetian Lin
 
+2026-11-01 Zetian Lin <bctnry@sdf.org>
+
+	* v0.1.7
+	+ MySQL and MariaDB support
+	+ managed update hook that runs the webhook and refreshes fork comparisons
+	+ last-commit listings are memoized inside the repository and warmed over IPC
+	+ logging levels (info / warn / error / none)
+	+ security and performance audit fixes, including internal error disclosure, receipt binding, email route rate limits, database indexes and query counts, and the temporary cache sweeper
+	+ operation modes renamed to forge / browse-only / host
+	+ many bug fixes and dependency updates
+
+2026-07-12 Zetian Lin <bctnry@sdf.org>
+
+	* v0.1.6
+	+ renamed the project from Aegis to Gitus
+	+ session expiry
+	+ registration flow refactor
+	+ stronger email 2FA confirmation code
+	+ security hardening: CSRF checks, private-repo authorization, webhook target checks, crypto/rand on sensitive paths, security headers and HTTP server timeouts
+	+ git protocol v2 for HTTP clone
+	+ rrdoc, repo status and a managed no-interactive-login message
+	+ many bug fixes
+
 2025-11-30 Zetian Lin <bctnry@sdf.org>
 
 	* v0.1.5
