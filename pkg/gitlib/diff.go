@@ -73,7 +73,7 @@ type Diff struct {
 }
 
 // shhhh....... (finger across lips)
-var reGitDiffHeader = regexp.MustCompile(`(((?:(?:old|new|deleted file|new file) mode)|(?:copy (?:from|to))|(?:rename (?:from|to))|(?:dis)?similarity index) (.*))|(?:index ([^.]+)\.\.([^.]+) (.*))`)
+var reGitDiffHeader = regexp.MustCompile(`(((?:(?:old|new|deleted file|new file) mode)|(?:copy (?:from|to))|(?:rename (?:from|to))|(?:dis)?similarity index) (.*))|(?:index ([^.]+)\.\.([^.]+)(?: (.*))?)`)
 func parseGitDiffHeaderItem(s string) *DiffItemHeaderItem {
 	matchres := reGitDiffHeader.FindStringSubmatch(s)
 	if len(matchres) <= 0 { return nil }
@@ -106,7 +106,7 @@ func parseGitDiffHeaderItem(s string) *DiffItemHeaderItem {
 
 var reGitDiffItemFile1Header = regexp.MustCompile("--- (.*)")
 var reGitDiffItemFile2Header = regexp.MustCompile(`\+\+\+ (.*)`)
-var reGitDiffItemLineHeader = regexp.MustCompile(`@@ -(\d+),(\d+) \+(\d+),(\d+) @@(.*)`)
+var reGitDiffItemLineHeader = regexp.MustCompile(`@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)`)
 
 func parseGitDiff(br *bytes.Buffer) (*Diff, error) {
 	tlr := newTrueLineReader(br)
@@ -166,9 +166,11 @@ func parseGitDiff(br *bytes.Buffer) (*Diff, error) {
 			rStartStr := matchres[3]
 			rLineCountStr := matchres[4]
 			lStart, _ := strconv.ParseInt(lStartStr, 10, 64)
-			lLineCount, _ := strconv.ParseInt(lLineCountStr, 10, 64)
+			lLineCount := int64(1)
+			if lLineCountStr != "" { lLineCount, _ = strconv.ParseInt(lLineCountStr, 10, 64) }
 			rStart, _ := strconv.ParseInt(rStartStr, 10, 64)
-			rLineCount, _ := strconv.ParseInt(rLineCountStr, 10, 64)
+			rLineCount := int64(1)
+			if rLineCountStr != "" { rLineCount, _ = strconv.ParseInt(rLineCountStr, 10, 64) }
 			context := matchres[5]
 			pLines := make([]AnnotatedLine, 0)
 			f1LineNumberCounter := lStart
@@ -177,6 +179,10 @@ func parseGitDiff(br *bytes.Buffer) (*Diff, error) {
 				l, err = tlr.readLine()
 				if errors.Is(err, io.EOF) { break }
 				if err != nil { return nil, err }
+				if l[0] == '\\' {
+					// "\ No newline at end of file" is not a content line.
+					continue
+				}
 				if l[0] != ' ' && l[0] != '-' && l[0] != '+' {
 					tlr.unreadLine(l)
 					break
