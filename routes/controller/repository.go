@@ -261,6 +261,7 @@ func bindRepositoryController(ctx *RouterContext) {
 	if ctx.Config.IsInForgeMode() {
 		bindRepositoryForkController(ctx)
 		bindRepositoryPullRequestController(ctx)
+		bindRepositoryRefsController(ctx)
 	}
 }
 

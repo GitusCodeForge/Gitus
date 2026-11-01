@@ -1,0 +1,152 @@
+{{$csrf_key := "__csrf_token"}}
+{{$repoName := getRepoName .Repository.Namespace .Repository.Name}}
+{{$repoPath := getRepoPath .Repository.Namespace .Repository.Name}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Branches and Tags of {{$repoName}} :: {{.Config.DepotName}}</title>
+	<link rel="stylesheet" href="/static/style-const-default.css">
+	<link rel="stylesheet" href="/dynamic-asset/style-const-default.css">
+	<link rel="stylesheet" href="/static/style.css">
+	<link rel="stylesheet" href="/static/style-setting.css">
+  </head>
+  <body>
+	<header>
+	  {{template "_header-nav" .}}
+	  {{template "_repo-header" .}}
+	</header>
+
+	<hr />
+
+	<main>
+	  <fieldset>
+		<legend>Branches</legend>
+		{{if .BranchList}}
+		<table class="setting-table">
+		  <thead>
+			<tr><th>Branch</th><th>Head</th><th>Delete</th></tr>
+		  </thead>
+		  <tbody>
+			{{range .BranchList}}
+			<tr>
+			  <td><a href="{{$repoPath}}/branch/{{.Name}}">{{.Name}}</a>{{if eq .Name $.HeadBranch}} (HEAD){{end}}</td>
+			  <td><code>{{slice .HeadId 0 8}}</code></td>
+			  <td>
+				{{if and $.CanModify (ne .Name $.HeadBranch)}}
+				<form action="{{$repoPath}}/refs" method="POST">
+				  <input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" />
+				  <input type="hidden" name="type" value="delete-branch" />
+				  <input type="hidden" name="name" value="{{.Name}}" />
+				  <input type="submit" value="Delete" />
+				</form>
+				{{else if eq .Name $.HeadBranch}}
+				<span class="field-label-description">The branch HEAD points at cannot be deleted.</span>
+				{{end}}
+			  </td>
+			</tr>
+			{{end}}
+		  </tbody>
+		</table>
+		{{else}}
+		<p>There's no branch in this repository.</p>
+		{{end}}
+
+		{{if .CanModify}}
+		<form action="{{$repoPath}}/refs" method="POST">
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+		  <input type="hidden" name="type" value="create-branch" />
+		  <table class="field-table">
+			<tr class="field">
+			  <td><label class="field-label" for="tf-new-branch">New branch:</label></td>
+			  <td><input class="field-tf" name="name" id="tf-new-branch" placeholder="feature-x" /></td>
+			</tr>
+			<tr class="field">
+			  <td><label class="field-label" for="s-branch-target">From:</label></td>
+			  <td>
+				<select class="field-select" name="target" id="s-branch-target">
+				  {{range .BranchList}}<option value="refs/heads/{{.Name}}" {{if eq .Name $.HeadBranch}}selected{{end}}>branch: {{.Name}}</option>
+				  {{end}}
+				  {{range .TagList}}<option value="refs/tags/{{.Name}}">tag: {{.Name}}</option>
+				  {{end}}
+				</select>
+			  </td>
+			</tr>
+			<tr class="field">
+			  <td></td>
+			  <td><input class="field-submit" type="submit" value="Create Branch" /></td>
+			</tr>
+		  </table>
+		  <p class="field-label-description">Names with a slash are not supported by the web interface yet.</p>
+		</form>
+		{{end}}
+	  </fieldset>
+
+	  <fieldset>
+		<legend>Tags</legend>
+		{{if .TagList}}
+		<table class="setting-table">
+		  <thead>
+			<tr><th>Tag</th><th>Head</th><th>Delete</th></tr>
+		  </thead>
+		  <tbody>
+			{{range .TagList}}
+			<tr>
+			  <td><a href="{{$repoPath}}/tag/{{.Name}}">{{.Name}}</a></td>
+			  <td><code>{{slice .HeadId 0 8}}</code></td>
+			  <td>
+				{{if $.CanModify}}
+				<form action="{{$repoPath}}/refs" method="POST">
+				  <input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" />
+				  <input type="hidden" name="type" value="delete-tag" />
+				  <input type="hidden" name="name" value="{{.Name}}" />
+				  <input type="submit" value="Delete" />
+				</form>
+				{{end}}
+			  </td>
+			</tr>
+			{{end}}
+		  </tbody>
+		</table>
+		{{else}}
+		<p>There's no tag in this repository.</p>
+		{{end}}
+
+		{{if .CanModify}}
+		<form action="{{$repoPath}}/refs" method="POST">
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+		  <input type="hidden" name="type" value="create-tag" />
+		  <table class="field-table">
+			<tr class="field">
+			  <td><label class="field-label" for="tf-new-tag">New tag:</label></td>
+			  <td><input class="field-tf" name="name" id="tf-new-tag" placeholder="v1.0.0" /></td>
+			</tr>
+			<tr class="field">
+			  <td><label class="field-label" for="s-tag-target">At:</label></td>
+			  <td>
+				<select class="field-select" name="target" id="s-tag-target">
+				  {{range .BranchList}}<option value="refs/heads/{{.Name}}" {{if eq .Name $.HeadBranch}}selected{{end}}>branch: {{.Name}}</option>
+				  {{end}}
+				  {{range .TagList}}<option value="refs/tags/{{.Name}}">tag: {{.Name}}</option>
+				  {{end}}
+				</select>
+			  </td>
+			</tr>
+			<tr class="field">
+			  <td></td>
+			  <td><input class="field-submit" type="submit" value="Create Tag" /></td>
+			</tr>
+		  </table>
+		  <p class="field-label-description">Tags created here are lightweight tags. Use <code>git tag -a</code> and push if you need an annotated tag.</p>
+		</form>
+		{{end}}
+	  </fieldset>
+	</main>
+
+	<hr />
+	<footer>
+	  <a href="{{$repoPath}}">Back to repository</a>
+	  {{template "_footer"}}
+	</footer>
+  </body>
+</html>
