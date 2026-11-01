@@ -311,6 +311,10 @@ type GitusGitConfig struct {
 	// maximum number of HTTP clone requests that may run `git upload-pack`
 	// at the same time. 0 uses DefaultMaxConcurrentClone.
 	MaxConcurrentClone int `json:"maxConcurrentClone"`
+	// RepositorySizeLimit is the most disk space one repository may occupy,
+	// in bytes; 0 means no limit. A push that would take the repository over
+	// the limit is refused by the pre-receive hook. See docs/storage.org.
+	RepositorySizeLimit int64 `json:"repositorySizeLimit"`
 }
 
 type GitusSessionConfig struct {

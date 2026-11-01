@@ -8,7 +8,7 @@ import (
 	"github.com/GitusCodeForge/Gitus/routes"
 )
 
-// installHooksForRepository installs (or refreshes) the git hook Gitus manages
+// installHooksForRepository installs (or refreshes) the git hooks Gitus manages
 // in a repository.
 func installHooksForRepository(ctx *routes.RouterContext, repo *model.Repository) error {
 	if repo.Type != model.REPO_TYPE_GIT {
@@ -17,7 +17,7 @@ func installHooksForRepository(ctx *routes.RouterContext, repo *model.Repository
 	return model.InstallManagedHook(repo.Repository, ctx.Config.FilePath, repo.FullName())
 }
 
-// HandleInstallHooks installs the managed git hook in one repository, or in
+// HandleInstallHooks installs the managed git hooks in one repository, or in
 // every repository when repoFullName is empty. It returns the number of
 // repositories that could not be handled.
 func HandleInstallHooks(ctx *routes.RouterContext, repoFullName string) int {

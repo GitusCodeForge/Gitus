@@ -23,6 +23,10 @@
 	  {{template "_admin-sidebar"}}
 	  
 	  <div class="setting-main main-side">
+		{{if .ErrorMsg}}
+		<div class="error-msg">{{.ErrorMsg}}</div>
+		{{end}}
+
 		<fieldset class="setting-section">
 		  <legend>Basic Settings</legend>
 		  <form action="" method="POST">
@@ -90,6 +94,14 @@
 			  <tr class="field">
 				<td><label class="field-label" for="tf-no-interactive-shell-message">"No Interactive Shell" message:</label></td>
 				<td><input name="no-interactive-shell-message" id="tf-no-interactive-shell-message" class="field-tf" value="{{.Config.NoInteractiveShellMessage}}" /></td>
+			  </tr>
+			  <tr class="field">
+				<td><label class="field-label" for="tf-repository-size-limit">Repository size limit:</label></td>
+				<td><input name="repository-size-limit" id="tf-repository-size-limit" class="field-tf" value="{{formatSizeExact .Config.GitConfig.RepositorySizeLimit}}" /></td>
+			  </tr>
+			  <tr class="field">
+				<td></td>
+				<td class="field-label-description">The most disk space one repository may occupy, e.g. <code>1 GiB</code> or <code>512M</code>. A push that would take a repository over the limit is refused. <code>0</code> means no limit.</td>
 			  </tr>
 			  <tr class="field">
 				<td></td>

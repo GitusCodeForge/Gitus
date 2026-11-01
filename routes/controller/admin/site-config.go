@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 )
@@ -97,7 +98,17 @@ func bindAdminSiteConfigController(ctx *RouterContext) {
 				rc.Config.GitConfig.HTTPCloneProtocol.V1Dumb = len(strings.TrimSpace(r.Form.Get("git-http-enable-v1dumb"))) > 0
 				rc.Config.GitConfig.HTTPCloneProtocol.V2 = len(strings.TrimSpace(r.Form.Get("git-http-enable-v2"))) > 0
 				rc.Config.NoInteractiveShellMessage = strings.TrimSpace(r.Form.Get("no-interactive-shell-message"))
-				err := rc.Config.Sync()
+				sizeLimit, err := auxfuncs.ParseSize(r.Form.Get("repository-size-limit"))
+				if err != nil {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: fmt.Sprintf("Invalid repository size limit: %s. Use a number of bytes or a suffix such as M or GiB.", err.Error()),
+					}))
+					return
+				}
+				rc.Config.GitConfig.RepositorySizeLimit = sizeLimit
+				err = rc.Config.Sync()
 				if err != nil {
 					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
 						Config: rc.Config,

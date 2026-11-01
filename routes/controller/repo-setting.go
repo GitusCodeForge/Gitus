@@ -52,11 +52,19 @@ func bindRepositorySettingController(ctx *RouterContext) {
 				return
 			}
 			rc.LoginInfo.IsSettingMember = true
+			storageUsed, storageUsedKnown := int64(0), false
+			if gr, ok := repo.Repository.(*gitlib.LocalGitRepository); ok {
+				if size, err := gr.SizeInBytes(); err == nil {
+					storageUsed, storageUsedKnown = size, true
+				}
+			}
 			LogTemplateError(ctx.LoadTemplate("repo-setting/change-info").Execute(w, templates.RepositorySettingTemplateModel{
 				Config: ctx.Config,
 				Repository: repo,
 				RepoFullName: rfn,
 				LoginInfo: rc.LoginInfo,
+				StorageUsed: storageUsed,
+				StorageUsedKnown: storageUsedKnown,
 			}))
 		},
 	))

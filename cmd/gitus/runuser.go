@@ -61,6 +61,8 @@ func commandLabel(command string) string {
 		return "the webhook sender"
 	case "update-trigger":
 		return "the update hook"
+	case "storage-check":
+		return "the storage check"
 	case "host-mode":
 		return "host-mode"
 	case "install-hooks":

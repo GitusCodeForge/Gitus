@@ -60,6 +60,14 @@ field is not mentioned at all, ={"!no-webhook": "no-webhook", "!no-ci":
 "no-ci"}= applies; ={}= turns every tag off. See
 [[file:commit-message.org][commit message]].
 
+** repository size limit
+
+=gitConfig.repositorySizeLimit= is the most disk space one repository may
+occupy, in bytes or with a suffix (=512M=, =1.5 GiB=). =0= means no limit and is
+the default. A push that would take a repository over the limit is refused by
+the pre-receive hook, and the repository settings page shows the current size. See
+[[file:storage.org][storage]].
+
 ** http clone
 
 =gitConfig.httpCloneProtocol.v1dumb= and =gitConfig.httpCloneProtocol.v2=

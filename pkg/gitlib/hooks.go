@@ -84,9 +84,9 @@ func (lgr LocalGitRepository) DeleteHook(hookName string) error {
 // considered to be somebody else's and is never overwritten.
 const managedHookMarker = "# managed by gitus"
 
-// ErrHookNotManaged is returned when the repository already has an update hook
-// that was not written by Gitus.
-var ErrHookNotManaged = errors.New("the update hook of this repository was not installed by gitus")
+// ErrHookNotManaged is returned when the repository already has a hook that
+// was not written by Gitus.
+var ErrHookNotManaged = errors.New("a hook of this repository was not installed by gitus")
 
 // ManagedHookParams is everything the generated hook needs to call back into
 // Gitus. The hook runs with the environment of git-receive-pack, so both paths
@@ -129,8 +129,51 @@ fi
 exit 0
 `
 
+// The storage limit is enforced from a pre-receive hook rather than from the
+// update hook: when pre-receive rejects the push, git discards the quarantine
+// directory, so a refused push leaves nothing behind. The update hook runs
+// after the objects have been migrated, and a rejection there would still
+// leave the objects in the repository.
+const managedPreReceiveHookTemplate = `#!/bin/sh
+%s
+#
+# Reinstalled by gitus whenever the repository is created or
+# ` + "`gitus install-hooks`" + ` is run; do not edit.
+#
+# git runs this once per push, before any ref is updated (see githooks(5)).
+# A push that would take the repository over its storage limit is refused here,
+# while the incoming objects are still in the quarantine directory, so a
+# rejected push leaves nothing behind.
+#
+# A push that only deletes refs adds no objects and is always allowed.
+
+if [ -z "$GIT_DIR" ]; then
+	printf 'This hook is meant to be run by git.\n' >&2
+	exit 0
+fi
+
+has_objects=0
+while read -r oldrev newrev refname; do
+	case "$newrev" in
+		*[!0]*) has_objects=1 ;;
+	esac
+done
+
+if [ "$has_objects" = "1" ]; then
+	if ! %s -config %s storage-check %s; then
+		exit 1
+	fi
+fi
+
+exit 0
+`
+
 func (gr *LocalGitRepository) updateHookPath() string {
 	return path.Join(gr.GitDirectoryPath, "hooks", "update")
+}
+
+func (gr *LocalGitRepository) preReceiveHookPath() string {
+	return path.Join(gr.GitDirectoryPath, "hooks", "pre-receive")
 }
 
 // isGitusHook reports whether content is a hook Gitus owns: either the managed
@@ -150,46 +193,86 @@ func (gr *LocalGitRepository) HasManagedHook() bool {
 	return isGitusHook(string(b))
 }
 
-// InstallManagedHook writes (or refreshes) the update hook of the repository.
-// It refuses to touch a hook that Gitus did not write, and does nothing when the
-// file is already up to date.
+// InstallManagedHook writes (or refreshes) the hooks of the repository: the
+// pre-receive hook that enforces the storage limit and the update hook that
+// sends webhooks. It refuses to touch a hook that Gitus did not write, and does
+// nothing when the files are already up to date.
 func (gr *LocalGitRepository) InstallManagedHook(p ManagedHookParams) error {
 	if len(p.ConfigPath) <= 0 {
 		return errors.New("the configuration file path is unknown; cannot generate the hook")
 	}
 	exe, err := os.Executable()
-	if err != nil { return err }
-	content := fmt.Sprintf(managedUpdateHookTemplate,
+	if err != nil {
+		return err
+	}
+	updateContent := fmt.Sprintf(managedUpdateHookTemplate,
+		managedHookMarker,
+		shellQuote(exe), shellQuote(p.ConfigPath), shellQuote(p.RepoFullName))
+	preReceiveContent := fmt.Sprintf(managedPreReceiveHookTemplate,
 		managedHookMarker,
 		shellQuote(exe), shellQuote(p.ConfigPath), shellQuote(p.RepoFullName))
 
-	hookPath := gr.updateHookPath()
+	hooks := []struct {
+		path    string
+		content string
+	}{
+		{gr.preReceiveHookPath(), preReceiveContent},
+		{gr.updateHookPath(), updateContent},
+	}
+	// Check both before writing either, so a foreign update hook does not leave
+	// the repository with a newly written pre-receive hook.
+	for _, h := range hooks {
+		existing, err := os.ReadFile(h.path)
+		if err == nil {
+			if !isGitusHook(string(existing)) {
+				return ErrHookNotManaged
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	for _, h := range hooks {
+		if err := installHookFile(h.path, h.content); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// installHookFile writes a hook unless it already has exactly the given
+// content. The file is written aside and renamed into place: a half written
+// hook would be run by the next push and could reject it.
+func installHookFile(hookPath string, content string) error {
 	existing, err := os.ReadFile(hookPath)
-	if err == nil {
-		if !isGitusHook(string(existing)) {
-			return ErrHookNotManaged
-		}
-		if string(existing) == content {
-			return nil
-		}
-	} else if !os.IsNotExist(err) {
+	if err == nil && string(existing) == content {
+		return nil
+	}
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-
 	err = os.MkdirAll(path.Dir(hookPath), 0755)
-	if err != nil { return err }
-	// Written aside and renamed into place: a half written hook would be run by
-	// the next push and could reject it.
-	f, err := os.CreateTemp(path.Dir(hookPath), ".update-*")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(path.Dir(hookPath), ".hook-*")
+	if err != nil {
+		return err
+	}
 	tmpName := f.Name()
 	defer os.Remove(tmpName)
 	_, err = f.WriteString(content)
-	if err != nil { f.Close(); return err }
+	if err != nil {
+		f.Close()
+		return err
+	}
 	err = f.Close()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	err = os.Chmod(tmpName, 0755)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return os.Rename(tmpName, hookPath)
 }
 

@@ -55,6 +55,16 @@
 		</fieldset>
 		
 		<fieldset>
+		  <legend>Storage</legend>
+		  {{if .StorageUsedKnown}}
+		  <p>This repository uses <b>{{formatSize .StorageUsed}}</b>{{if .Config.GitConfig.RepositorySizeLimit}} out of the limit of <b>{{formatSize .Config.GitConfig.RepositorySizeLimit}}</b>{{else}}; no storage limit is configured for this instance{{end}}.</p>
+		  {{else}}
+		  <p>The size of this repository could not be determined.</p>
+		  {{end}}
+		  <p class="field-label-description">The size is counted when this page is opened. Pushes that would take the repository over the limit are refused.</p>
+		</fieldset>
+
+		<fieldset>
 		  <legend>Delete Repository</legend>
 		  <a href="/repo/{{.RepoFullName}}/delete">Click here to delete this repository</a>
 		</fieldset>

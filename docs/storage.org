@@ -1,0 +1,65 @@
+* storage space limit
+
+a repository can be given a maximum size so that one repository cannot fill the
+disk of the instance. It is set site-wide in the admin panel
+(= /admin/site-config=, "Git Settings", "Repository size limit") or with
+=gitConfig.repositorySizeLimit= in the configuration file, in bytes or with a
+suffix such as =512M= or =1.5 GiB= (see [[file:config.org][config]]). =0= means no
+limit, which is the default.
+
+** what is counted
+
+the size is the sum of the regular files under the repository's git directory:
+objects, refs, logs, the hooks and the configuration. symlinks are not followed,
+so a link inside a repository cannot make the count depend on something outside
+of it. The number is never cached: it is recomputed when the repository settings
+page is opened and when a push is being decided on.
+
+** when a push is refused
+
+the managed =pre-receive= hook runs =gitus storage-check= once per push, before
+any ref is updated. The objects of the push are still in the quarantine
+directory under =objects/= at that point, so their size is included in the
+count. When the result is over the limit the hook exits non-zero, git aborts the
+whole push and discards the quarantine directory, so a refused push leaves
+nothing behind. The person pushing sees the used size and the limit:
+
+#+begin_example
+remote: ns:repo: the repository is 1.2 GiB, over the limit of 1.0 GiB; the push was refused, remove some objects and try again
+#+end_example
+
+the pre-receive hook reads the list of ref updates and skips the check when
+every one of them is a deletion; deleting a branch or a tag adds no objects and
+is always allowed, even when the repository is already over the limit.
+
+the check is best effort where it cannot decide: when the repository cannot be
+read, the database cannot be reached or the size cannot be determined, the
+command logs a warning and lets the push through. A broken instance should not
+stop people from pushing, and the next push runs the check again. Concurrent
+pushes are not serialized, so two pushes that each fit under the limit can both
+be accepted and take the repository over it; the next push is refused until it
+is back under.
+
+merges performed from the web interface are not checked. A pull request lives in
+the same repository, so its objects are already counted and a merge adds little;
+the limit is about what arrives through a push.
+
+** existing repositories
+
+the hooks are installed when a repository is created. after updating an instance
+that already has repositories, run
+
+#+begin_example
+gitus -config /path/to/config.json install-hooks
+#+end_example
+
+once so that the existing repositories get the pre-receive hook. Until then
+their pushes are not checked. The command leaves hooks that Gitus did not write
+alone: a repository whose =pre-receive= hook belongs to somebody else cannot be
+checked, and =gitus install-hooks= reports it as a failure.
+
+** settings page
+
+the storage fieldset of =/repo/{repo}/setting= reports the current size and the
+limit, so the owner can see how close the repository is. The size is counted
+when the page is opened.

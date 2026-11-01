@@ -79,9 +79,10 @@ func main() {
 	isSsh := containsCommand && mainCall[0] == "ssh"
 	isWebHooks := containsCommand && mainCall[0] == "web-hooks"
 	isUpdateTrigger := containsCommand && mainCall[0] == "update-trigger"
+	isStorageCheck := containsCommand && mainCall[0] == "storage-check"
 	isInstallHooks := containsCommand && mainCall[0] == "install-hooks"
 	isResetAdmin := containsCommand && mainCall[0] == "reset-admin"
-	dbifNeeded := isWebServer || (containsCommand && (isSsh || isWebHooks || isUpdateTrigger || isInstallHooks || isResetAdmin))
+	dbifNeeded := isWebServer || (containsCommand && (isSsh || isWebHooks || isUpdateTrigger || isStorageCheck || isInstallHooks || isResetAdmin))
 	ssifNeeded := isWebServer
 	keyctxNeeded := isWebServer || (containsCommand && isSsh)
 	rsifNeeded := isWebServer
@@ -265,6 +266,18 @@ func main() {
 				return
 			}
 			HandleUpdateTrigger(&context, mainCall[1], mainCall[2], mainCall[3], mainCall[4], mainCall[5])
+			return
+		case "storage-check":
+			if len(mainCall) < 2 {
+				fmt.Fprint(os.Stderr, "Error format for `gitus storage-check`.\n")
+				os.Exit(1)
+			}
+			if err := HandleStorageCheck(&context, mainCall[1]); err != nil {
+				// the hook prints what git gives it on stderr, so the person
+				// pushing sees the reason.
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				os.Exit(1)
+			}
 			return
 		case "install-hooks":
 			repoFullName := ""
