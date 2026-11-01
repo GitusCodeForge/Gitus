@@ -300,6 +300,37 @@ hr {
 	margin: 0;
 	margin-left: 1rem;
 }
+/* an SVG icon sprite: each defined symbol gets a preview */
+.svg-symbol-summary {
+	margin-left: 1rem;
+}
+.svg-symbol-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	padding: 1rem;
+}
+.svg-symbol {
+	margin: 0;
+	width: 6rem;
+	text-align: center;
+}
+.svg-symbol img {
+	display: block;
+	width: 4rem;
+	height: 4rem;
+	margin: 0 auto 0.25rem;
+	padding: 0.25rem;
+	background: var(--background-color);
+	border: 1px solid var(--shade-degree-2);
+	border-radius: 0.25rem;
+}
+.svg-symbol figcaption {
+	font-family: monospace;
+	font-size: 0.8rem;
+	color: var(--shade-degree-2);
+	overflow-wrap: anywhere;
+}
 /* ======================================================== */
 
 

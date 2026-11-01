@@ -36,9 +36,21 @@
 	  <div class="file main-side" >
 		<div class="main-side-top">
 		  {{if .TreePath}}{{template "_tree-path" .TreePath}}{{end}}
-		  <div class="file-nav">{{if eq .LoginInfo.UserName .Repository.Owner}}<a href="?edit">Replace</a> {{end}}<a href="?raw">Raw</a> <a href="{{.PermaLink}}">Permalink</a></div>
+		  <div class="file-nav">{{if and .AllowEdit (eq .LoginInfo.UserName .Repository.Owner)}}<a href="?edit">Replace</a> {{end}}<a href="?raw">Raw</a> <a href="{{.PermaLink}}">Permalink</a></div>
 		</div>
+		{{if .SVGSymbols}}
+		<p class="svg-symbol-summary">This SVG file is an icon sprite: it defines {{len .SVGSymbols}} symbol(s) and draws nothing on its own. Each symbol is shown below.</p>
+		<div class="svg-symbol-list">
+		  {{range .SVGSymbols}}
+		  <figure class="svg-symbol">
+			<img src="?symbol={{urlquery .ID}}" alt="{{.ID}}" loading="lazy" />
+			<figcaption>{{.ID}}</figcaption>
+		  </figure>
+		  {{end}}
+		</div>
+		{{else}}
 		<img class="file-image" src="?raw" />
+		{{end}}
 	  </div>
 	</main>
 

@@ -14,6 +14,8 @@
 + =/repo/{reponame}/commit/{commitId}/{treePath}?raw=:
 + =/repo/{reponame}/tree/{treeId}=: The tree with the id =treeId=. No associated commit or tag info, just the tree.
 + =/repo/{reponame}/blob/{blobId}=: The blob with the id =treeId=. No associated commit or tag info, just the blob.
++ =/repo/{reponame}/blob/{blobId}?symbol={id}=: one symbol of an SVG icon sprite as a standalone SVG document (see [[./svg.org]]).
++ =/repo/{reponame}/branch/{branchName}/{treePath}?symbol={id}=: the same, for an SVG file opened through a branch, tag or commit.
 + =/repo/{reponame}/refs=: branches and tags of the repository; create and delete them here (forge mode only).
 + =/repo/{reponame}/tag/{tagId}=: The tag with the id =tagId=, together with the info one can extract from the tagged object (e.g. if the tag tags a tree object, then a list of items that can be read from that tree obj is displayed; if the tag tags a blob object, the content of that blob is displayed; etc..)
 + =/repo/{reponame}/history/branch:{branchName}=: the history of branch =branchName=.

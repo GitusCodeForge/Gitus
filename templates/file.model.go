@@ -14,6 +14,12 @@ type FileTemplateModel struct {
 
 	ComparisonInfo *gitlib.BranchComparisonInfo
 	AllowBlame bool
+	// AllowEdit is true only where the file view has an edit route; the blob
+	// permalink has no ?edit handler.
+	AllowEdit bool
+	// SVGSymbols is set when the file is an SVG icon sprite. Such a document
+	// draws nothing on its own, so the page lists the defined symbols.
+	SVGSymbols []gitlib.SVGSymbolInfo
 	TreeFileList *TreeFileListTemplateModel
 	TreePath *TreePathTemplateModel
 	CommitInfo *CommitInfoTemplateModel

@@ -372,6 +372,14 @@ func bindBranchController(ctx *RouterContext) {
 					templateType = "file-image"
 				}
 				bobj := target.(*gitlib.BlobObject)
+				var svgInfo *gitlib.SVGInfo
+				if strings.HasPrefix(mime, "image/svg+xml") && len(bobj.Data) <= gitlib.MaxSVGSymbolBytes {
+					if info, err := gitlib.ParseSVG(bobj.Data); err == nil { svgInfo = info }
+				}
+				if symbol := r.URL.Query().Get("symbol"); len(symbol) > 0 {
+					if !serveSVGSymbolPreview(w, svgInfo, symbol) { http.NotFound(w, r) }
+					return
+				}
 				if r.URL.Query().Has("raw") {
 					w.Header().Add("Content-Type", mime)
 					w.Write(bobj.Data)
@@ -381,6 +389,8 @@ func bindBranchController(ctx *RouterContext) {
 				filename := path.Base(treePath)
 				coloredStr, err := colorSyntax(filename, str)
 				if err == nil { str = coloredStr }
+				var svgSymbols []gitlib.SVGSymbolInfo
+				if svgInfo != nil && svgInfo.IsSprite { svgSymbols = svgInfo.Symbols }
 				LogTemplateError(rc.LoadTemplate(templateType).Execute(w, templates.FileTemplateModel{
 					Repository: repo,
 					RepoHeaderInfo: *repoHeaderInfo,
@@ -398,6 +408,8 @@ func bindBranchController(ctx *RouterContext) {
 					},
 					ComparisonInfo: compareInfo,
 					AllowBlame: !strings.HasPrefix(mime, "image/"),
+					AllowEdit: true,
+					SVGSymbols: svgSymbols,
 					TreePath: treePathModelValue,
 					CommitInfo: commitInfo,
 					TagInfo: nil,

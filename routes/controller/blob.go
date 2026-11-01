@@ -75,14 +75,40 @@ func bindBlobController(ctx *RouterContext) {
 			// intentional and we shall come back to this in the future...
 			templateType := "file-text"
 			bobj := gobj.(*gitlib.BlobObject)
+			// A small blob is parsed to find out whether it is an SVG (and
+			// whether it is an icon sprite); a large one is only sniffed, so
+			// that a big file does not cost a full XML parse.
+			var mime string
+			var svgInfo *gitlib.SVGInfo
+			if gitlib.IsSVG(bobj.Data) {
+				if len(bobj.Data) <= gitlib.MaxSVGSymbolBytes {
+					if info, err := gitlib.ParseSVG(bobj.Data); err == nil {
+						mime = "image/svg+xml"
+						templateType = "file-image"
+						svgInfo = info
+					}
+				} else {
+					mime = "image/svg+xml"
+					templateType = "file-image"
+				}
+			}
+			if symbol := r.URL.Query().Get("symbol"); len(symbol) > 0 {
+				if !serveSVGSymbolPreview(w, svgInfo, symbol) { http.NotFound(w, r) }
+				return
+			}
 			if r.URL.Query().Has("raw") || r.URL.Query().Has("snapshot") {
+				if len(mime) > 0 { w.Header().Set("Content-Type", mime) }
 				w.Write(bobj.Data)
 				return
 			}
 			str := string(bobj.Data)
-			coloredStr, err := colorSyntax("", str)
-			if err == nil { str = coloredStr }
+			if templateType == "file-text" {
+				coloredStr, err := colorSyntax("", str)
+				if err == nil { str = coloredStr }
+			}
 			permaLink := fmt.Sprintf("/repo/%s/blob/%s", rfn, blobId)
+			var svgSymbols []gitlib.SVGSymbolInfo
+			if svgInfo != nil && svgInfo.IsSprite { svgSymbols = svgInfo.Symbols }
 
 			LogTemplateError(ctx.LoadTemplate(templateType).Execute(w, templates.FileTemplateModel{
 				RepoHeaderInfo: *repoHeaderInfo,
@@ -92,10 +118,12 @@ func bindBlobController(ctx *RouterContext) {
 				},
 				Repository: repo,
 				PermaLink: permaLink,
+				SVGSymbols: svgSymbols,
 				TreePath: nil,
 				CommitInfo: nil,
 				TagInfo: nil,
 				LoginInfo: rc.LoginInfo,
+				Config: ctx.Config,
 			}))
 		},
 	))

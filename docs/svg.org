@@ -1,0 +1,42 @@
+* svg icon sprites
+
+an SVG file whose body is only definitions (an icon sprite: =<symbol>=
+elements, optionally wrapped in =<defs>= along with =<style>=, =<title>= and
+friends) draws nothing when it is opened on its own. showing it as an =<img>=
+therefore gives a blank page.
+
+when the file page sees a document of that form, it lists the defined symbols
+instead: one preview and the id of each one. the normal image view is kept for
+an SVG that draws something itself.
+
+** how a preview is built
+
+the preview URL is the file URL itself with =?symbol={id}=, e.g.
+
+#+begin_example
+/repo/ns:repo/branch/main/assets/icons.svg?symbol=gear
+#+end_example
+
+and it answers with =image/svg+xml=. the document is not re-serialised: the raw
+content of the original =<svg>= (styles, =<defs>= and every symbol) is kept,
+the root =viewBox= is replaced with the symbol's own one, and the symbol is
+drawn once with
+
+#+begin_example
+<use href="#gear" xlink:href="#gear" width="100%" height="100%"/>
+#+end_example
+
+so styles and references between symbols keep working. symbols without an =id=
+are skipped, because the page has no way to address them.
+
+the same handling is used for the blob permalink (=/repo/{repo}/blob/{id}=), so
+following a permalink from a branch or tag view keeps the symbol list.
+
+** limits
+
+the symbols are only listed when the document has no visible top-level
+elements. an SVG that mixes an icon sprite with something drawn on its own is
+shown as an image.
+
+documents larger than 1 MiB are shown as images without a symbol list: an icon
+sprite is a few kilobytes, and each preview embeds the whole document.
