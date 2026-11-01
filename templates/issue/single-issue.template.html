@@ -25,6 +25,23 @@
 		<div class="issue-body">
 		  <h2 class="issue-header">#{{.Issue.IssueId}}: <span class="issue-header-title">{{.Issue.IssueTitle}}</span> <span class="issue-header-tag">{{if eq .Issue.IssueStatus 1}}OPEN{{else if eq .Issue.IssueStatus 2}}SOLVED{{else if eq .Issue.IssueStatus 3}}DISCARDED{{end}}</span> {{if gt .Issue.IssuePriority 0}}<span class="issue-header-tag">PINNED</span>{{end}}</h2>
 		  <div class="issue-header-author"><a href="/u/{{.Issue.IssueAuthor}}">{{.Issue.IssueAuthor}}</a> @ {{toFuzzyTime .Issue.IssueTime}} ({{toPreciseTime .Issue.IssueTime}})</div>
+		  <div class="issue-label-list">
+			{{range .Issue.LabelList}}
+			<span class="issue-label">#{{.}}{{if $.CanManageLabels}}<form action="" method="POST"><input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" /><input type="hidden" name="type" value="remove-label" /><input type="hidden" name="label" value="{{.}}" /><input type="submit" value="remove" /></form>{{end}}</span>
+			{{end}}
+			{{if .CanManageLabels}}
+			{{if .AvailableLabelList}}
+			<form class="issue-label-add" action="" method="POST">
+			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			  <input type="hidden" name="type" value="add-label" />
+			  <select name="label">{{range .AvailableLabelList}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+			  <input type="submit" value="Add Label" />
+			</form>
+			{{else if eq (len .IssueLabelVocabulary) 0}}
+			<span class="field-label-description">This repository has no issue label yet; add them in <a href="{{$repoPath}}/setting/issue-label">the repository settings</a>.</span>
+			{{end}}
+			{{end}}
+		  </div>
 		  <div class="issue-header-content">{{renderMarkdown .Issue.IssueContent}}</div>
 		</div>
 		<div class="issue-event-list">

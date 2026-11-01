@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,36 @@ import (
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 )
+
+// canManageIssueLabels reports whether the visitor may attach or remove issue
+// labels: administrators, the repository or namespace owner, and members with
+// the setting privilege on the repository or namespace.
+func canManageIssueLabels(rc *RouterContext, ns *model.Namespace, repo *model.Repository) bool {
+	if rc.LoginInfo == nil || !rc.LoginInfo.LoggedIn { return false }
+	if rc.LoginInfo.IsAdmin { return true }
+	if repo.Owner == rc.LoginInfo.UserName { return true }
+	if ns != nil && ns.Owner == rc.LoginInfo.UserName { return true }
+	if p := repo.AccessControlList.GetUserPrivilege(rc.LoginInfo.UserName); p != nil && p.HasSettingPrivilege() {
+		return true
+	}
+	if ns != nil {
+		if p := ns.ACL.GetUserPrivilege(rc.LoginInfo.UserName); p != nil && p.HasSettingPrivilege() {
+			return true
+		}
+	}
+	return false
+}
+
+// availableIssueLabels returns the labels of the repository's issue label
+// vocabulary that the issue does not carry yet.
+func availableIssueLabels(vocabulary []string, issue *model.Issue) []string {
+	res := make([]string, 0)
+	for _, l := range vocabulary {
+		if slices.Contains(issue.LabelList, l) { continue }
+		res = append(res, l)
+	}
+	return res
+}
 
 func bindIssueController(ctx *RouterContext) {
 	http.HandleFunc("GET /repo/{repoName}/issue", UseMiddleware(
@@ -160,6 +191,13 @@ func bindIssueController(ctx *RouterContext) {
 				rc.ReportInternalError(err.Error(), w, r)
 				return
 			}
+			// the vocabulary of issue labels is separate from the
+			// repository's own labels.
+			issueLabelVocabulary, err := rc.DatabaseInterface.GetRepositoryIssueLabel(nsName, repoName)
+			if err != nil {
+				rc.ReportInternalError(err.Error(), w, r)
+				return
+			}
 			LogTemplateError(rc.LoadTemplate("issue/single-issue").Execute(w, &templates.RepositorySingleIssueTemplateModel{
 				Config: rc.Config,
 				Repository: repo,
@@ -168,6 +206,9 @@ func bindIssueController(ctx *RouterContext) {
 				ErrorMsg: "",
 				Issue: issue,
 				IssueEventList: eventList,
+				CanManageLabels: canManageIssueLabels(rc, ns, repo),
+				IssueLabelVocabulary: issueLabelVocabulary,
+				AvailableLabelList: availableIssueLabels(issueLabelVocabulary, issue),
 			}))
 			
 		},
@@ -206,6 +247,43 @@ func bindIssueController(ctx *RouterContext) {
 				return
 			}
 			formType := strings.TrimSpace(r.Form.Get("type"))
+			if formType == "add-label" || formType == "remove-label" {
+				if !canManageIssueLabels(rc, ns, repo) {
+					rc.ReportRedirect(fmt.Sprintf("/repo/%s/issue/%d", rfn, iid), 5, "Not Enough Privilege",
+						"Your account doesn't have enough privilege to change the labels of this issue.", w, r)
+					return
+				}
+				label := strings.TrimSpace(r.Form.Get("label"))
+				if len(label) <= 0 {
+					rc.ReportRedirect(fmt.Sprintf("/repo/%s/issue/%d", rfn, iid), 5, "Invalid Request",
+						"No label was specified.", w, r)
+					return
+				}
+				// the vocabulary is the repository's issue label list, so a
+				// label that was not defined in the settings cannot be
+				// attached.
+				vocabulary, err := rc.DatabaseInterface.GetRepositoryIssueLabel(nsName, repoName)
+				if err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
+				if !slices.Contains(vocabulary, label) {
+					rc.ReportRedirect(fmt.Sprintf("/repo/%s/issue/%d", rfn, iid), 5, "Unknown Label",
+						fmt.Sprintf("The repository has no issue label %q.", label), w, r)
+					return
+				}
+				if formType == "add-label" {
+					err = rc.DatabaseInterface.AddIssueLabel(nsName, repoName, iid, label)
+				} else {
+					err = rc.DatabaseInterface.RemoveIssueLabel(nsName, repoName, iid, label)
+				}
+				if err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
+				FoundAt(w, fmt.Sprintf("/repo/%s/issue/%d", rfn, iid))
+				return
+			}
 			if formType == "unpin" || formType == "pin" {
 				switch formType {
 				case "unpin":

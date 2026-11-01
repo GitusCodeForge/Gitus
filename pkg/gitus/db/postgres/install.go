@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS %s_issue (
     issue_content TEXT,
     issue_status SMALLINT,
     issue_priority SMALLINT,
+    issue_label TEXT,
     FOREIGN KEY (repo_namespace, repo_name) REFERENCES %s_repository(repo_namespace, repo_name)
 )`, pfx, pfx, pfx))
 	if err != nil { return err }
@@ -238,6 +239,13 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
     next_id BIGINT,
     PRIMARY KEY (repo_namespace, repo_name, kind)
 )`, pfx))
+	if err != nil { return err }
+	// Columns that were added after the table was first created.
+	_, err = dbif.pool.Exec(ctx, fmt.Sprintf(
+		`ALTER TABLE %s_issue ADD COLUMN IF NOT EXISTS issue_label TEXT`, pfx))
+	if err != nil { return err }
+	_, err = dbif.pool.Exec(ctx, fmt.Sprintf(
+		`ALTER TABLE %s_repository ADD COLUMN IF NOT EXISTS repo_issue_label_list TEXT`, pfx))
 	if err != nil { return err }
 	for _, def := range indexDefinitions {
 		var name string

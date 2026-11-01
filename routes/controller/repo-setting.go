@@ -639,7 +639,7 @@ func bindRepositorySettingController(ctx *RouterContext) {
 
 	http.HandleFunc("POST /repo/{repoName}/setting/label", UseMiddleware(
 		[]Middleware{
-			Logged, LoginRequired, CSRFCheck,
+			Logged, LoginRequired, ValidPOSTRequestRequired, CSRFCheck,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {

@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS %s_repository (
   	repo_fork_origin_namespace TEXT,
   	repo_fork_origin_name TEXT,
     repo_label_list TEXT,
+    -- JSON array: the vocabulary of labels that issues of this repository can
+    -- carry. independent from repo_label_list.
+    repo_issue_label_list TEXT,
     repo_webhook TEXT,
       FOREIGN KEY (repo_namespace) REFERENCES %s_namespace(ns_name)
 )`, pfx, pfx))
@@ -118,6 +121,8 @@ CREATE TABLE IF NOT EXISTS %s_issue (
 	-- 1 - opened.  2 - close as solved.  3 - close as discarded.
 	issue_status INTEGER,
     issue_priority SMALLINT,
+	-- JSON array of labels; a subset of the repository's labels.
+	issue_label TEXT,
 	FOREIGN KEY (repo_namespace, repo_name)
       REFERENCES %s_repository(repo_namespace, repo_name),
 	FOREIGN KEY (issue_author)
@@ -285,6 +290,13 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
     PRIMARY KEY (repo_namespace, repo_name, kind)
 )`, pfx))
 	if err != nil { return err }
+	// Columns that were added after the table was first created.
+	if err := dbif.ensureColumn(fmt.Sprintf("%s_issue", pfx), "issue_label", "TEXT"); err != nil {
+		return err
+	}
+	if err := dbif.ensureColumn(fmt.Sprintf("%s_repository", pfx), "repo_issue_label_list", "TEXT"); err != nil {
+		return err
+	}
 	for _, def := range indexDefinitions {
 		var name string
 		err = dbif.connection.QueryRow(
@@ -296,4 +308,25 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
 		if err != nil { return err }
 	}
 	return nil
+}
+
+// ensureColumn adds a column to an existing table when it is missing. SQLite has
+// no "ADD COLUMN IF NOT EXISTS", so the current columns are read first.
+func (dbif *SqliteGitusDatabaseInterface) ensureColumn(table string, column string, definition string) error {
+	r, err := dbif.connection.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil { return err }
+	defer r.Close()
+	for r.Next() {
+		var cid int
+		var name, kind string
+		var notNull, pk int
+		var defaultValue sql.NullString
+		if err := r.Scan(&cid, &name, &kind, &notNull, &defaultValue, &pk); err != nil {
+			return err
+		}
+		if name == column { return nil }
+	}
+	if err := r.Err(); err != nil { return err }
+	_, err = dbif.connection.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition))
+	return err
 }

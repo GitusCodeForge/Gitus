@@ -42,6 +42,7 @@ func InitializeRoute(context *routes.RouterContext) {
 		bindSettingSessionController(context)
 		bindSettingPrivacyController(context)
 		bindRepositorySettingController(context)
+		bindRepositorySettingIssueLabelController(context)
 		bindNewNamespaceController(context)
 		bindNewRepositoryController(context)
 		bindNewSnippetController(context)

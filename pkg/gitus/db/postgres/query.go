@@ -1216,15 +1216,15 @@ func (dbif *PostgresGitusDatabaseInterface) GetRepositoryIssue(ns string, name s
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()
 	stmt := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
-SELECT issue_absid, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority
+SELECT issue_absid, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority, COALESCE(issue_label, '[]')
 FROM %s_issue
 WHERE repo_namespace = $1 AND repo_name = $2 AND issue_id = $3
 `, pfx), ns, name, iid)
 	var absid, id, status int64
 	var t time.Time
 	var priority int
-	var author, title, content string
-	err := stmt.Scan(&absid, &t, &author, &title, &content, &status, &priority)
+	var author, title, content, labelStr string
+	err := stmt.Scan(&absid, &t, &author, &title, &content, &status, &priority, &labelStr)
 	if err == pgx.ErrNoRows { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	return &model.Issue{
@@ -1238,6 +1238,7 @@ WHERE repo_namespace = $1 AND repo_name = $2 AND issue_id = $3
 		IssueTime: t.Unix(),
 		IssueStatus: int(status),
 		IssuePriority: priority,
+		LabelList: model.ParseIssueLabelList(labelStr),
 	}, nil
 }
 
@@ -1293,9 +1294,9 @@ func (dbif *PostgresGitusDatabaseInterface) NewRepositoryIssue(ns string, name s
 	if err != nil { return 0, err }
 	t := time.Now()
 	_, err = tx.Exec(ctx2, fmt.Sprintf(`
-INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-`, pfx), ns, name, newid, t, author, title, content, model.ISSUE_OPENED, 0)
+INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority, issue_label)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+`, pfx), ns, name, newid, t, author, title, content, model.ISSUE_OPENED, 0, "[]")
 	if err != nil { return 0, err }
 	err = tx.Commit(ctx2)
 	if err != nil { return 0, err }
@@ -1328,6 +1329,82 @@ UPDATE %s_issue SET issue_priority = $1 WHERE issue_id = $2 AND repo_namespace =
 	err = tx.Commit(ctx)
 	if err != nil { return err }
 	return nil
+}
+
+func (dbif *PostgresGitusDatabaseInterface) GetRepositoryIssueLabel(ns string, name string) ([]string, error) {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	var labelStr string
+	err := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
+SELECT COALESCE(repo_issue_label_list, '[]') FROM %s_repository WHERE repo_namespace = $1 AND repo_name = $2
+`, pfx), ns, name).Scan(&labelStr)
+	if err == pgx.ErrNoRows { return nil, db.ErrEntityNotFound }
+	if err != nil { return nil, err }
+	return model.ParseIssueLabelList(labelStr), nil
+}
+
+func (dbif *PostgresGitusDatabaseInterface) AddRepositoryIssueLabel(ns string, name string, label string) error {
+	return dbif.updateRepositoryIssueLabelList(ns, name, func(l []string) []string {
+		return model.WithIssueLabel(l, label)
+	})
+}
+
+func (dbif *PostgresGitusDatabaseInterface) RemoveRepositoryIssueLabel(ns string, name string, label string) error {
+	return dbif.updateRepositoryIssueLabelList(ns, name, func(l []string) []string {
+		return model.WithoutIssueLabel(l, label)
+	})
+}
+
+// updateRepositoryIssueLabelList rewrites the issue label vocabulary of a
+// repository in one transaction.
+func (dbif *PostgresGitusDatabaseInterface) updateRepositoryIssueLabelList(ns string, name string, f func([]string) []string) error {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	tx, err := dbif.pool.Begin(ctx)
+	if err != nil { return err }
+	defer tx.Rollback(ctx)
+	var labelStr string
+	err = tx.QueryRow(ctx, fmt.Sprintf(`
+SELECT COALESCE(repo_issue_label_list, '[]') FROM %s_repository WHERE repo_namespace = $1 AND repo_name = $2
+`, pfx), ns, name).Scan(&labelStr)
+	if err != nil { return err }
+	_, err = tx.Exec(ctx, fmt.Sprintf(`
+UPDATE %s_repository SET repo_issue_label_list = $1 WHERE repo_namespace = $2 AND repo_name = $3
+`, pfx), model.FormatIssueLabelList(f(model.ParseIssueLabelList(labelStr))), ns, name)
+	if err != nil { return err }
+	return tx.Commit(ctx)
+}
+
+func (dbif *PostgresGitusDatabaseInterface) AddIssueLabel(ns string, name string, issueId int64, label string) error {
+	return dbif.updateIssueLabelList(ns, name, issueId, func(l []string) []string {
+		return model.WithIssueLabel(l, label)
+	})
+}
+
+func (dbif *PostgresGitusDatabaseInterface) RemoveIssueLabel(ns string, name string, issueId int64, label string) error {
+	return dbif.updateIssueLabelList(ns, name, issueId, func(l []string) []string {
+		return model.WithoutIssueLabel(l, label)
+	})
+}
+
+// updateIssueLabelList rewrites the label list of an issue in one transaction,
+// so two concurrent requests cannot lose each other's change.
+func (dbif *PostgresGitusDatabaseInterface) updateIssueLabelList(ns string, name string, issueId int64, f func([]string) []string) error {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	tx, err := dbif.pool.Begin(ctx)
+	if err != nil { return err }
+	defer tx.Rollback(ctx)
+	var labelStr string
+	err = tx.QueryRow(ctx, fmt.Sprintf(`
+SELECT COALESCE(issue_label, '[]') FROM %s_issue WHERE repo_namespace = $1 AND repo_name = $2 AND issue_id = $3
+`, pfx), ns, name, issueId).Scan(&labelStr)
+	if err != nil { return err }
+	_, err = tx.Exec(ctx, fmt.Sprintf(`
+UPDATE %s_issue SET issue_label = $1 WHERE repo_namespace = $2 AND repo_name = $3 AND issue_id = $4
+`, pfx), model.FormatIssueLabelList(f(model.ParseIssueLabelList(labelStr))), ns, name, issueId)
+	if err != nil { return err }
+	return tx.Commit(ctx)
 }
 
 func (dbif *PostgresGitusDatabaseInterface) GetAllIssueEvent(ns string, name string, issueId int) ([]*model.IssueEvent, error) {

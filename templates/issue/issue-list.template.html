@@ -48,6 +48,9 @@
 			<div class="issue-title-bar"><span class="issue-id">#{{.IssueId}}:</span> {{if eq .IssueStatus 1}}<span class="issue-status-tag issue-status-tag-open">OPEN</span>{{else if eq .IssueStatus 2}}<span class="issue-status-tag issue-status-tag-solved">SOLVED</span>{{else if eq .IssueStatus 3}}<span class="issue-status-tag issue-status-tag-discarded">DISCARDED</span>{{end}} {{if gt .IssuePriority 0}}<span class="issue-status-tag issue-status-tag-pinned">PINNED</span>{{end}} <a href="{{$repoPath}}/issue/{{.IssueId}}"><span class="issue-title {{if eq .IssueStatus 3}}issue-title-discarded{{end}}">{{.IssueTitle}}</span></a></div>
 			<div class="issue-desc-bar"><a href="/u/{{.IssueAuthor}}" class="issue-author">{{.IssueAuthor}}</a> @ {{toFuzzyTime .IssueTime}}</div>
 			  <div class="precise-time">{{toPreciseTime .IssueTime}}</div>
+			{{if .LabelList}}
+			<div class="issue-label-list">{{range .LabelList}}<span class="issue-label">#{{.}}</span>{{end}}</div>
+			{{end}}
 		  </div>
 		  {{end}}
 		  {{end}}

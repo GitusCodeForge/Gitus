@@ -84,3 +84,45 @@
 .precise-time {
 	color: var(--shade-degree-2);
 }
+
+.issue-label-list {
+	margin-top: 0.4rem;
+	margin-bottom: 0.4rem;
+}
+.issue-label {
+	display: inline-block;
+	border: 1px solid var(--foreground-color);
+	padding: 0 0.3rem;
+	margin-right: 0.3rem;
+	margin-bottom: 0.2rem;
+	font-size: 0.9rem;
+}
+.issue-label a {
+	text-decoration: none;
+}
+.issue-label form {
+	display: inline;
+}
+.issue-label form input[type="submit"] {
+	display: inline;
+	margin: 0;
+	padding: 0 0.2rem;
+	border: 0;
+	background-color: unset;
+	color: var(--shade-degree-2);
+	font-size: 0.8rem;
+	cursor: pointer;
+}
+.issue-label form input[type="submit"]:hover {
+	background-color: unset;
+	color: var(--foreground-color);
+}
+.issue-label-add {
+	display: inline;
+}
+.issue-label-add select {
+	width: unset;
+}
+.issue-label-add input[type="submit"] {
+	margin-top: 0;
+}

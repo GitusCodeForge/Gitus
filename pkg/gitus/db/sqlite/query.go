@@ -1420,7 +1420,7 @@ func (dbif *SqliteGitusDatabaseInterface) GetAllRepositoryIssue(ns string, name 
 func (dbif *SqliteGitusDatabaseInterface) GetRepositoryIssue(ns string, name string, iid int) (*model.Issue, error) {
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority
+SELECT rowid, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority, COALESCE(issue_label, '[]')
 FROM %s_issue
 WHERE repo_namespace = ? AND repo_name = ? AND issue_id = ?
 `, pfx))
@@ -1429,8 +1429,8 @@ WHERE repo_namespace = ? AND repo_name = ? AND issue_id = ?
 	if r.Err() != nil { return nil, r.Err() }
 	var absid, timestamp int64
 	var status, priority int
-	var author, title, content string
-	err = r.Scan(&absid, &timestamp, &author, &title, &content, &status, &priority)
+	var author, title, content, labelStr string
+	err = r.Scan(&absid, &timestamp, &author, &title, &content, &status, &priority, &labelStr)
 	if err != nil { return nil, err }
 	return &model.Issue{
 		IssueAbsId: absid,
@@ -1443,6 +1443,7 @@ WHERE repo_namespace = ? AND repo_name = ? AND issue_id = ?
 		IssueContent: content,
 		IssueStatus: status,
 		IssuePriority: priority,
+		LabelList: model.ParseIssueLabelList(labelStr),
 	}, nil
 }
 
@@ -1470,11 +1471,11 @@ func (dbif *SqliteGitusDatabaseInterface) NewRepositoryIssue(ns string, name str
 	res, err := dbif.nextSequentialId(tx, ns, name, sequentialIdKindIssue, fmt.Sprintf("%s_issue", pfx), "issue_id", "repo_namespace", "repo_name")
 	if err != nil { return 0, err }
 	stmt, err := dbif.prepareTx(tx, fmt.Sprintf(`
-INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority)
-VALUES (?,?,?,?,?,?,?,?,?)
+INSERT INTO %s_issue(repo_namespace, repo_name, issue_id, issue_timestamp, issue_author, issue_title, issue_content, issue_status, issue_priority, issue_label)
+VALUES (?,?,?,?,?,?,?,?,?,?)
 `, pfx))
 	if err != nil { return 0, err }
-	_, err = stmt.Exec(ns, name, res, time.Now().Unix(), author, title, content, model.ISSUE_OPENED, 0)
+	_, err = stmt.Exec(ns, name, res, time.Now().Unix(), author, title, content, model.ISSUE_OPENED, 0, "[]")
 	if err != nil { return 0, err }
 	err = tx.Commit()
 	if err != nil { return 0, err }
@@ -1511,6 +1512,88 @@ UPDATE %s_issue SET issue_priority = ? WHERE repo_namespace = ? AND repo_name = 
 	err = tx.Commit()
 	if err != nil { return err }
 	return nil
+}
+
+func (dbif *SqliteGitusDatabaseInterface) GetRepositoryIssueLabel(ns string, name string) ([]string, error) {
+	pfx := dbif.config.Database.TablePrefix
+	stmt, err := dbif.prepare(fmt.Sprintf(`
+SELECT COALESCE(repo_issue_label_list, '[]') FROM %s_repository WHERE repo_namespace = ? AND repo_name = ?
+`, pfx))
+	if err != nil { return nil, err }
+	r := stmt.QueryRow(ns, name)
+	if r.Err() != nil { return nil, r.Err() }
+	var labelStr string
+	if err := r.Scan(&labelStr); err != nil { return nil, err }
+	return model.ParseIssueLabelList(labelStr), nil
+}
+
+func (dbif *SqliteGitusDatabaseInterface) AddRepositoryIssueLabel(ns string, name string, label string) error {
+	return dbif.updateRepositoryIssueLabelList(ns, name, func(l []string) []string {
+		return model.WithIssueLabel(l, label)
+	})
+}
+
+func (dbif *SqliteGitusDatabaseInterface) RemoveRepositoryIssueLabel(ns string, name string, label string) error {
+	return dbif.updateRepositoryIssueLabelList(ns, name, func(l []string) []string {
+		return model.WithoutIssueLabel(l, label)
+	})
+}
+
+// updateRepositoryIssueLabelList rewrites the issue label vocabulary of a
+// repository in one transaction.
+func (dbif *SqliteGitusDatabaseInterface) updateRepositoryIssueLabelList(ns string, name string, f func([]string) []string) error {
+	pfx := dbif.config.Database.TablePrefix
+	tx, err := dbif.connection.Begin()
+	if err != nil { return err }
+	defer tx.Rollback()
+	stmtRead, err := dbif.prepareTx(tx, fmt.Sprintf(`
+SELECT COALESCE(repo_issue_label_list, '[]') FROM %s_repository WHERE repo_namespace = ? AND repo_name = ?
+`, pfx))
+	if err != nil { return err }
+	var labelStr string
+	if err = stmtRead.QueryRow(ns, name).Scan(&labelStr); err != nil { return err }
+	stmtUpdate, err := dbif.prepareTx(tx, fmt.Sprintf(`
+UPDATE %s_repository SET repo_issue_label_list = ? WHERE repo_namespace = ? AND repo_name = ?
+`, pfx))
+	if err != nil { return err }
+	_, err = stmtUpdate.Exec(model.FormatIssueLabelList(f(model.ParseIssueLabelList(labelStr))), ns, name)
+	if err != nil { return err }
+	return tx.Commit()
+}
+
+func (dbif *SqliteGitusDatabaseInterface) AddIssueLabel(ns string, name string, issueId int64, label string) error {
+	return dbif.updateIssueLabelList(ns, name, issueId, func(l []string) []string {
+		return model.WithIssueLabel(l, label)
+	})
+}
+
+func (dbif *SqliteGitusDatabaseInterface) RemoveIssueLabel(ns string, name string, issueId int64, label string) error {
+	return dbif.updateIssueLabelList(ns, name, issueId, func(l []string) []string {
+		return model.WithoutIssueLabel(l, label)
+	})
+}
+
+// updateIssueLabelList rewrites the label list of an issue in one transaction,
+// so two concurrent requests cannot lose each other's change.
+func (dbif *SqliteGitusDatabaseInterface) updateIssueLabelList(ns string, name string, issueId int64, f func([]string) []string) error {
+	pfx := dbif.config.Database.TablePrefix
+	tx, err := dbif.connection.Begin()
+	if err != nil { return err }
+	defer tx.Rollback()
+	stmtRead, err := dbif.prepareTx(tx, fmt.Sprintf(`
+SELECT COALESCE(issue_label, '[]') FROM %s_issue WHERE repo_namespace = ? AND repo_name = ? AND issue_id = ?
+`, pfx))
+	if err != nil { return err }
+	var labelStr string
+	err = stmtRead.QueryRow(ns, name, issueId).Scan(&labelStr)
+	if err != nil { return err }
+	stmtUpdate, err := dbif.prepareTx(tx, fmt.Sprintf(`
+UPDATE %s_issue SET issue_label = ? WHERE repo_namespace = ? AND repo_name = ? AND issue_id = ?
+`, pfx))
+	if err != nil { return err }
+	_, err = stmtUpdate.Exec(model.FormatIssueLabelList(f(model.ParseIssueLabelList(labelStr))), ns, name, issueId)
+	if err != nil { return err }
+	return tx.Commit()
 }
 
 func (dbif *SqliteGitusDatabaseInterface) GetAllIssueEvent(ns string, name string, issueId int) ([]*model.IssueEvent, error) {

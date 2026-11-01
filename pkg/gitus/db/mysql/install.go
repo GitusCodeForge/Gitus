@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS %s_issue (
     issue_content TEXT,
     issue_status SMALLINT,
     issue_priority SMALLINT,
+    issue_label TEXT,
     FOREIGN KEY (repo_namespace, repo_name) REFERENCES %s_repository(repo_namespace, repo_name)
 )`, pfx, pfx, pfx),
 		fmt.Sprintf(`
@@ -235,5 +236,28 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
     PRIMARY KEY (repo_namespace, repo_name, kind)
 )`, pfx))
 	if err != nil { return err }
+	// Columns that were added after the table was first created. MySQL has no
+	// "ADD COLUMN IF NOT EXISTS", so ask information_schema first.
+	if err := ensureColumn(ctx, dbif.connection, pfx, "issue", "issue_label", "TEXT"); err != nil {
+		return err
+	}
+	if err := ensureColumn(ctx, dbif.connection, pfx, "repository", "repo_issue_label_list", "TEXT"); err != nil {
+		return err
+	}
 	return ensureIndexes(ctx, dbif.connection, pfx)
+}
+
+// ensureColumn adds a column to a table when information_schema says it is
+// missing.
+func ensureColumn(ctx context.Context, q sqlContextExecutor, pfx string, table string, column string, definition string) error {
+	tableName := fmt.Sprintf("%s_%s", pfx, table)
+	var n int
+	err := q.QueryRowContext(ctx, `
+SELECT COUNT(*) FROM information_schema.columns
+WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?
+`, tableName, column).Scan(&n)
+	if err != nil { return err }
+	if n > 0 { return nil }
+	_, err = q.ExecContext(ctx, fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` %s", tableName, column, definition))
+	return err
 }

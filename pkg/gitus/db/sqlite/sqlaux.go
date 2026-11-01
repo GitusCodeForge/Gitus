@@ -18,7 +18,7 @@ import (
 const (
 	repositoryColumns = `repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, repo_webhook, rowid`
 	namespaceColumns = `ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_status, ns_acl`
-	issueColumns = `rowid, issue_id, issue_author, issue_status, issue_title, issue_content, issue_timestamp, issue_priority`
+	issueColumns = `rowid, issue_id, issue_author, issue_status, issue_title, issue_content, issue_timestamp, issue_priority, COALESCE(issue_label, '[]')`
 	pullRequestColumns = `rowid, pull_request_id, username, title, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp`
 )
 
@@ -262,8 +262,8 @@ func (dbif *SqliteGitusDatabaseInterface) scanIssueRows(r *sql.Rows, ns string, 
 	for r.Next() {
 		var issueAbsId, issueTimestamp int64
 		var issueId, issueStatus, issuePriority int
-		var issueAuthor, issueTitle, issueContent string
-		err := r.Scan(&issueAbsId, &issueId, &issueAuthor, &issueStatus, &issueTitle, &issueContent, &issueTimestamp, &issuePriority)
+		var issueAuthor, issueTitle, issueContent, issueLabel string
+		err := r.Scan(&issueAbsId, &issueId, &issueAuthor, &issueStatus, &issueTitle, &issueContent, &issueTimestamp, &issuePriority, &issueLabel)
 		if err != nil { return nil, err }
 		res = append(res, &model.Issue{
 			IssueAbsId: issueAbsId,
@@ -276,6 +276,7 @@ func (dbif *SqliteGitusDatabaseInterface) scanIssueRows(r *sql.Rows, ns string, 
 			IssueAuthor: issueAuthor,
 			IssueContent: issueContent,
 			IssuePriority: issuePriority,
+			LabelList: model.ParseIssueLabelList(issueLabel),
 		})
 	}
 	if r.Err() != nil { return nil, r.Err() }

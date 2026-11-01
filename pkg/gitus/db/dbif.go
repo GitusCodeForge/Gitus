@@ -109,6 +109,15 @@ type GitusDatabaseInterface interface {
 	NewRepositoryIssue(ns string, name string, author string, title string, content string) (int64, error)
 	HardDeleteRepositoryIssue(ns string, name string, issueId int) error
 	SetIssuePriority(ns string, name string, id int64, priority int) error
+	// issue labels are a separate vocabulary from the repository's own labels
+	// (RepoLabelList): a repository may be tagged "xorg" while its issues are
+	// tagged "bug". The caller is responsible for only handing in labels the
+	// repository defined here.
+	GetRepositoryIssueLabel(ns string, name string) ([]string, error)
+	AddRepositoryIssueLabel(ns string, name string, label string) error
+	RemoveRepositoryIssueLabel(ns string, name string, label string) error
+	AddIssueLabel(ns string, name string, issueId int64, label string) error
+	RemoveIssueLabel(ns string, name string, issueId int64, label string) error
 	GetAllIssueEvent(ns string, name string, issueId int) ([]*model.IssueEvent, error)
 	NewRepositoryIssueEvent(ns string, name string, issueId int64, eType int, author string, content string) error
 	HardDeleteRepositoryIssueEvent(eventAbsId int64) error

@@ -20,7 +20,7 @@ import (
 const (
 	repositoryColumns = `repo_type, repo_namespace, repo_name, repo_description, repo_owner, repo_acl, repo_status, repo_fork_origin_namespace, repo_fork_origin_name, repo_label_list, repo_webhook, repo_absid`
 	namespaceColumns = `ns_name, ns_title, ns_description, ns_email, ns_owner, ns_reg_datetime, ns_acl, ns_status`
-	issueColumns = `issue_absid, issue_id, issue_author, issue_status, issue_title, issue_content, issue_timestamp, issue_priority`
+	issueColumns = `issue_absid, issue_id, issue_author, issue_status, issue_title, issue_content, issue_timestamp, issue_priority, COALESCE(issue_label, '[]')`
 	pullRequestColumns = `pull_request_absid, pull_request_id, author_username, title, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp`
 )
 
@@ -258,9 +258,9 @@ func (dbif *MysqlGitusDatabaseInterface) scanIssueRows(rows *sql.Rows, ns string
 	for rows.Next() {
 		var absId, issueId int64
 		var ts time.Time
-		var author, title, content string
+		var author, title, content, labelStr string
 		var status, priority int
-		err := rows.Scan(&absId, &issueId, &author, &status, &title, &content, &ts, &priority)
+		err := rows.Scan(&absId, &issueId, &author, &status, &title, &content, &ts, &priority, &labelStr)
 		if err != nil { return nil, err }
 		res = append(res, &model.Issue{
 			IssueAbsId: absId,
@@ -273,6 +273,7 @@ func (dbif *MysqlGitusDatabaseInterface) scanIssueRows(rows *sql.Rows, ns string
 			IssueTime: ts.Unix(),
 			IssueStatus: status,
 			IssuePriority: priority,
+			LabelList: model.ParseIssueLabelList(labelStr),
 		})
 	}
 	if rows.Err() != nil { return nil, rows.Err() }

@@ -6,3 +6,37 @@ the ability to pin/unpin and delete an issue is solely reserved for the reposito
 pinning is implemented as a "priority" value, which in normal operation can only be of 0 or 100. unpinned means having a priority value of 0 and pinned means having a priority value of any number bigger than 0. issues are created unpinned.
 
 
+
+* labels
+
+an issue can carry labels, and their vocabulary is /not/ the repository's own
+label list. the two are separate:
+
++ the repository's labels (=repo_label_list=, edited at
+  =/repo/{repo}/setting/label=) describe the repository itself, e.g. a window
+  manager repository might carry =#xorg= and =#x11=;
++ the issue labels (=repo_issue_label_list=, edited at
+  =/repo/{repo}/setting/issue-label=) are the ones issues can use, e.g. =#bug=
+  and =#feature request=.
+
+only a label from the issue label list can be attached to an issue, and the
+same label can be on many issues.
+
+both lists are JSON arrays in their column (=issue_label= on the issue,
+=repo_issue_label_list= on the repository). an instance installed before these
+columns existed gets them added at startup by =EnsureSchema=; those issues
+simply have no labels and those repositories start with an empty vocabulary.
+
+on the issue page and in the issue list an issue label is shown as a =#name=
+chip. it is /not/ a link: =/label/{name}= lists the repositories carrying a
+/repository/ label, which is a different vocabulary.
+
+attaching and removing labels is allowed for administrators, the repository or
+namespace owner, and members with the setting privilege; other visitors see the
+labels but no controls. the label itself is posted to the same
+=POST /repo/{repo}/issue/{id}= endpoint as comments and the pin/close buttons,
+with =type=add-label= or =type=remove-label=.
+
+deleting a label from the issue vocabulary does not remove it from the issues
+that already carry it; remove it from the issue itself for that. deleting it
+does stop it from being offered for new attachments.
