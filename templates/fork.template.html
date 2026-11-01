@@ -1,3 +1,4 @@
+{{$csrf_key := "__csrf_token"}}
 {{$repoName := getRepoName .SourceRepository.Namespace .SourceRepository.Name}}
 {{$repoPath := getRepoPath .SourceRepository.Namespace .SourceRepository.Name}}
 <!DOCTYPE html>
@@ -49,6 +50,7 @@
 		<h2>Fork Repository</h2>
 		<div>Forking repository  <a href="{{$repoPath}}">{{$repoName}}</a> to:</div>
 		<form action="" method="POST">
+		  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 		  {{if .Config.UseNamespace}}
 		  <div class="field"><label class="field-label" for="namespace">Namespace:</label>
 			<select name="namespace" style="width:unset;">

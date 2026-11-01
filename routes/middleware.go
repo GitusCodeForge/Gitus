@@ -131,6 +131,13 @@ var CSRFCheck Middleware = func(f HandlerFunc) HandlerFunc {
 			ctx.ReportRedirect("/login", 0, "Login Required", "You need to login first to access this resource.", w, r)
 			return
 		}
+		// ParseForm is idempotent, and doing it here means a route that forgot
+		// ValidPOSTRequestRequired still gets its CSRF token checked instead of
+		// rejecting every submission.
+		if err := r.ParseForm(); err != nil {
+			ctx.ReportNormalError("Invalid request", w, r)
+			return
+		}
 		k := r.Form.Get(CSRF_KEY)
 		if k == "" {
 			ctx.ReportRedirect("/", 0, "Invalid Request", "", w, r)
