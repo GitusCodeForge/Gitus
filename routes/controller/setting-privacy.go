@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/otp"
 	. "github.com/GitusCodeForge/Gitus/routes"
@@ -13,6 +14,35 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
+
+// renderPrivacyPage renders the privacy settings page. newRecoveryCodes is only
+// non-empty right after they were generated, so they are shown once.
+func renderPrivacyPage(rc *RouterContext, w http.ResponseWriter, user *model.GitusUser, newRecoveryCodes []string, errMsg string) {
+	m := &templates.SettingPrivacyTemplateModel{
+		Config: rc.Config,
+		User: user,
+		LoginInfo: rc.LoginInfo,
+		NewRecoveryCodes: newRecoveryCodes,
+	}
+	if len(errMsg) > 0 {
+		m.ErrorMsg.Type = "info"
+		m.ErrorMsg.Message = errMsg
+	}
+	// while a setup is pending the page shows the secret and the URL the
+	// authenticator app needs.
+	if user.TFAConfig.OTP.Pending && len(user.TFAConfig.OTP.Secret) > 0 {
+		typ := otp.TYPE_TOTP
+		if !user.TFAConfig.OTPIsTOTP() { typ = otp.TYPE_HOTP }
+		m.ProvisioningURL = otp.ProvisioningURL(
+			rc.Config.DepotName, user.Name, typ,
+			user.TFAConfig.OTP.Secret,
+			user.TFAConfig.OTP.Digits,
+			user.TFAConfig.OTP.Period,
+			user.TFAConfig.OTP.Counter,
+		)
+	}
+	routes.LogTemplateError(rc.LoadTemplate("setting/privacy").Execute(w, m))
+}
 
 func bindSettingPrivacyController(ctx *RouterContext) {
 	http.HandleFunc("GET /setting/privacy", UseMiddleware(
@@ -23,25 +53,7 @@ func bindSettingPrivacyController(ctx *RouterContext) {
 				rc.ReportInternalError(fmt.Sprintf("Failed while retrieving user: %s\n", err), w, r)
 				return
 			}
-			m := &templates.SettingPrivacyTemplateModel{
-				Config: rc.Config,
-				User: user,
-				LoginInfo: rc.LoginInfo,
-			}
-			// while a setup is pending the page shows the secret and the URL
-			// the authenticator app needs.
-			if user.TFAConfig.OTP.Pending && len(user.TFAConfig.OTP.Secret) > 0 {
-				typ := otp.TYPE_TOTP
-				if !user.TFAConfig.OTPIsTOTP() { typ = otp.TYPE_HOTP }
-				m.ProvisioningURL = otp.ProvisioningURL(
-					rc.Config.DepotName, user.Name, typ,
-					user.TFAConfig.OTP.Secret,
-					user.TFAConfig.OTP.Digits,
-					user.TFAConfig.OTP.Period,
-					user.TFAConfig.OTP.Counter,
-				)
-			}
-			LogTemplateError(rc.LoadTemplate("setting/privacy").Execute(w, m))
+			renderPrivacyPage(rc, w, user, nil, "")
 		},
 	))
 	
@@ -148,11 +160,20 @@ func bindSettingPrivacyController(ctx *RouterContext) {
 						// the confirmed code is used up for HOTP.
 						user.TFAConfig.OTP.Counter = counter + 1
 					}
+					// a fresh set of recovery codes goes with a fresh secret:
+					// they are the way back in when the app is gone.
+					plainCodes, hashes, err := otp.GenerateRecoveryCodes(otp.RecoveryCodeCount)
+					if err != nil {
+						rc.ReportInternalError(fmt.Sprintf("Failed to generate recovery codes: %s", err), w, r)
+						return
+					}
+					user.TFAConfig.OTP.RecoveryCodes = hashes
 					if err = rc.DatabaseInterface.UpdateUserInfo(rc.LoginInfo.UserName, user); err != nil {
 						rc.ReportInternalError(err.Error(), w, r)
 						return
 					}
-					rc.ReportRedirect("/setting/privacy", 5, "Enabled", "Authenticator app two-factor authentication is now enabled.", w, r)
+					renderPrivacyPage(rc, w, user, plainCodes,
+						"Authenticator app two-factor authentication is now enabled. These recovery codes are shown only once: keep them somewhere safe, each one lets you in once if the app is gone.")
 					return
 				case "otp-cancel":
 					user.TFAConfig.OTP = model.GitusUser2FAOTPConfig{}
@@ -161,6 +182,33 @@ func bindSettingPrivacyController(ctx *RouterContext) {
 						return
 					}
 					rc.ReportRedirect("/setting/privacy", 5, "Cancelled", "The pending authenticator setup has been discarded.", w, r)
+					return
+				case "otp-recovery-generate":
+					if !user.TFAConfig.OTP.Enable {
+						rc.ReportRedirect("/setting/privacy", 5, "Not Enabled", "Enable an authenticator app first.", w, r)
+						return
+					}
+					ok, err := checkUserPassword(rc, rc.LoginInfo.UserName, r.Form.Get("password"))
+					if err != nil {
+						rc.ReportInternalError(err.Error(), w, r)
+						return
+					}
+					if !ok {
+						rc.ReportRedirect("/setting/privacy", 5, "Invalid Password", "The password you entered is not correct.", w, r)
+						return
+					}
+					plainCodes, hashes, err := otp.GenerateRecoveryCodes(otp.RecoveryCodeCount)
+					if err != nil {
+						rc.ReportInternalError(fmt.Sprintf("Failed to generate recovery codes: %s", err), w, r)
+						return
+					}
+					user.TFAConfig.OTP.RecoveryCodes = hashes
+					if err = rc.DatabaseInterface.UpdateUserInfo(rc.LoginInfo.UserName, user); err != nil {
+						rc.ReportInternalError(err.Error(), w, r)
+						return
+					}
+					renderPrivacyPage(rc, w, user, plainCodes,
+						"New recovery codes. The previous ones no longer work. These are shown only once: keep them somewhere safe.")
 					return
 				case "otp-disable":
 					ok, err := checkUserPassword(rc, rc.LoginInfo.UserName, r.Form.Get("password"))

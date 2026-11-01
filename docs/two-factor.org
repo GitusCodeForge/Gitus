@@ -52,3 +52,24 @@ second factor is enabled:
   after it expires (ten minutes);
 + when both factors are enabled both codes are required. the confirm page asks
   for them separately.
+
+** recovery codes
+
+with the authenticator app enabled, the user gets ten recovery codes: each one
+lets them in once, in place of the code from the app, so a lost or wiped phone
+does not lock the account out.
+
++ the codes are shown once, on the page that enables the factor or on the one
+  that generates a new set. only their SHA-256 digests are stored, so they can
+  never be shown again;
++ at =/login/confirm= a recovery code is accepted where the app code goes, and
+  it is removed from the stored list as soon as it is used;
++ generating a new set invalidates every code of the previous one, and needs
+  the account password;
++ when the email factor is also enabled, a recovery code only replaces the app
+  code: the email code is still required;
++ the settings page shows how many codes are still unused.
+
+the codes use an alphabet without =0/o=, =1/i/l= and =u/v= so they are easy to
+read from the screen and to type. they are not passwords: their entropy comes
+from being random and from the login being rate limited.

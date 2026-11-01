@@ -66,6 +66,34 @@
 			  </tr>
 			</table>
 		  </form>
+
+		  <h3>Recovery codes</h3>
+		  {{if .NewRecoveryCodes}}
+		  <p><b>These codes are shown only once.</b> Keep them somewhere safe: each one lets you in once, in
+			place of the code from the app. They will not be shown again.</p>
+		  <ul class="recovery-code-list">
+			{{range .NewRecoveryCodes}}<li><code>{{.}}</code></li>{{end}}
+		  </ul>
+		  {{else}}
+		  <p>{{len .User.TFAConfig.OTP.RecoveryCodes}} recovery code(s) unused. Each one can be used once
+			instead of the code from the app, in case the app is gone.</p>
+		  {{end}}
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="section" value="2fa" />
+			<input type="hidden" name="type" value="otp-recovery-generate" />
+			<table class="field-table">
+			  <tr class="field">
+				<td><label class="field-label" for="tf-recovery-password">Password:</label></td>
+				<td><input class="field-tf" type="password" name="password" id="tf-recovery-password" /></td>
+			  </tr>
+			  <tr>
+				<td></td>
+				<td><input class="field-submit" type="submit" value="Generate New Recovery Codes" /></td>
+			  </tr>
+			</table>
+		  </form>
+		  <p class="field-label-description">Generating a new set invalidates every code from the previous set.</p>
 		  {{else if .User.TFAConfig.OTP.Pending}}
 		  <p>Scan the QR code with your authenticator app (or enter the secret below by hand), then enter the
 			code it shows to finish the setup. Nothing is enforced until you confirm, and the secret is

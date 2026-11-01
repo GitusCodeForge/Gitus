@@ -129,3 +129,13 @@
 	image-rendering: pixelated;
 	border: 4px var(--foreground-color) solid;
 }
+
+/* the recovery codes shown right after they are generated */
+.recovery-code-list {
+	columns: 2;
+	list-style: none;
+	padding-left: 0;
+}
+.recovery-code-list li {
+	margin-bottom: 0.2rem;
+}

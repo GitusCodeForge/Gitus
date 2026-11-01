@@ -26,7 +26,7 @@
 		<input type="hidden" name="username" value="{{.Username}}" />
 		<p class="field-description">
 		  {{if .EmailRequired}}Enter the confirmation code that was sent to your email address.{{end}}
-		  {{if .OTPRequired}}Enter the code shown by your authenticator app.{{end}}
+		  {{if .OTPRequired}}Enter the code shown by your authenticator app, or one of your recovery codes.{{end}}
 		</p>
 		<table class="field-table">
 		  <tbody>
@@ -38,8 +38,8 @@
 			{{end}}
 			{{if .OTPRequired}}
 			<tr class="field">
-			  <td><label class="field-label" for="tf-otp-code">{{if eq .OTPType "hotp"}}Authenticator Code:{{else}}Authenticator Code (TOTP):{{end}}</label></td>
-			  <td><input class="field-tf" name="otp-code" id="tf-otp-code" inputmode="numeric" autocomplete="one-time-code" /></td>
+			  <td><label class="field-label" for="tf-otp-code">Authenticator or Recovery Code:</label></td>
+			  <td><input class="field-tf" name="otp-code" id="tf-otp-code" autocomplete="one-time-code" /></td>
 			</tr>
 			{{end}}
 			<tr class="field">

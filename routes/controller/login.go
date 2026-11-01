@@ -9,6 +9,7 @@ import (
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/otp"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/session"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -270,18 +271,31 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				}
 			}
 			if strings.Contains(factors, "o") {
-				counter, ok := verifyUserOTP(user, r.Form.Get("otp-code"), time.Now())
-				if !ok {
-					renderLoginConfirm(rc, w, username, user, factors, "Invalid authentication code.")
-					return
+				code := r.Form.Get("otp-code")
+				counter, ok := verifyUserOTP(user, code, time.Now())
+				changed := false
+				if ok {
+					// HOTP codes are tied to a counter, so remember the next
+					// one; otherwise the same code could be replayed.
+					if !user.TFAConfig.OTPIsTOTP() {
+						user.TFAConfig.OTP.Counter = counter + 1
+						changed = true
+					}
+				} else {
+					// A recovery code stands in for the app code, and stops
+					// working once it has been used.
+					used, reok := otp.VerifyRecoveryCode(user.TFAConfig.OTP.RecoveryCodes, code)
+					if !reok {
+						renderLoginConfirm(rc, w, username, user, factors, "Invalid authentication code.")
+						return
+					}
+					user.TFAConfig.OTP.RecoveryCodes = otp.RemoveRecoveryCode(user.TFAConfig.OTP.RecoveryCodes, used)
+					changed = true
 				}
-				// HOTP codes are tied to a counter, so remember the next one;
-				// otherwise the same code could be replayed.
-				if !user.TFAConfig.OTPIsTOTP() {
-					user.TFAConfig.OTP.Counter = counter + 1
+				if changed {
 					err = rc.DatabaseInterface.UpdateUserInfo(username, user)
 					if err != nil {
-						rc.ReportInternalError(fmt.Sprintf("Failed to update the authentication counter: %s.", err), w, r)
+						rc.ReportInternalError(fmt.Sprintf("Failed to update the authentication state: %s.", err), w, r)
 						return
 					}
 				}

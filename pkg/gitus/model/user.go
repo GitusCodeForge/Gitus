@@ -84,6 +84,9 @@ type GitusUser2FAOTPConfig struct {
 	Period int `json:"period"`
 	// Counter is the next HOTP counter to accept; unused for TOTP.
 	Counter uint64 `json:"counter"`
+	// RecoveryCodes are the digests of the unused one-time codes that let the
+	// user in when the authenticator app is gone. See pkg/gitus/otp.
+	RecoveryCodes []string `json:"recoveryCodes"`
 }
 
 // AnySecondFactor reports whether the account requires a second factor at
