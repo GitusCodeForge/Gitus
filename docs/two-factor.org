@@ -73,3 +73,15 @@ does not lock the account out.
 the codes use an alphabet without =0/o=, =1/i/l= and =u/v= so they are easy to
 read from the screen and to type. they are not passwords: their entropy comes
 from being random and from the login being rate limited.
+
+** resetting from the admin panel
+
+when a user has lost both the app and the recovery codes, an administrator can
+clear the account's second factor from =/admin/user/{username}/edit= ("Reset
+Two-Factor Authentication"). it drops the authenticator secret, the recovery
+codes and the email confirm code setting, so the user goes back to logging in
+with the password and can set the factor up again.
+
+the password and the sessions are left alone; revoke the sessions separately if
+the account is suspect. the admin page shows which factors are enabled, so the
+button is not offered blindly, and only an administrator can use it.

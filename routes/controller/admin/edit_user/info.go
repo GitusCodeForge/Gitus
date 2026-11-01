@@ -77,6 +77,22 @@ func bindAdminEditUserInfoController(ctx *RouterContext) {
 					rc.ReportInternalError(fmt.Sprintf("Failed to update user info: %s", err.Error()), w, r)
 					return
 				}
+			case "reset-2fa":
+				if !rc.LoginInfo.IsSuperAdmin && user.Status == model.SUPER_ADMIN {
+					rc.ReportRedirect("/admin/user-list", 0, "Error", "Not enough permission.", w, r)
+					return
+				}
+				// clears the authenticator secret, its recovery codes and the
+				// email confirm code setting: the account is back to password
+				// only. the password and the sessions are left alone.
+				user.TFAConfig = model.GitusUser2FAConfig{}
+				if err = rc.DatabaseInterface.UpdateUserInfo(un, user); err != nil {
+					rc.ReportInternalError(fmt.Sprintf("Failed to reset two-factor authentication: %s", err.Error()), w, r)
+					return
+				}
+				rc.ReportRedirect(fmt.Sprintf("/admin/user/%s/edit", un), 5, "Reset",
+					"The two-factor authentication of this user has been reset; they can log in with the password only and set it up again.", w, r)
+				return
 			case "password":
 				if !rc.LoginInfo.IsSuperAdmin && user.Status == model.SUPER_ADMIN {
 					rc.ReportRedirect("/admin/user-list", 0, "Error", "Not enough permission.", w, r)

@@ -113,6 +113,25 @@
 			</table>
 		  </form>
 		</fieldset>
+
+		<fieldset>
+		  <legend>Two-Factor Authentication</legend>
+		  <p>
+			{{if .User.TFAConfig.Email.Enable}}Email confirm code: <b>enabled</b>.{{else}}Email confirm code: disabled.{{end}}<br />
+			{{if .User.TFAConfig.OTP.Enable}}Authenticator app: <b>enabled</b> ({{if eq .User.TFAConfig.OTP.Type "hotp"}}HOTP{{else}}TOTP{{end}}), {{len .User.TFAConfig.OTP.RecoveryCodes}} recovery code(s) unused.{{else if .User.TFAConfig.OTP.Pending}}Authenticator app: setup started but not confirmed.{{else}}Authenticator app: disabled.{{end}}
+		  </p>
+		  {{if or .User.TFAConfig.Email.Enable .User.TFAConfig.OTP.Enable .User.TFAConfig.OTP.Pending}}
+		  <p class="field-label-description">Resetting drops both factors and the recovery codes, so the user can log in with the password only and set it up again. Their password and their sessions are not touched.</p>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="type" value="reset-2fa" />
+			<input type="hidden" name="username" value="{{.User.Name}}" />
+			<input class="field-submit" type="submit" value="Reset Two-Factor Authentication" />
+		  </form>
+		  {{else}}
+		  <p class="field-label-description">This user has no second factor configured.</p>
+		  {{end}}
+		</fieldset>
 	  </div>
 	</main>
 	
