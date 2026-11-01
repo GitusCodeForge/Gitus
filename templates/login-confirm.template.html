@@ -24,12 +24,24 @@
 	  <legend>Login Confirm</legend>
 	  <form action="" method="POST">
 		<input type="hidden" name="username" value="{{.Username}}" />
+		<p class="field-description">
+		  {{if .EmailRequired}}Enter the confirmation code that was sent to your email address.{{end}}
+		  {{if .OTPRequired}}Enter the code shown by your authenticator app.{{end}}
+		</p>
 		<table class="field-table">
 		  <tbody>
+			{{if .EmailRequired}}
 			<tr class="field">
 			  <td><label class="field-label" for="tf-confirmation-code">Confirmation Code:</label></td>
-			  <td><input class="field-tf" name="confirmation-code" id="tf-confirmation-code" /></td>
+			  <td><input class="field-tf" name="confirmation-code" id="tf-confirmation-code" autocomplete="one-time-code" /></td>
 			</tr>
+			{{end}}
+			{{if .OTPRequired}}
+			<tr class="field">
+			  <td><label class="field-label" for="tf-otp-code">{{if eq .OTPType "hotp"}}Authenticator Code:{{else}}Authenticator Code (TOTP):{{end}}</label></td>
+			  <td><input class="field-tf" name="otp-code" id="tf-otp-code" inputmode="numeric" autocomplete="one-time-code" /></td>
+			</tr>
+			{{end}}
 			<tr class="field">
 			  <td></td>
 			  <td><input class="form-submit" type="submit" value="Confirm" /></td>

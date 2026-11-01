@@ -11,9 +11,13 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/otp"
 	"github.com/GitusCodeForge/Gitus/routes"
+	"github.com/GitusCodeForge/Gitus/templates"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"golang.org/x/crypto/bcrypt"
@@ -253,3 +257,47 @@ func getQueryPath(s string) (string, error) {
 		url.QueryEscape(u.Query().Encode())), nil
 }
 
+
+// renderLoginConfirm renders the second step of the login. user may be nil when
+// the account could not be loaded; the template then falls back to the generic
+// form.
+func renderLoginConfirm(rc *routes.RouterContext, w http.ResponseWriter, username string, user *model.GitusUser, factors string, errMsg string) {
+	// factors is the set recorded when the password was accepted ("e" for the
+	// emailed code, "o" for the authenticator app). When it is empty (no
+	// pending entry) fall back to the current configuration.
+	if len(factors) <= 0 && user != nil {
+		if user.TFAConfig.Email.Enable { factors += "e" }
+		if user.TFAConfig.OTP.Enable { factors += "o" }
+	}
+	m := &templates.LoginConfirmTemplateModel{
+		Config: rc.Config,
+		LoginInfo: rc.LoginInfo,
+		Username: username,
+		ErrorMsg: errMsg,
+		EmailRequired: strings.Contains(factors, "e"),
+		OTPRequired: strings.Contains(factors, "o"),
+	}
+	if user != nil { m.OTPType = user.TFAConfig.OTP.Type }
+	routes.LogTemplateError(rc.LoadTemplate("login-confirm").Execute(w, m))
+}
+
+// hotpLookAhead is how many counters ahead of the stored one a HOTP code may
+// be. Authenticator apps count each time the button is pressed, so the user can
+// easily be a few steps ahead of the server.
+const hotpLookAhead = 10
+
+// verifyUserOTP checks a code against the authenticator secret of the user and
+// returns the counter that matched (the time step for TOTP).
+func verifyUserOTP(user *model.GitusUser, code string, now time.Time) (uint64, bool) {
+	cfg := user.TFAConfig.OTP
+	if len(strings.TrimSpace(cfg.Secret)) <= 0 { return 0, false }
+	if len(strings.TrimSpace(code)) <= 0 { return 0, false }
+	if user.TFAConfig.OTPIsTOTP() {
+		counter, ok, err := otp.VerifyTOTP(cfg.Secret, code, now, cfg.Period, cfg.Digits, 1)
+		if err != nil { return 0, false }
+		return counter, ok
+	}
+	counter, ok, err := otp.VerifyCode(cfg.Secret, code, cfg.Counter, cfg.Digits, hotpLookAhead)
+	if err != nil { return 0, false }
+	return counter, ok
+}

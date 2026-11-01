@@ -66,6 +66,36 @@ type GitusUser2FAConfig struct {
 	Email struct{
 		Enable bool `json:"enable"`
 	} `json:"email"`
+	// OTP is the authenticator app (HOTP/TOTP) second factor. The secret is
+	// stored in the user row, so it travels with the usual user backup.
+	OTP GitusUser2FAOTPConfig `json:"otp"`
+}
+
+// GitusUser2FAOTPConfig is the authenticator app configuration of a user.
+type GitusUser2FAOTPConfig struct {
+	Enable bool `json:"enable"`
+	// Pending is set between "start setup" and the first code the user
+	// confirms: the secret exists but is not enforced yet.
+	Pending bool `json:"pending"`
+	// "totp" (default) or "hotp".
+	Type string `json:"type"`
+	Secret string `json:"secret"`
+	Digits int `json:"digits"`
+	Period int `json:"period"`
+	// Counter is the next HOTP counter to accept; unused for TOTP.
+	Counter uint64 `json:"counter"`
+}
+
+// AnySecondFactor reports whether the account requires a second factor at
+// login.
+func (cfg *GitusUser2FAConfig) AnySecondFactor() bool {
+	return cfg.Email.Enable || cfg.OTP.Enable
+}
+
+// OTPIsTOTP reports whether the authenticator factor is time based; anything
+// that is not an explicit "hotp" is treated as TOTP.
+func (cfg *GitusUser2FAConfig) OTPIsTOTP() bool {
+	return cfg.OTP.Type != "hotp"
 }
 
 type GitusUserWebsitePreference struct {

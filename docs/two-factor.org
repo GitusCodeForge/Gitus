@@ -1,0 +1,54 @@
+* two-factor authentication
+
+Gitus supports two second factors, and either, both or neither can be enabled
+per account. They are managed at =/setting/privacy=.
+
+** email confirm code
+
+when enabled, a six character code is generated at login, mailed to the
+account's address and kept in the confirm code manager for ten minutes. see
+[[file:email.org][email]] for the mailer configuration.
+
+** authenticator app (HOTP/TOTP)
+
+the second factor is a shared secret, stored in the user row as part of
+=user_2fa_config=, so it travels with the usual user backup. =pkg/gitus/otp=
+implements both algorithms with HMAC-SHA1, which every authenticator app
+supports:
+
++ =totp= (default): the code changes every 30 seconds;
++ =hotp=: the code changes every time the app is asked for one, and the server
+  remembers the next counter to accept.
+
+setting one up is a two-step process, because a mis-typed secret would lock the
+user out:
+
+1. =Start Setup= generates a secret and stores it with =pending= set. the page
+   shows a QR code, the secret and the =otpauth://= URL. the QR code is
+   rendered on the server (=GET /setting/privacy/otp-qr=, a PNG from
+   =github.com/skip2/go-qrcode=) and is only served to the logged-in account
+   whose setup is pending, so scanning needs no JavaScript and no external
+   service.
+2. entering a code that the app shows confirms the secret: only then is it
+   enabled. =Cancel Setup= throws the pending secret away.
+
+disabling requires the account password, since it is a downgrade.
+
+HOTP codes are accepted up to ten counters ahead of the stored one (an app
+counts every time the button is pressed), and the accepted counter is then
+moved past the used code, so a code cannot be replayed. TOTP codes are accepted
+one time step either side of now, to tolerate a slightly wrong clock.
+
+** login
+
+after the password is accepted, the login stops at =/login/confirm= if any
+second factor is enabled:
+
++ the factors that were enabled at that moment are recorded with the challenge
+  in the confirm code manager, so changing the configuration in another tab
+  cannot make a pending login weaker;
++ the challenge is stored server side and the =temp-key= cookie holds
+  =bcrypt(password hash + challenge)=, so the second step cannot be replayed
+  after it expires (ten minutes);
++ when both factors are enabled both codes are required. the confirm page asks
+  for them separately.

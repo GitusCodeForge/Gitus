@@ -44,6 +44,96 @@
 			</table>
 		  </form>
 		</fieldset>
+
+		<fieldset>
+		  <legend>Authenticator App (HOTP/TOTP)</legend>
+		  {{if .User.TFAConfig.OTP.Enable}}
+		  <p>Enabled
+			{{if eq .User.TFAConfig.OTP.Type "hotp"}}(HOTP, counter based){{else}}(TOTP, time based){{end}}.
+			At every login you have to enter the code shown by the app.</p>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="section" value="2fa" />
+			<input type="hidden" name="type" value="otp-disable" />
+			<table class="field-table">
+			  <tr class="field">
+				<td><label class="field-label" for="tf-otp-disable-password">Password:</label></td>
+				<td><input class="field-tf" type="password" name="password" id="tf-otp-disable-password" /></td>
+			  </tr>
+			  <tr>
+				<td></td>
+				<td><input class="field-submit" type="submit" value="Disable Authenticator" /></td>
+			  </tr>
+			</table>
+		  </form>
+		  {{else if .User.TFAConfig.OTP.Pending}}
+		  <p>Scan the QR code with your authenticator app (or enter the secret below by hand), then enter the
+			code it shows to finish the setup. Nothing is enforced until you confirm, and the secret is
+			discarded if you cancel.</p>
+		  <p><img class="otp-qr-code" src="/setting/privacy/otp-qr" width="320" height="320" alt="QR code for the authenticator setup" /></p>
+		  <table class="field-table">
+			<tr class="field">
+			  <td><label class="field-label">Type:</label></td>
+			  <td>{{if eq .User.TFAConfig.OTP.Type "hotp"}}HOTP (counter based){{else}}TOTP (time based){{end}}</td>
+			</tr>
+			<tr class="field">
+			  <td><label class="field-label">Secret:</label></td>
+			  <td><code id="otp-secret">{{.User.TFAConfig.OTP.Secret}}</code></td>
+			</tr>
+			{{if eq .User.TFAConfig.OTP.Type "hotp"}}
+			<tr class="field">
+			  <td><label class="field-label">Counter:</label></td>
+			  <td>{{.User.TFAConfig.OTP.Counter}}</td>
+			</tr>
+			{{end}}
+		  </table>
+		  <p class="field-label-description">If your app accepts a URL instead of a secret, use this one:</p>
+		  <p><code class="otp-provisioning-url">{{.ProvisioningURL}}</code></p>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="section" value="2fa" />
+			<input type="hidden" name="type" value="otp-confirm" />
+			<table class="field-table">
+			  <tr class="field">
+				<td><label class="field-label" for="tf-otp-confirm-code">Code from the app:</label></td>
+				<td><input class="field-tf" name="otp-code" id="tf-otp-confirm-code" inputmode="numeric" autocomplete="one-time-code" /></td>
+			  </tr>
+			  <tr>
+				<td></td>
+				<td><input class="field-submit" type="submit" value="Confirm and Enable" /></td>
+			  </tr>
+			</table>
+		  </form>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="section" value="2fa" />
+			<input type="hidden" name="type" value="otp-cancel" />
+			<input class="field-submit" type="submit" value="Cancel Setup" />
+		  </form>
+		  {{else}}
+		  <p>Use an authenticator app such as FreeOTP or Aegis instead of (or in addition to) the email code.
+			The code changes every 30 seconds (TOTP) or every time you ask the app for one (HOTP).</p>
+		  <p class="field-label-description">Gitus does not render a QR code, so add the secret to the app by hand or paste the otpauth URL.</p>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="section" value="2fa" />
+			<input type="hidden" name="type" value="otp-start" />
+			<table class="field-table">
+			  <tr class="field">
+				<td><label class="field-label" for="s-otp-type">Type:</label></td>
+				<td><select class="field-select" name="otp-type" id="s-otp-type">
+					<option value="totp">TOTP (time based, every 30 seconds)</option>
+					<option value="hotp">HOTP (counter based)</option>
+				</select></td>
+			  </tr>
+			  <tr>
+				<td></td>
+				<td><input class="field-submit" type="submit" value="Start Setup" /></td>
+			  </tr>
+			</table>
+		  </form>
+		  {{end}}
+		</fieldset>
 	  </div>
 	</main>
 	

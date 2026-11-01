@@ -115,3 +115,17 @@
 		padding: 0;
 	}
 }
+
+/* the otpauth URL is long and has no spaces; it must wrap instead of
+   widening the page. */
+.otp-provisioning-url {
+	display: block;
+	word-break: break-all;
+	font-size: 0.85rem;
+}
+
+/* the authenticator setup QR code */
+.otp-qr-code {
+	image-rendering: pixelated;
+	border: 4px var(--foreground-color) solid;
+}

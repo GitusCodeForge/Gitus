@@ -13,6 +13,8 @@ type SettingPrivacyTemplateModel struct {
 		Type string
 		Message string
 	}
-		
+	// ProvisioningURL is the otpauth:// URL of the pending authenticator
+	// setup, shown while the secret waits for its first code.
+	ProvisioningURL string
 }
 
