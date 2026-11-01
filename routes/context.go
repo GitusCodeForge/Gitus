@@ -179,7 +179,13 @@ func (ctx *RouterContext) ReportRedirect(target string, timeout int, title strin
 	var err error
 	if !ctx.Config.IsInBrowseOnlyMode() {
 		loginInfoModel, err = GenerateLoginInfoModel(ctx, r)
-		if err != nil { panic(err) }
+		// The page can be rendered without the login info; a broken session
+		// must not turn a redirect or a callback page into a panic and an
+		// empty reply.
+		if err != nil {
+			log.Warnf("Failed to generate the login info: %s", err.Error())
+			loginInfoModel = nil
+		}
 	}
 	LogTemplateError(ctx.LoadTemplate("_redirect/index").Execute(w, templates.RedirectWithMessageModel{
 		Config: ctx.Config,
@@ -204,7 +210,13 @@ func (ctx *RouterContext) ReportSingleButtonCallback(
 	var err error
 	if !ctx.Config.IsInBrowseOnlyMode() {
 		loginInfoModel, err = GenerateLoginInfoModel(ctx, r)
-		if err != nil { panic(err) }
+		// The page can be rendered without the login info; a broken session
+		// must not turn a redirect or a callback page into a panic and an
+		// empty reply.
+		if err != nil {
+			log.Warnf("Failed to generate the login info: %s", err.Error())
+			loginInfoModel = nil
+		}
 	}
 	LogTemplateError(ctx.LoadTemplate("_single-button-callback/index").Execute(w, templates.SingleButtonCallbackModel{
 		Config: ctx.Config,

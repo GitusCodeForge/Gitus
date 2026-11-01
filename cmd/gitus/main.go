@@ -307,6 +307,12 @@ func main() {
 			log.Warnf("Failed to apply schema updates: %s", err.Error())
 		}
 	}
+	if context.SessionInterface != nil {
+		// Columns that were added after the session store was installed.
+		if err := context.SessionInterface.EnsureSchema(); err != nil {
+			log.Warnf("Failed to apply session store schema updates: %s", err.Error())
+		}
+	}
 
 	controller.InitializeRoute(&context)
 

@@ -22,6 +22,7 @@
   + =/repo/{reponame}/issue/new=: new issue
   + =/repo/{reponame}/issue/{issueId}=: each issue
 + =/repo/{reponame}/fork=: fork repository.
++ =/setting/session=: active sessions of the logged-in user; revoke them here.
 + =/u/{username}=: User page.
 + =/new/namespace=: New namespace page.
 + =/new/repo=: New repository page.

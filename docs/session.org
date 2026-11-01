@@ -1,5 +1,30 @@
 * notes on session
 
+** session metadata
+
+a session records the client that created it: the address the login request
+came from (the same resolution the rate limiter uses, i.e. =X-Real-IP=, then
+=X-Forwarded-For=, then the connection's address) and the raw =User-Agent=.
+both are recorded once, at login, and never updated.
+
+there is no geolocation: turning the address into a place needs a GeoIP
+database that Gitus does not ship. the settings page shows the browser and the
+platform parsed out of the user agent (=session.DescribeUserAgent=), which is
+enough to tell two sessions apart.
+
+=GitusSessionStore.EnsureSchema= adds the columns to a session store that was
+installed before the metadata existed. It runs once at startup next to the
+database's own =EnsureSchema=, is idempotent, and keeps existing sessions (their
+metadata simply stays empty).
+
+** listing and revoking sessions
+
+=/setting/session= lists the active sessions of the logged-in user, newest
+first, marking the one the request came from. every other row has a revoke
+button, which deletes that session; the current session is logged out through
+the normal log out link instead. =RevokeSession= only deletes rows of that user,
+so a forged id cannot end somebody else's session.
+
 ** the use of sqlite
 
 This is here only for the development of the business logic at the early stage. Technically you *can* use a sqlite db as a kv store; whether that'll be a good idea you'll have to see for yourself.

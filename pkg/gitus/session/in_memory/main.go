@@ -30,6 +30,10 @@ func (ssif *GitusInMemorySessionStore) Install() error {
 	return nil
 }
 
+func (ssif *GitusInMemorySessionStore) EnsureSchema() error {
+	return nil
+}
+
 func (ssif *GitusInMemorySessionStore) IsSessionStoreUsable() (bool, error) {
 	return true, nil
 }
@@ -55,7 +59,7 @@ func removeFromSet(set string, s string) string {
 	return set[0:i] + set[i+len(ss):]
 }
 
-func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session_id string) (*session.GitusSession, error) {
+func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session_id string, metadata session.GitusSessionMetadata) (*session.GitusSession, error) {
 	key := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	i, _ := ssif.cache.Get(key)
 	ssif.cache.Register(key, insertSet(i, session_id), 24*time.Hour)
@@ -70,6 +74,8 @@ func (ssif *GitusInMemorySessionStore) RegisterSession(name string, session_id s
 		Timestamp: timestamp,
 		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
+		IP: metadata.IP,
+		UserAgent: metadata.UserAgent,
 	}
 	sstr, err := json.Marshal(s)
 	if err != nil { return nil, err }
@@ -96,7 +102,7 @@ func (ssif *GitusInMemorySessionStore) RetrieveSession(name string) ([]*session.
 	for k := range strings.SplitSeq(string(i[1:]), "}{") {
 		kk := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, k)
 		v, _ := ssif.cache.Get(kk)
-		var r *session.GitusSession
+		var r session.GitusSession
 		err := json.Unmarshal([]byte(v), &r)
 		if err != nil { return nil, err }
 		if v != "" {
@@ -104,7 +110,7 @@ func (ssif *GitusInMemorySessionStore) RetrieveSession(name string) ([]*session.
 				ssif.cache.Delete(kk)
 				continue
 			} else {
-				res = append(res, r)
+				res = append(res, &r)
 				newset = fmt.Sprintf("%s{%s}", newset, k)
 			}
 		}
@@ -120,14 +126,15 @@ func (ssif *GitusInMemorySessionStore) RetrieveSession(name string) ([]*session.
 func (ssif *GitusInMemorySessionStore) RetrieveSessionByKey(username string, sessionid string) (*session.GitusSession, error) {
 	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, username, sessionid)
 	i, _ := ssif.cache.Get(key)
-	var r *session.GitusSession
-	err := json.Unmarshal([]byte(i), r)
+	if i == "" { return nil, nil }
+	var r session.GitusSession
+	err := json.Unmarshal([]byte(i), &r)
 	if err != nil { return nil, err }
 	if time.Now().Unix() >= r.ExpireTimestamp {
 		ssif.cache.Delete(key)
 		return nil, nil
 	}
-	return r, nil
+	return &r, nil
 }
 
 func (ssif *GitusInMemorySessionStore) RevokeSession(username string, target string) error {
@@ -163,7 +170,7 @@ func (ssif *GitusInMemorySessionStore) VerifySessionExist(name string, target st
 	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, target)
 	i, _ := ssif.cache.Get(key)
 	if i == "" { return false, nil }
-	var r *session.GitusSession
+	var r session.GitusSession
 	err := json.Unmarshal([]byte(i), &r)
 	if err != nil { return false, err }
 	if time.Now().Unix() > r.ExpireTimestamp {
@@ -181,7 +188,7 @@ func (ssif *GitusInMemorySessionStore) VerifySessionFull(name string, target str
 	key := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, target)
 	i, _ := ssif.cache.Get(key)
 	if i == "" { return false, nil }
-	var r *session.GitusSession
+	var r session.GitusSession
 	err := json.Unmarshal([]byte(i), &r)
 	if err != nil { return false, err }
 	if time.Now().Unix() > r.ExpireTimestamp {

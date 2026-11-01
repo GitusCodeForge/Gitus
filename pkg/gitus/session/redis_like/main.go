@@ -42,6 +42,10 @@ func (ssif *GitusRedisLikeSessionStore) Install() error {
 	return nil
 }
 
+func (ssif *GitusRedisLikeSessionStore) EnsureSchema() error {
+	return nil
+}
+
 func (ssif *GitusRedisLikeSessionStore) IsSessionStoreUsable() (bool, error) {
 	return true, nil
 }
@@ -50,7 +54,7 @@ func (ssif *GitusRedisLikeSessionStore) Dispose() error {
 	return ssif.connection.Close()
 }
 
-func (ssif *GitusRedisLikeSessionStore) RegisterSession(name string, s string) (*session.GitusSession, error) {
+func (ssif *GitusRedisLikeSessionStore) RegisterSession(name string, s string, metadata session.GitusSessionMetadata) (*session.GitusSession, error) {
 	lkey := fmt.Sprintf("%s:session_list:%s", ssif.config.Session.TablePrefix, name)
 	skey := fmt.Sprintf("%s:session:%s:%s", ssif.config.Session.TablePrefix, name, s)
 	ctx := context.TODO()
@@ -68,12 +72,18 @@ func (ssif *GitusRedisLikeSessionStore) RegisterSession(name string, s string) (
 	if r3.Err() != nil { return nil, r3.Err() }
 	r4 := ssif.connection.HSet(ctx, skey, "expire_timestamp", tExpStr)
 	if r4.Err() != nil { return nil, r4.Err() }
+	r5 := ssif.connection.HSet(ctx, skey, "ip", metadata.IP)
+	if r5.Err() != nil { return nil, r5.Err() }
+	r6 := ssif.connection.HSet(ctx, skey, "user_agent", metadata.UserAgent)
+	if r6.Err() != nil { return nil, r6.Err() }
 	return &session.GitusSession{
 		Username: name,
 		Id: s,
 		Timestamp: t,
 		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
+		IP: metadata.IP,
+		UserAgent: metadata.UserAgent,
 	}, nil
 }
 
@@ -112,12 +122,16 @@ func (ssif *GitusRedisLikeSessionStore) RetrieveSession(name string) ([]*session
 				removePending = append(removePending, keys[i])
 				continue
 			}
+			ip, _ := ssif.connection.HGet(context.TODO(), sk, "ip").Result()
+			userAgent, _ := ssif.connection.HGet(context.TODO(), sk, "user_agent").Result()
 			res = append(res, &session.GitusSession{
 				Username: name,
 				Id: keys[i],
 				Timestamp: timestamp,
 				ExpireTimestamp: tExp,
 				CSRFToken: csrf,
+				IP: ip,
+				UserAgent: userAgent,
 			})
 			i += 2
 		}
@@ -154,11 +168,16 @@ func (ssif *GitusRedisLikeSessionStore) RetrieveSessionByKey(username string, se
 		return nil, nil
 	}
 	timestamp, _ := strconv.ParseInt(tsStr, 10, 64)
+	ip, _ := ssif.connection.HGet(context.TODO(), key2, "ip").Result()
+	userAgent, _ := ssif.connection.HGet(context.TODO(), key2, "user_agent").Result()
 	return &session.GitusSession{
 		Username: username,
 		Id: sessionid,
 		Timestamp: timestamp,
+		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
+		IP: ip,
+		UserAgent: userAgent,
 	}, nil
 }
 

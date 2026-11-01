@@ -148,7 +148,10 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				rc.ReportInternalError(err.Error(), w, r)
 				return
 			}
-			_, err = rc.SessionInterface.RegisterSession(un, ss)
+			_, err = rc.SessionInterface.RegisterSession(un, ss, session.GitusSessionMetadata{
+				IP: ResolveMostPossibleIP(w, r),
+				UserAgent: r.Header.Get("User-Agent"),
+			})
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
 				return
@@ -242,7 +245,10 @@ If this isn't you, we advise you to change your password on %s and other platfor
 				rc.ReportInternalError(err.Error(), w, r)
 				return
 			}
-			_, err = rc.SessionInterface.RegisterSession(username, ss)
+			_, err = rc.SessionInterface.RegisterSession(username, ss, session.GitusSessionMetadata{
+				IP: ResolveMostPossibleIP(w, r),
+				UserAgent: r.Header.Get("User-Agent"),
+			})
 			if err != nil {
 				rc.ReportInternalError(err.Error(), w, r)
 				return

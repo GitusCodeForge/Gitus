@@ -1,0 +1,73 @@
+{{$csrf_key := "__csrf_token"}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Sessions :: {{.Config.DepotName}}</title>
+	<link rel="stylesheet" href="/static/style-const-default.css">
+	<link rel="stylesheet" href="/dynamic-asset/style-const-default.css">
+	<link rel="stylesheet" href="/static/style.css">
+	<link rel="stylesheet" href="/static/style-setting.css">
+  </head>
+  <body>
+	<header>
+	  {{template "_header-nav" .}}
+	  <h1 class="header-name">Setting</h1>
+	</header>
+
+	<hr />
+
+	<main>
+	  {{template "setting/_sidebar" .}}
+	  <div class="main-side">
+		<fieldset>
+		  <legend>Active Sessions</legend>
+		  <p class="field-label-description">These are the sessions that are currently signed in as you. A session records the address and the client it was created from; the address can be a proxy's.</p>
+		  {{if .ErrorMsg}}
+		  <div class="error-msg">{{.ErrorMsg}}</div>
+		  {{end}}
+		  {{if .SessionList}}
+		  <table class="setting-table">
+			<thead>
+			  <tr><th>Client</th><th>IP</th><th>Created</th><th>Expires</th><th>Revoke</th></tr>
+			</thead>
+			<tbody>
+			  {{range .SessionList}}
+			  <tr>
+				<td>
+				  {{.Device}}
+				  {{if .Current}}<b>(this session)</b>{{end}}
+				  <div class="precise-time" title="{{.IdPrefix}}">{{.IdPrefix}}</div>
+				</td>
+				<td>{{if .IP}}{{.IP}}{{else}}unknown{{end}}</td>
+				<td><span title="{{toPreciseTime .CreatedAt}}">{{toFuzzyTime .CreatedAt}}</span></td>
+				<td>{{toPreciseTime .ExpiresAt}}</td>
+				<td>
+				  {{if .Current}}
+				  <a href="/logout">Log out</a>
+				  {{else}}
+				  <form action="/setting/session" method="POST">
+					<input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" />
+					<input type="hidden" name="type" value="revoke" />
+					<input type="hidden" name="id" value="{{.Id}}" />
+					<input type="submit" value="Revoke" />
+				  </form>
+				  {{end}}
+				</td>
+			  </tr>
+			  {{end}}
+			</tbody>
+		  </table>
+		  {{else}}
+		  <p>This account has no active session.</p>
+		  {{end}}
+		</fieldset>
+	  </div>
+	</main>
+
+	<hr />
+	<footer>
+	  {{template "_footer" .}}
+	</footer>
+  </body>
+</html>

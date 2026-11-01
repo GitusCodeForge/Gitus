@@ -53,7 +53,7 @@ func (ss *GitusSqliteSessionStore) IsSessionStoreUsable() (bool, error) {
 	return true, nil
 }
 
-func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string) (*session.GitusSession, error) {
+func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string, metadata session.GitusSessionMetadata) (*session.GitusSession, error) {
 	tx, err := ss.connection.Begin()
 	if err != nil { return nil, err }
 	defer tx.Rollback()
@@ -61,7 +61,7 @@ func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string) (*sess
 	var tExp int64 = t + int64(ss.config.MaxSessionLifetime)
 	csrf, err := auxfuncs.CryptoGenSym(64)
 	if err != nil { return nil, err }
-	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %ssession(user_name, value, reg_timestamp, expire_timestamp, csrf) VALUES (?,?,?,?,?)", ss.config.Session.TablePrefix), name, s, t, tExp, csrf)
+	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %ssession(user_name, value, reg_timestamp, expire_timestamp, csrf, ip, user_agent) VALUES (?,?,?,?,?,?,?)", ss.config.Session.TablePrefix), name, s, t, tExp, csrf, metadata.IP, metadata.UserAgent)
 	if err != nil { return nil, err }
 	err = tx.Commit()
 	if err != nil { return nil, err }
@@ -71,12 +71,14 @@ func (ss *GitusSqliteSessionStore) RegisterSession(name string, s string) (*sess
 		Timestamp: t,
 		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
+		IP: metadata.IP,
+		UserAgent: metadata.UserAgent,
 	}, nil
 }
 
 func (ss *GitusSqliteSessionStore) RetrieveSession(name string) ([]*session.GitusSession, error) {
 	res := make([]*session.GitusSession, 0)
-	r, err := ss.connection.Query(fmt.Sprintf("SELECT value, reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ?", ss.config.Session.TablePrefix), name)
+	r, err := ss.connection.Query(fmt.Sprintf("SELECT value, reg_timestamp, expire_timestamp, csrf, ip, user_agent FROM %ssession WHERE user_name = ? AND expire_timestamp > ?", ss.config.Session.TablePrefix), name, time.Now().Unix())
 	if err != nil { return nil, err }
 	defer r.Close()
 	for r.Next() {
@@ -84,7 +86,8 @@ func (ss *GitusSqliteSessionStore) RetrieveSession(name string) ([]*session.Gitu
 		var timestamp int64
 		var tExp int64
 		var csrf string
-		err = r.Scan(&id, &timestamp, &tExp, &csrf)
+		var ip, userAgent sql.NullString
+		err = r.Scan(&id, &timestamp, &tExp, &csrf, &ip, &userAgent)
 		if err != nil { return nil, err }
 		res = append(res, &session.GitusSession{
 			Username: name,
@@ -92,6 +95,8 @@ func (ss *GitusSqliteSessionStore) RetrieveSession(name string) ([]*session.Gitu
 			Timestamp: timestamp,
 			ExpireTimestamp: tExp,
 			CSRFToken: csrf,
+			IP: ip.String,
+			UserAgent: userAgent.String,
 		})
 	}
 	if r.Err() != nil { return nil, r.Err() }
@@ -99,12 +104,14 @@ func (ss *GitusSqliteSessionStore) RetrieveSession(name string) ([]*session.Gitu
 }
 
 func (ss *GitusSqliteSessionStore) RetrieveSessionByKey(username string, key string) (*session.GitusSession, error) {
-	r := ss.connection.QueryRow(fmt.Sprintf("SELECT reg_timestamp, expire_timestamp, csrf FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix), username, key)
+	r := ss.connection.QueryRow(fmt.Sprintf("SELECT reg_timestamp, expire_timestamp, csrf, ip, user_agent FROM %ssession WHERE user_name = ? AND value = ?", ss.config.Session.TablePrefix), username, key)
 	if r.Err() != nil { return nil, r.Err() }
 	var timestamp int64
 	var tExp int64
 	var csrf string
-	err := r.Scan(&timestamp, &tExp, &csrf)
+	var ip, userAgent sql.NullString
+	err := r.Scan(&timestamp, &tExp, &csrf, &ip, &userAgent)
+	if err == sql.ErrNoRows { return nil, nil }
 	if err != nil { return nil, err }
 	if time.Now().Unix() >= tExp {
 		ss.RevokeSession(username, key)
@@ -116,6 +123,8 @@ func (ss *GitusSqliteSessionStore) RetrieveSessionByKey(username string, key str
 		Timestamp: timestamp,
 		ExpireTimestamp: tExp,
 		CSRFToken: csrf,
+		IP: ip.String,
+		UserAgent: userAgent.String,
 	}, nil
 }
 
@@ -160,6 +169,7 @@ func (ss *GitusSqliteSessionStore) VerifySessionFull(username string, session st
 	var tExp int64
 	var sessionCsrf string
 	err := r.Scan(&timestamp, &tExp, &sessionCsrf)
+	if err == sql.ErrNoRows { return false, nil }
 	if err != nil { return false, err }
 	if time.Now().Unix() >= tExp {
 		ss.RevokeSession(username, session)
