@@ -1,7 +1,6 @@
 {{define "_sidebar-tree-file-list"}}
 {{$rootPath := .RootPath}}
 {{$treePath := .TreePath}}
-{{$repoPath := .RepoPath}}
 <div class="sidebar-file-list">
   {{if .ShouldHaveParentLink}}
   <div class="sidebar-file-list-parent-link"><a href="..">..</a></div>
@@ -19,7 +18,6 @@
 	  {{end}}
 	</svg>
 	{{if eq .Mode 160000}}<a href="{{$rootPath}}/{{$treePath}}{{.Name}}?submodule">{{.Name}}</a>{{else}}<a href="{{$rootPath}}/{{$treePath}}{{.Name}}{{if eq .Mode 40000}}/{{end}}">{{.Name}}</a>{{end}}
-	{{if .LastCommit}}<a class="file-list-item-last-commit" href="{{$repoPath}}/commit/{{.LastCommit.Id}}"}>"{{firstLine .LastCommit.CommitMessage}}" @ {{toFuzzyTime .LastCommit.CommitterInfo.Time}}</a>{{end}}
   </div>
   {{end}}
 </div>

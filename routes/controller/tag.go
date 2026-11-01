@@ -296,7 +296,6 @@ func bindTagController(ctx *RouterContext) {
 							dirObj, err := rr.ResolveTreePath(rootTree, dirPath)
 							if err == nil {
 								if dirTree, ok := dirObj.(*gitlib.TreeObject); ok {
-									fillTreeItemLastCommit(rr, commitInfo.Commit, dirPath, dirTree.ObjectList)
 									treeFileList = &templates.TreeFileListTemplateModel{
 										ShouldHaveParentLink: len(treePath) > 0,
 										RepoPath: fmt.Sprintf("/repo/%s", rfn),
