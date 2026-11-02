@@ -1,9 +1,9 @@
 {{define "_comparison-notice"}}
 <span class="comparison-notice"><b>Fork Notice:</b>
   {{if . }}
-  {{if and .BRevList (gt (len .BRevList)) 0}}
+  {{if and .BRevList (gt (len .BRevList) 0)}}
   This repository is {{len .BRevList}} commits beyond {{if gt (len .ARevList) 0}} and {{len .ARevList}} commits behind {{end}}upstream.
-  {{else if and .ARevList (gt (len .ARevList)) 0}}
+  {{else if and .ARevList (gt (len .ARevList) 0)}}
   This repository is {{len .ARevList}} commits behind upstream.
   {{else}}
   This repository is in sync with upstream.

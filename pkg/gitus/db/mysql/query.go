@@ -1688,6 +1688,7 @@ WHERE receiver_namespace = $1 AND receiver_name = $2 AND pull_request_id = $3
 	var pullRequestTime time.Time
 	var status int
 	err := stmt.Scan(&absid, &author, &title, &receiverBranch, &providerNs, &providerName, &providerBranch, &mergeCheckString, &mergeConflictTime, &status, &pullRequestTime)
+	if errors.Is(err, sql.ErrNoRows) { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	var mergeCheckResult *gitlib.MergeCheckResult = nil
 	if len(mergeCheckString) > 0 {		
@@ -1726,6 +1727,7 @@ WHERE pull_request_absid = $1
 	var pullRequestTime time.Time
 	var status int
 	err := stmt.Scan(&author, &id, &title, &receiverNs, &receiverName, &receiverBranch, &providerNs, &providerName, &providerBranch, &mergeCheckString, &mergeConflictTime, &status, &pullRequestTime)
+	if errors.Is(err, sql.ErrNoRows) { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	var mergeCheckResult *gitlib.MergeCheckResult = nil
 	if len(mergeCheckString) > 0 {		

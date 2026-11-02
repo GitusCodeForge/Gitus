@@ -1639,6 +1639,7 @@ WHERE receiver_namespace = $1 AND receiver_name = $2 AND pull_request_id = $3
 	var mergeConflictTime, pullRequestTime time.Time
 	var status int
 	err := stmt.Scan(&absid, &author, &title, &receiverBranch, &providerNs, &providerName, &providerBranch, &mergeCheckString, &mergeConflictTime, &status, &pullRequestTime)
+	if errors.Is(err, pgx.ErrNoRows) { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	var mergeCheckResult *gitlib.MergeCheckResult = nil
 	if len(mergeCheckString) > 0 {		
@@ -1667,15 +1668,16 @@ func (dbif *PostgresGitusDatabaseInterface) GetPullRequestByAbsId(absId int64) (
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()
 	stmt := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
-SELECT author_username, pull_request_id, title, receiver_anmespace, receiver_name, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp
+SELECT author_username, pull_request_id, title, receiver_namespace, receiver_name, receiver_branch, provider_namespace, provider_name, provider_branch, merge_conflict_check_result, merge_conflict_check_timestamp, pull_request_status, pull_request_timestamp
 FROM %s_pull_request
-WHERE receiver_namespace = $1 AND receiver_name = $2 AND pull_request_id = $3
+WHERE pull_request_absid = $1
 `, pfx), absId)
 	var id int64
 	var author, title, receiverNs, receiverName, receiverBranch, providerNs, providerName, providerBranch, mergeCheckString string
 	var mergeConflictTime, pullRequestTime time.Time
 	var status int
 	err := stmt.Scan(&author, &id, &title, &receiverNs, &receiverName, &receiverBranch, &providerNs, &providerName, &providerBranch, &mergeCheckString, &mergeConflictTime, &status, &pullRequestTime)
+	if errors.Is(err, pgx.ErrNoRows) { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	var mergeCheckResult *gitlib.MergeCheckResult = nil
 	if len(mergeCheckString) > 0 {		

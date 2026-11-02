@@ -1876,6 +1876,7 @@ WHERE receiver_namespace = ? AND receiver_name = ? AND pull_request_id = ?
 	var mchResult string
 	var prstatus int
 	err = r.Scan(&rowid, &username, &title, &receiverBranch, &providerNamespace, &providerName, &providerBranch, &mchResult, &mchtime, &prstatus, &prtime)
+	if err == sql.ErrNoRows { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	var mergeCheckResult *gitlib.MergeCheckResult = nil
 	if len(mchResult) > 0 {
@@ -1916,6 +1917,7 @@ WHERE rowid = ?
 	var mchResult string
 	var prstatus int
 	err = r.Scan(&username, &prid, &title, &receiverNamespace, &receiverName, &receiverBranch, &providerNamespace, &providerName, &providerBranch, &mchResult, &mchtime, &prstatus, &prtime)
+	if err == sql.ErrNoRows { return nil, db.ErrEntityNotFound }
 	if err != nil { return nil, err }
 	var mergeCheckResult gitlib.MergeCheckResult
 	err = json.Unmarshal([]byte(mchResult), &mergeCheckResult)
