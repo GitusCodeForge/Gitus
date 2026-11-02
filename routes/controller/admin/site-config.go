@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/newuser"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 )
@@ -77,12 +79,54 @@ func bindAdminSiteConfigController(ctx *RouterContext) {
 				if r.Form.Has("manual-approval") && r.Form.Get("manual-approval") == "on" {
 					rc.Config.ManualApproval = true
 				}
+				us, err := strconv.ParseInt(strings.TrimSpace(r.Form.Get("default-new-user-status")), 10, 32)
+				if err != nil {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: fmt.Sprintf("Invalid default new user status: %s.", err.Error()),
+					}))
+					return
+				}
+				newUserStatus := model.GitusUserStatus(us)
+				if !newuser.ValidDefaultStatus(newUserStatus) {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: "The default new user status cannot hand out administrator privileges.",
+					}))
+					return
+				}
+				newUserNamespace := strings.TrimSpace(r.Form.Get("default-new-user-namespace"))
+				if !rc.Config.UseNamespace {
+					newUserNamespace = ""
+				}
+				if len(newUserNamespace) > 0 {
+					if !model.ValidNamespaceName(newUserNamespace) {
+						LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+							Config: rc.Config,
+							LoginInfo: rc.LoginInfo,
+							ErrorMsg: fmt.Sprintf("Invalid default new user namespace name: %q.", newUserNamespace),
+						}))
+						return
+					}
+					if _, err := rc.DatabaseInterface.GetNamespaceByName(newUserNamespace); err != nil {
+						LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+							Config: rc.Config,
+							LoginInfo: rc.LoginInfo,
+							ErrorMsg: fmt.Sprintf("The default new user namespace %q does not exist or cannot be read: %s.", newUserNamespace, err.Error()),
+						}))
+						return
+					}
+				}
+				rc.Config.DefaultNewUserStatus = newUserStatus
+				rc.Config.DefaultNewUserNamespace = newUserNamespace
 				rc.Config.DebugMode = false
 				if r.Form.Has("debug-mode") && r.Form.Get("debug-mode") == "on" {
 					rc.Config.DebugMode = true
 				}
 				rc.Config.RecalculateProperPath()
-				err := rc.Config.Sync()
+				err = rc.Config.Sync()
 				if err != nil {
 					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
 						Config: rc.Config,

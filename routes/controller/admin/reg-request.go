@@ -6,7 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/newuser"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/receipt"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -119,15 +121,16 @@ We wish you all the best in your future endeavours.
 				// NOTE: the call to the registration wouldn't occur in this case
 				// until the receipt link is visited.
 			} else {
-				if rc.Config.UseNamespace {
-					_, err = rc.DatabaseInterface.RegisterNamespace(regreq.Username, regreq.Username)
-					if err != nil {
-						rc.ReportInternalError(
-							fmt.Sprintf("Failed at registering namespace %s. Please contact site admin for this issue.", err.Error()),
-							w, r,
-						)
-						return
-					}
+				// The approval sets NORMAL_USER; the site-wide default can ask
+				// for something else (e.g. no namespace creation), so apply
+				// the final status here.
+				finalStatus := newuser.FinalStatus(rc.Config)
+				if err = rc.DatabaseInterface.UpdateUserStatus(regreq.Username, finalStatus); err != nil {
+					rc.ReportInternalError(fmt.Sprintf("Failed to set the status of %s: %s", regreq.Username, err), w, r)
+					return
+				}
+				if err := newuser.ProvisionNewUser(rc.DatabaseInterface, rc.Config, regreq.Username, finalStatus); err != nil {
+					log.Warnf("Failed to set up the namespaces of %s: %s", regreq.Username, err)
 				}
 			}
 			

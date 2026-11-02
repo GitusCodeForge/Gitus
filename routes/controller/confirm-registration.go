@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/newuser"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/receipt"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -98,7 +100,7 @@ func bindConfirmRegistrationController(ctx *RouterContext) {
 				)
 				return
 			}
-			status := model.NORMAL_USER
+			status := newuser.FinalStatus(ctx.Config)
 			// NOTE: per the reg flow (see
 			// routes/controller/register.go), if the instance
 			// requires manual approval, that path is always followed
@@ -115,15 +117,10 @@ func bindConfirmRegistrationController(ctx *RouterContext) {
 				)
 				return
 			}
-			if ctx.Config.UseNamespace {
-				_, err = ctx.DatabaseInterface.RegisterNamespace(username, username)
-				if err != nil {
-					ctx.ReportInternalError(
-						fmt.Sprintf("Failed at registering namespace %s. Please contact site admin for this issue.", err.Error()),
-						w, r,
-					)
-					return
-				}
+			if err := newuser.ProvisionNewUser(ctx.DatabaseInterface, ctx.Config, username, status); err != nil {
+				// The account is confirmed at this point; do not turn a
+				// namespace problem into a failed confirmation.
+				log.Warnf("Failed to set up the namespaces of %s: %s", username, err)
 			}
 			LogTemplateError(ctx.LoadTemplate("error").Execute(w, &templates.ErrorTemplateModel{
 				Config: ctx.Config,

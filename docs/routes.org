@@ -26,7 +26,7 @@
 + =/repo/{reponame}/fork=: fork repository.
 + =/setting/session=: active sessions of the logged-in user; revoke them here.
 + =/u/{username}=: User page.
-+ =/new/namespace=: New namespace page.
++ =/new/namespace=: New namespace page. Accounts with the =NORMAL_USER_NO_NEW_NAMESPACE= status are refused.
 + =/new/repo=: New repository page.
   + =/new/repo?ns={namespace}=: New repository page (with pre-set namespace)
 + =/all/namespace=: The list of all namespace.

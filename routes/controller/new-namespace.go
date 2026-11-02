@@ -11,12 +11,35 @@ import (
 	"github.com/GitusCodeForge/Gitus/templates"
 )
 
+// namespaceCreationAllowed refuses the accounts an administrator marked with
+// NORMAL_USER_NO_NEW_NAMESPACE. The same check runs on the form and on the
+// submission so the page cannot be reached by typing the URL either.
+func namespaceCreationAllowed(rc *RouterContext, w http.ResponseWriter, r *http.Request) bool {
+	if !rc.Config.IsInForgeMode() {
+		FoundAt(w, "/")
+		return false
+	}
+	u, err := rc.DatabaseInterface.GetUserByName(rc.LoginInfo.UserName)
+	if err != nil {
+		rc.ReportInternalError(fmt.Sprintf("Failed to fetch user %s: %s", rc.LoginInfo.UserName, err), w, r)
+		return false
+	}
+	if u.Status == model.NORMAL_USER_NO_NEW_NAMESPACE {
+		rc.ReportRedirect("/", 5, "Not Allowed",
+			"Your account is not allowed to create namespaces. Please contact the site administrator.",
+			w, r)
+		return false
+	}
+	return true
+}
+
 func bindNewNamespaceController(ctx *RouterContext) {
 	http.HandleFunc("GET /new/namespace", UseMiddleware(
 		[]Middleware{Logged, UseLoginInfo, LoginRequired,
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			if !namespaceCreationAllowed(rc, w, r) { return }
 			LogTemplateError(rc.LoadTemplate("new/namespace").Execute(w, templates.NewNamespaceTemplateModel{
 				Config: rc.Config,
 				LoginInfo: rc.LoginInfo,
@@ -30,6 +53,7 @@ func bindNewNamespaceController(ctx *RouterContext) {
 			GlobalVisibility, ErrorGuard,
 		}, ctx,
 		func(rc *RouterContext, w http.ResponseWriter, r *http.Request) {
+			if !namespaceCreationAllowed(rc, w, r) { return }
 			userName := rc.LoginInfo.UserName
 			newNamespaceName := r.Form.Get("name")
 			if !model.ValidNamespaceName(newNamespaceName) {

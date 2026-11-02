@@ -60,6 +60,35 @@ field is not mentioned at all, ={"!no-webhook": "no-webhook", "!no-ci":
 "no-ci"}= applies; ={}= turns every tag off. See
 [[file:commit-message.org][commit message]].
 
+** new users
+
+=defaultNewUserStatus= is the status an account created through registration
+gets. The values are the ones in =pkg/gitus/model/user.go=:
+
+- =1= (normal user): the default;
+- =2= (approval needed) and =3= (confirmation needed): gates. Once the
+  administrator approves or the email address is confirmed, the account keeps
+  the configured default unless that default is one of these two gates, in
+  which case it becomes a normal user;
+- =8= (normal user, no namespace creation): the account cannot create
+  namespaces through =/new/namespace=, but behaves like a normal user
+  otherwise;
+- =7= (banned).
+
+Administrator and super administrator statuses are deliberately not accepted
+as a default. The same setting is available in the admin panel
+(=/admin/site-config=, "Basic Settings"), and the web installer writes it
+during installation.
+
+=defaultNewUserNamespace= is the namespace new accounts are added to as a
+member, so that they have somewhere to create repositories. The member may add
+repositories but has no other namespace privilege. It applies to accounts
+created by registration, by an approved registration request, by an email
+confirmation and by an administrator on the new-user page. The field is only
+used when namespaces are enabled; leave it empty for none. If the configured
+namespace has been removed, the membership is skipped with a warning and the
+account is still created.
+
 ** repository size limit
 
 =gitConfig.repositorySizeLimit= is the most disk space one repository may

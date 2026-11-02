@@ -54,6 +54,24 @@
 				<td><input type="checkbox" name="manual-approval" id="chkbox-manual-approval" class="field-chkbox" {{if .Config.ManualApproval}}checked{{end}}/></td>
 			  </tr>
 			  <tr class="field">
+				<td><label class="field-label" for="s-default-new-user-status">Default new user status:</label></td>
+				<td><select class="field-select" name="default-new-user-status" id="s-default-new-user-status">
+					<option value="1" {{if eq .Config.DefaultNewUserStatus 1}}selected{{end}}>Normal User</option>
+					<option value="2" {{if eq .Config.DefaultNewUserStatus 2}}selected{{end}}>Approval Needed</option>
+					<option value="3" {{if eq .Config.DefaultNewUserStatus 3}}selected{{end}}>Confirmation Needed</option>
+					<option value="8" {{if eq .Config.DefaultNewUserStatus 8}}selected{{end}}>Normal User (No Namespace Creation)</option>
+					<option value="7" {{if eq .Config.DefaultNewUserStatus 7}}selected{{end}}>Banned</option>
+				</select></td>
+			  </tr>
+			  <tr class="field">
+				<td><label class="field-label" for="tf-default-new-user-namespace">Default new user namespace:</label></td>
+				<td><input name="default-new-user-namespace" id="tf-default-new-user-namespace" class="field-tf" value="{{.Config.DefaultNewUserNamespace}}" /></td>
+			  </tr>
+			  <tr class="field">
+				<td></td>
+				<td class="field-label-description">New accounts get this status. <em>Normal User (No Namespace Creation)</em> keeps them from creating namespaces. When namespaces are enabled, new accounts are also added to the default namespace as members that may add repositories; leave it empty for none.</td>
+			  </tr>
+			  <tr class="field">
 				<td><label class="field-label field-chkbox-label"  for="chkbox-debug-mode">Debug Mode:</label></td>
 				<td><input type="checkbox" name="debug-mode" id="chkbox-debug-mode" class="field-chkbox" {{if .Config.DebugMode}}checked{{end}}/></td>
 			  </tr>

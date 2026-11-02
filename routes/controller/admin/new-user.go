@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/newuser"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
 	"golang.org/x/crypto/bcrypt"
@@ -57,13 +58,19 @@ func bindAdminNewUserController(ctx *RouterContext) {
 				}))
 				return
 			}
-			_, err = rc.DatabaseInterface.RegisterUser(userName, email, string(passwordHash), model.GitusUserStatus(i))
+			status := model.GitusUserStatus(i)
+			_, err = rc.DatabaseInterface.RegisterUser(userName, email, string(passwordHash), status)
 			if err != nil {
 				LogTemplateError(rc.LoadTemplate("admin/new-user").Execute(w, templates.AdminConfigTemplateModel{
 					Config: rc.Config,
 					LoginInfo: rc.LoginInfo,
 					ErrorMsg: fmt.Sprintf("Failed to create new user: %s.\n", err.Error()),
 				}))
+				return
+			}
+			if err := newuser.ProvisionNewUser(rc.DatabaseInterface, rc.Config, userName, status); err != nil {
+				rc.ReportRedirect("/admin/user-list", 5, "User Created",
+					fmt.Sprintf("The user was created, but the namespace setup failed: %s", err), w, r)
 				return
 			}
 			FoundAt(w, "/admin/user-list")

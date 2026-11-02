@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/newuser"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/receipt"
 	. "github.com/GitusCodeForge/Gitus/routes"
 	"github.com/GitusCodeForge/Gitus/templates"
@@ -175,47 +177,10 @@ We wish you all the best in your future endeavours.
 				}))
 				return
 			}
-			if rc.Config.UseNamespace {
-				if newUserStatus == model.NORMAL_USER {
-					_, err = rc.DatabaseInterface.RegisterNamespace(userName, userName)
-					if err != nil {
-						rc.ReportInternalError(
-							fmt.Sprintf("Failed at registering namespace %s. Please contact site admin for this issue.", err.Error()),
-							w, r,
-						)
-						return
-					}
-				}
-				if len(rc.Config.DefaultNewUserNamespace) > 0 {
-					ns, err := rc.DatabaseInterface.GetNamespaceByName(rc.Config.DefaultNewUserNamespace)
-					if err != nil {
-						rc.ReportInternalError(
-							fmt.Sprintf("Failed at getting default new user namespace: %s. Please contact site admin for this issue.", err.Error()),
-							w, r,
-						)
-						return
-					}
-					ns.ACL.ACL[userName] = &model.ACLTuple{
-						AddMember: false,
-						DeleteMember: false,
-						EditMember: false,
-						EditInfo: false,
-						AddRepository: true,
-						PushToRepository: false,
-						ArchiveRepository: false,
-						DeleteRepository: false,
-						EditHooks: false,
-						EditWebHooks: false,
-					}
-					err = rc.DatabaseInterface.UpdateNamespaceInfo(ns.Name, ns)
-					if err != nil {
-						rc.ReportInternalError(
-							fmt.Sprintf("Failed when updating namespace info: %s. Please contact site admin for this issue.", err.Error()),
-							w, r,
-						)
-						return
-					}
-				}
+			if err := newuser.ProvisionNewUser(rc.DatabaseInterface, rc.Config, userName, newUserStatus); err != nil {
+				// The account exists at this point; a failure to set up its
+				// namespaces must not make the registration look failed.
+				log.Warnf("Failed to set up the namespaces of %s: %s", userName, err)
 			}
 			succeedMsg = "Registration complete. You can now login."
 			loginInfo, _ := GenerateLoginInfoModel(ctx, r)
