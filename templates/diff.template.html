@@ -20,59 +20,64 @@
 	<hr />
 
 	{{if .Diff}}
+	<div class="diff">
 	{{range $i, $k := .Diff.ItemList}}
-	<div id="I{{$i}}" class="diff-item">
-	  <div class="diff-item-link"><a href="#I{{$i}}">#</a></div>
-	  <div class="diff-item-header">
-		<div>From: <span class="diff-item-header-from">{{$k.File1}}</span></div>
-		<div>To: <span class="diff-item-header-to">{{$k.File2}}</span></div>
+	{{$from := trimDiffPath $k.File1}}
+	{{$to := trimDiffPath $k.File2}}
+	<section id="I{{$i}}" class="diff-file">
+	  <div class="diff-file-header">
+		<a class="diff-file-anchor" href="#I{{$i}}">#</a>
+		<span class="diff-file-path">
+		  {{if eq $k.File1 "/dev/null"}}
+		  <span class="diff-file-name">{{$to}}</span>
+		  <span class="diff-file-tag">new</span>
+		  {{else if eq $k.File2 "/dev/null"}}
+		  <span class="diff-file-name">{{$from}}</span>
+		  <span class="diff-file-tag">deleted</span>
+		  {{else if eq $from $to}}
+		  <span class="diff-file-name">{{$to}}</span>
+		  {{else}}
+		  <span class="diff-file-name">{{$from}}</span>
+		  <span class="diff-file-arrow">→</span>
+		  <span class="diff-file-name">{{$to}}</span>
+		  <span class="diff-file-tag">renamed</span>
+		  {{end}}
+		</span>
 	  </div>
-	  <div class="diff-item-patch-list">
+	  <div class="diff-file-body">
 		{{range $kk := $k.PatchList}}
-		<div class="diff-item-patch">
-		  <div class="diff-item-patch-header">
-			<span class="diff-item-patch-range">{{$kk.LStart}} ({{$kk.LLineCount}}) - {{$kk.RStart}} ({{$kk.RLineCount}})</span>
-		  </div>
-		  <div class="diff-item-patch-table">
-			<div class="diff-item-line-number-panel">
-			  {{range $l := $kk.LineList}}
-			  {{$t := ""}}
-			  {{if eq $l.Type 1}}{{$t = "append"}}{{else if eq $l.Type 2}}{{$t = "delete"}}{{else if eq $l.Type 4}}{{$t = "same"}}{{else}}{{$t = "same"}}{{end}}
-			  <div class="diff-item-line-number-pair diff-item-line-number-pair-{{$t}}">
-				{{if or (eq $l.Type 4) (eq $l.Type 2)}}
-				<div class="diff-item-line-number diff-item-line-number-{{$t}}">{{$l.F1LineNum}}</div>
-				{{else}}
-				<div class="diff-item-line-number">
-				  &nbsp;
-				</div>
+		<div class="diff-hunk">
+		  <div class="diff-hunk-header">@@ -{{$kk.LStart}},{{$kk.LLineCount}} +{{$kk.RStart}},{{$kk.RLineCount}} @@</div>
+		  <div class="diff-hunk-scroll">
+			<table class="diff-table">
+			  <colgroup>
+				<col class="diff-col-num" />
+				<col class="diff-col-num" />
+				<col class="diff-col-mark" />
+				<col />
+			  </colgroup>
+			  <tbody>
+				{{range $l := $kk.LineList}}
+				{{$t := ""}}
+				{{if eq $l.Type 1}}{{$t = "add"}}{{else if eq $l.Type 2}}{{$t = "del"}}{{else}}{{$t = "same"}}{{end}}
+				<tr class="diff-line diff-line-{{$t}}">
+				  <td class="diff-num diff-num-old">{{if or (eq $l.Type 4) (eq $l.Type 2)}}{{$l.F1LineNum}}{{end}}</td>
+				  <td class="diff-num diff-num-new">{{if or (eq $l.Type 4) (eq $l.Type 1)}}{{$l.F2LineNum}}{{end}}</td>
+				  <td class="diff-mark">{{if eq $t "add"}}+{{else if eq $t "del"}}−{{else}}&nbsp;{{end}}</td>
+				  <td class="diff-code">{{$l.Line}}</td>
+				</tr>
 				{{end}}
-				{{if or (eq $l.Type 4) (eq $l.Type 1)}}
-				<div class="diff-item-line-number diff-item-line-number-{{$t}}">{{$l.F2LineNum}}</div>
-				{{else}}
-				<div class="diff-item-line-number">
-				  &nbsp;
-				</div>
-				{{end}}
-			  </div>
-			  {{end}}
-			</div>
-			
-			<div class="diff-item-line">
-			  {{range $l := $kk.LineList}}
-			  {{$t := ""}}
-			  {{if eq $l.Type 1}}{{$t = "append"}}{{else if eq $l.Type 2}}{{$t = "delete"}}{{else if eq $l.Type 4}}{{$t = "same"}}{{else}}{{$t = "same"}}{{end}}
-			  <div class="diff-item-content-line-content diff-item-content-line-content-{{$t}}">{{$l.Line}}</div>
-			  {{end}}
-			</div>
+			  </tbody>
+			</table>
 		  </div>
 		</div>
-
 		{{end}}
 	  </div>
-	</div>
+	</section>
 	{{end}}
+	</div>
 	{{else}}
-	<p>No diff available.</p>
+	<p class="diff-empty">No diff available.</p>
 	{{end}}
 	
 	<hr />
@@ -83,4 +88,3 @@
 	</footer>
   </body>
 </html>
-

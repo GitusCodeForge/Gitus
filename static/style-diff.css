@@ -1,82 +1,160 @@
-.diff-item {
-	background-color: var(--shade-degree-0);
-	padding: 1em;
-	margin-bottom: 1em;
-	margin-top: 1em;
+/* ======================================================== */
+/* diff view.
+
+   The diff is laid out as a table so the two line-number gutters and the
+   +/- marker column line up with the code on every row. Colours are mixed
+   from the theme's foreground and background, so the light and the dark
+   themes both get a tinted-but-quiet add/remove row instead of solid
+   blocks of green and red. */
+.diff {
+	margin-top: 1.5rem;
+	margin-bottom: 1.5rem;
 }
-.diff-item-header {
-	background-color: var(--background-color);
-	color: var(--foreground-color);
-}
-.diff-item-content-line-content {
-	white-space: pre;
-	padding-left: 1em;
-}
-.diff-item-content-line-delete {
-	background-color: darkred;
-	color: white;
-}
-.diff-item-content-line-append {
-	background-color: darkgreen;
-	color: white;
-}
-.diff-item-content-line-linenum-same {
-	background-color: var(--foreground-color);
-	color: var(--background-color);
-}
-.diff-item-patch {
-	margin-top: 1rem;
-}
-.diff-item-patch-table {
-	width: 100%;
-	display: flex;
-	flex-direction: row;
-	border: 1px var(--foreground-color) solid;
-}
-.diff-item-line-number-pair {
-	display: table-row;
-}
-.diff-item-line-number-pair-same {
-	background-color: var(--foreground-color);
-	color: var(--background-color);
-}
-.diff-item-line-number-pair-append {
-	background-color: darkgreen;
-	color: white;
-}
-.diff-item-line-number-pair-delete {
-	background-color: darkred;
-	color: white;
-}
-.diff-item-line-number {
-	min-width: 2rem;
-	display: table-cell;
-}
-.diff-item-line-number-panel {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	border-right: 2px var(--foreground-color) solid;
-	font-family: monospace;
-	font-size: 1rem;
-}
-.diff-item-line {
-	width: 100%;
-	overflow: auto;
-}
-.diff-item-content-line-content {
-	font-family: monospace;
-	font-size: 1rem;
-    white-space: pre;
-	width: 100%;
-    min-width: fit-content;
-}
-.diff-item-content-line-content-append {
-	background-color: darkgreen;
-	color: white;
-}
-.diff-item-content-line-content-delete {
-	background-color: darkred;
-	color: white;
+.diff-file {
+	--diff-border: var(--shade-degree-0);
+	--diff-gutter: color-mix(in srgb, var(--background-color) 94%, var(--foreground-color));
+	--diff-add-bg: color-mix(in srgb, var(--background-color) 88%, #1a7f37);
+	--diff-add-fg: color-mix(in srgb, var(--foreground-color) 40%, #1a7f37);
+	--diff-add-edge: color-mix(in srgb, var(--background-color) 30%, #1a7f37);
+	--diff-del-bg: color-mix(in srgb, var(--background-color) 88%, #cf222e);
+	--diff-del-fg: color-mix(in srgb, var(--foreground-color) 40%, #cf222e);
+	--diff-del-edge: color-mix(in srgb, var(--background-color) 30%, #cf222e);
+	margin-bottom: 1.5rem;
+	border: 1px solid var(--diff-border);
 }
 
+/* file header */
+.diff-file-header {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.45rem 0.75rem;
+	background-color: var(--diff-gutter);
+	border-bottom: 1px solid var(--diff-border);
+	font-family: monospace;
+	font-size: 0.9rem;
+}
+.diff-file-anchor {
+	color: var(--shade-degree-2);
+	text-decoration: none;
+}
+.diff-file-path {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	flex-wrap: wrap;
+}
+.diff-file-name {
+	font-weight: bold;
+}
+.diff-file-arrow {
+	color: var(--shade-degree-2);
+}
+.diff-file-tag {
+	font-size: 0.7rem;
+	font-weight: normal;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--shade-degree-2);
+	border: 1px solid var(--shade-degree-2);
+	padding: 0 0.3rem;
+}
+
+/* hunk header */
+.diff-hunk + .diff-hunk {
+	border-top: 1px solid var(--diff-border);
+}
+.diff-hunk-header {
+	padding: 0.3rem 0.75rem;
+	background-color: var(--diff-gutter);
+	border-bottom: 1px solid var(--diff-border);
+	font-family: monospace;
+	font-size: 0.85rem;
+	color: var(--shade-degree-3);
+	white-space: pre;
+}
+
+/* the table itself */
+.diff-hunk-scroll {
+	overflow-x: auto;
+}
+.diff-table {
+	width: max-content;
+	min-width: 100%;
+	margin: 0;
+	border-top: 0;
+	border-bottom: 0;
+	border-collapse: collapse;
+	font-family: monospace;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	tab-size: 4;
+}
+.diff-table td {
+	padding-top: 0;
+	padding-bottom: 0;
+	vertical-align: top;
+}
+.diff-col-num {
+	width: 1%;
+}
+.diff-col-mark {
+	width: 1%;
+}
+.diff-num {
+	width: 1%;
+	padding: 0 0.55rem !important;
+	text-align: right;
+	white-space: nowrap;
+	background-color: var(--diff-gutter);
+	color: var(--shade-degree-2);
+	font-size: 0.85rem;
+	font-variant-numeric: tabular-nums;
+	user-select: none;
+}
+.diff-num-old {
+	border-right: 1px solid var(--diff-border);
+}
+.diff-mark {
+	width: 1%;
+	padding: 0 0.5rem 0 0 !important;
+	text-align: center;
+	color: var(--shade-degree-2);
+	user-select: none;
+}
+.diff-code {
+	padding: 0 0.9rem 0 0 !important;
+	white-space: pre;
+}
+
+/* added lines */
+.diff-line-add {
+	background-color: var(--diff-add-bg);
+}
+.diff-line-add .diff-num-new,
+.diff-line-add .diff-mark {
+	color: var(--diff-add-fg);
+	font-weight: bold;
+}
+.diff-line-add td:first-child {
+	box-shadow: inset 3px 0 0 var(--diff-add-edge);
+}
+
+/* removed lines */
+.diff-line-del {
+	background-color: var(--diff-del-bg);
+}
+.diff-line-del .diff-num-old,
+.diff-line-del .diff-mark {
+	color: var(--diff-del-fg);
+	font-weight: bold;
+}
+.diff-line-del td:first-child {
+	box-shadow: inset 3px 0 0 var(--diff-del-edge);
+}
+
+.diff-empty {
+	margin-top: 1.5rem;
+	color: var(--shade-degree-2);
+	font-style: italic;
+}
