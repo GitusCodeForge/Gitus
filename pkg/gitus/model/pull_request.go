@@ -1,11 +1,44 @@
 package model
 
-import "github.com/GitusCodeForge/Gitus/pkg/gitlib"
+import (
+	"errors"
+
+	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
+)
 
 const (
 	PULL_REQUEST_OPEN = 1
 	PULL_REQUEST_CLOSED_AS_MERGED = 2
 	PULL_REQUEST_CLOSED_AS_NOT_MERGED = 3
+)
+
+// Pull request review states. A reviewer is assigned as PENDING and either
+// approves the current provider commit or asks for changes.
+const (
+	PULL_REQUEST_REVIEW_PENDING = 0
+	PULL_REQUEST_REVIEW_APPROVED = 1
+	PULL_REQUEST_REVIEW_CHANGES_REQUESTED = 2
+)
+
+// PullRequestReview is the current review of one reviewer. Only the current
+// state is stored; the pull request page lists it next to the reviewer.
+type PullRequestReview struct {
+	PRAbsId int64
+	Reviewer string
+	Status int
+	// ReviewedCommit is the provider branch tip the reviewer looked at. An
+	// approval is only valid for that exact commit.
+	ReviewedCommit string
+	Timestamp int64
+}
+
+var (
+	// ErrPullRequestReviewRequired means at least one assigned reviewer has not
+	// approved the pull request yet (or asked for changes).
+	ErrPullRequestReviewRequired = errors.New("the pull request needs approval from every reviewer")
+	// ErrPullRequestReviewStale means an approval is for an older provider
+	// commit; a new push has to be reviewed again.
+	ErrPullRequestReviewStale = errors.New("the provider branch has new commits since the reviews; every reviewer must approve again")
 )
 
 type PullRequest struct {

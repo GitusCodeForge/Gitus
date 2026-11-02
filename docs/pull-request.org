@@ -93,6 +93,40 @@ would become empty during a rebase are dropped, like =git-rebase= does.
 the method used is recorded in the "closed as merged" pull request event and
 shown on the pull request page.
 
+** reviews
+
+a pull request can have any number of reviewers. the author can add reviewers;
+maintainers (the repository or namespace owner, administrators, and members
+with an administrative ACL privilege) can also add and remove them. only
+maintainers can remove a reviewer: the author must not be able to remove a
+reviewer who asked for changes. being allowed to add repositories to the
+namespace is not enough for this. the author of the pull request cannot be a
+reviewer and cannot approve it.
+
+each reviewer either approves or requests changes. the current state is kept in
+a separate table so the merge check can read it directly:
+
+#+begin_src sql
+  CREATE TABLE IF NOT EXISTS gitus_pull_request_review (
+      pull_request_abs_id INTEGER,
+      reviewer TEXT,
+      review_status INTEGER,   -- 0 pending, 1 approved, 2 changes requested
+      reviewed_commit TEXT,    -- provider branch tip the reviewer looked at
+      review_timestamp INTEGER,
+      UNIQUE (pull_request_abs_id, reviewer)
+  )
+#+end_src
+
+a pull request without reviewers is merged as before. as soon as a reviewer is
+assigned, every reviewer must have approved the exact provider commit that is
+about to be merged; a pending reviewer or a requested change blocks the merge.
+the approval records the commit id, so a new push to the provider branch makes
+the old approvals stale instead of silently applying them to unreviewed code.
+the reviewer has to approve again (the page marks an approval for an older
+commit). the database checks this again inside the merge call, after the
+provider branch has been fetched, so hiding the merge form is not the only
+guard.
+
 ** merge
 
 Gitus deals with bare repository so common commands like =git-merge= will not work. Fortunately Git documentation provides an example for using the low-level "plumbing commands" (as per Git lingo). The process shall goes as follows:

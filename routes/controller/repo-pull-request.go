@@ -3,10 +3,12 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/db"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus/log"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitlib"
 	. "github.com/GitusCodeForge/Gitus/routes"
@@ -94,7 +96,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
-			_, _, _, s, err := rc.ResolveRepositoryFullName(rfn)
+			_, _, ns, s, err := rc.ResolveRepositoryFullName(rfn)
 			if err == ErrNotFound {
 				rc.ReportNotFound(rfn, "Repository", "Depot", w, r)
 				return
@@ -122,6 +124,23 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 			pn, err := strconv.ParseInt(pnstr, 10, 64)
 			if err != nil { pn = 0 }
 			preList, err := rc.DatabaseInterface.GetAllPullRequestEventPaginated(pr.PRAbsId, pn, 30)
+			if err != nil {
+				rc.ReportInternalError(fmt.Sprintf("Failed to get pull request events: %s", err), w, r)
+				return
+			}
+			reviews, err := rc.DatabaseInterface.GetPullRequestReviews(pr.PRAbsId)
+			if err != nil {
+				rc.ReportInternalError(fmt.Sprintf("Failed to get pull request reviews: %s", err), w, r)
+				return
+			}
+			providerTip, tipErr := pullRequestProviderTip(rc, pr)
+			if tipErr != nil {
+				log.Warnf("Cannot resolve the provider tip of pull request %d: %s", pr.PRAbsId, tipErr)
+			}
+			canReview := false
+			if pr.Status == model.PULL_REQUEST_OPEN && rc.LoginInfo.LoggedIn && rc.LoginInfo.UserName != pr.Author {
+				canReview = pullRequestReviewerAssigned(reviews, rc.LoginInfo.UserName)
+			}
 			LogTemplateError(rc.LoadTemplate("pull-request/single-pull-request").Execute(w, &templates.RepositorySinglePullRequestTemplateModel{
 				Config: rc.Config,
 				Repository: s,
@@ -132,6 +151,12 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 				PullRequest: pr,
 				PullRequestEventList: preList,
 				PageNum: pn,
+				Reviews: reviews,
+				CanManageReviewers: pr.Status == model.PULL_REQUEST_OPEN && canManagePullRequestReviewers(rc, ns, s, pr),
+				CanRemoveReviewers: pr.Status == model.PULL_REQUEST_OPEN && canRemovePullRequestReviewers(rc, ns, s),
+				CanReview: canReview,
+				ApprovalsSatisfied: pullRequestApprovalsSatisfied(reviews, providerTip),
+				CurrentProviderCommit: providerTip,
 			}))
 		},
 	))
@@ -147,7 +172,7 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 				FoundAt(w, fmt.Sprintf("/repo/%s", rfn))
 				return
 			}
-			_, _, _, s, err := rc.ResolveRepositoryFullName(rfn)
+			_, _, ns, s, err := rc.ResolveRepositoryFullName(rfn)
 			if err == ErrNotFound {
 				rc.ReportNotFound(rfn, "Repository", "Depot", w, r)
 				return
@@ -222,6 +247,78 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 			case "reopen":
 				err = rc.DatabaseInterface.ReopenPullRequest(pr.PRAbsId, rc.LoginInfo.UserName)
 				if err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
+				FoundAt(w, returnPath)
+			case "add-reviewer":
+				if pr.Status != model.PULL_REQUEST_OPEN {
+					rc.ReportRedirect(returnPath, 5, "Not Open", "Reviewers can only be changed while the pull request is open.", w, r)
+					return
+				}
+				if !canManagePullRequestReviewers(rc, ns, s, pr) {
+					rc.ReportForbidden("Not enough privilege", w, r)
+					return
+				}
+				reviewer := strings.TrimSpace(r.Form.Get("reviewer"))
+				if len(reviewer) <= 0 || !model.ValidUserName(reviewer) {
+					rc.ReportRedirect(returnPath, 5, "Invalid Reviewer", "Please enter a valid user name.", w, r)
+					return
+				}
+				if reviewer == pr.Author {
+					rc.ReportRedirect(returnPath, 5, "Invalid Reviewer", "The author of a pull request cannot review it.", w, r)
+					return
+				}
+				if _, err := rc.DatabaseInterface.GetUserByName(reviewer); err != nil {
+					rc.ReportRedirect(returnPath, 5, "Invalid Reviewer", fmt.Sprintf("The user %s does not exist.", reviewer), w, r)
+					return
+				}
+				if err := rc.DatabaseInterface.AddPullRequestReviewer(pr.PRAbsId, reviewer); err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
+				FoundAt(w, returnPath)
+			case "remove-reviewer":
+				if pr.Status != model.PULL_REQUEST_OPEN {
+					rc.ReportRedirect(returnPath, 5, "Not Open", "Reviewers can only be changed while the pull request is open.", w, r)
+					return
+				}
+				reviewer := strings.TrimSpace(r.Form.Get("reviewer"))
+				if !canRemovePullRequestReviewers(rc, ns, s) {
+					rc.ReportForbidden("Not enough privilege", w, r)
+					return
+				}
+				if err := rc.DatabaseInterface.RemovePullRequestReviewer(pr.PRAbsId, reviewer); err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
+				FoundAt(w, returnPath)
+			case "review-approve", "review-request-changes":
+				if pr.Status != model.PULL_REQUEST_OPEN {
+					rc.ReportRedirect(returnPath, 5, "Not Open", "This pull request is no longer open.", w, r)
+					return
+				}
+				if rc.LoginInfo.UserName == pr.Author {
+					rc.ReportRedirect(returnPath, 5, "Not Allowed", "The author of a pull request cannot review it.", w, r)
+					return
+				}
+				reviews, err := rc.DatabaseInterface.GetPullRequestReviews(pr.PRAbsId)
+				if err != nil {
+					rc.ReportInternalError(err.Error(), w, r)
+					return
+				}
+				if !pullRequestReviewerAssigned(reviews, rc.LoginInfo.UserName) {
+					rc.ReportRedirect(returnPath, 5, "Not Allowed", "You are not a reviewer of this pull request.", w, r)
+					return
+				}
+				tip, err := pullRequestProviderTip(rc, pr)
+				if err != nil {
+					rc.ReportInternalError(fmt.Sprintf("Failed to resolve the reviewed commit: %s", err), w, r)
+					return
+				}
+				status := model.PULL_REQUEST_REVIEW_APPROVED
+				if rt == "review-request-changes" { status = model.PULL_REQUEST_REVIEW_CHANGES_REQUESTED }
+				if err := rc.DatabaseInterface.SubmitPullRequestReview(pr.PRAbsId, rc.LoginInfo.UserName, status, tip); err != nil {
 					rc.ReportInternalError(err.Error(), w, r)
 					return
 				}
@@ -358,3 +455,69 @@ func bindRepositoryPullRequestController(ctx *RouterContext) {
 	))
 }
 
+
+// pullRequestProviderTip returns the current tip of the branch the pull
+// request wants to merge.
+func pullRequestProviderTip(rc *RouterContext, pr *model.PullRequest) (string, error) {
+	p := path.Join(rc.Config.GitRoot, pr.ProviderNamespace, pr.ProviderName)
+	if !gitlib.IsValidGitDirectory(p) {
+		return "", fmt.Errorf("the provider repository %s:%s does not exist", pr.ProviderNamespace, pr.ProviderName)
+	}
+	return gitlib.NewLocalGitRepository(p).ResolveBranchTip(pr.ProviderBranch)
+}
+
+// pullRequestApprovalsSatisfied reports whether the pull request may be
+// merged: no reviewers means the old behaviour, otherwise every reviewer must
+// have approved the exact provider commit.
+func pullRequestApprovalsSatisfied(reviews []*model.PullRequestReview, providerTip string) bool {
+	if len(reviews) == 0 { return true }
+	if len(providerTip) <= 0 { return false }
+	for _, review := range reviews {
+		if review.Status != model.PULL_REQUEST_REVIEW_APPROVED { return false }
+		if review.ReviewedCommit != providerTip { return false }
+	}
+	return true
+}
+
+func pullRequestReviewerAssigned(reviews []*model.PullRequestReview, username string) bool {
+	for _, review := range reviews {
+		if review.Reviewer == username { return true }
+	}
+	return false
+}
+
+// canManagePullRequestReviewers lets the pull request author, the repository
+// or namespace owner, administrators and members with setting privileges
+// assign and remove reviewers.
+func canManagePullRequestReviewers(rc *RouterContext, ns *model.Namespace, repo *model.Repository, pr *model.PullRequest) bool {
+	if !rc.LoginInfo.LoggedIn { return false }
+	if pr.Author == rc.LoginInfo.UserName { return true }
+	return canRemovePullRequestReviewers(rc, ns, repo)
+}
+
+// canRemovePullRequestReviewers excludes the pull request author on purpose: a
+// reviewer who asked for changes must not be removable by the person whose
+// code is being reviewed. Repository and namespace maintainers can still do
+// it.
+func canRemovePullRequestReviewers(rc *RouterContext, ns *model.Namespace, repo *model.Repository) bool {
+	if !rc.LoginInfo.LoggedIn { return false }
+	user := rc.LoginInfo.UserName
+	if rc.LoginInfo.IsAdmin || repo.Owner == user { return true }
+	if ns != nil && ns.Owner == user { return true }
+	if repo.AccessControlList != nil {
+		if aclCanManagePullRequests(repo.AccessControlList.GetUserPrivilege(user)) { return true }
+	}
+	if ns != nil && ns.ACL != nil {
+		if aclCanManagePullRequests(ns.ACL.GetUserPrivilege(user)) { return true }
+	}
+	return false
+}
+
+// aclCanManagePullRequests is stricter than HasSettingPrivilege: being allowed
+// to add repositories to a namespace (which default-namespace members are)
+// must not let somebody manage reviewers or pull requests.
+func aclCanManagePullRequests(p *model.ACLTuple) bool {
+	if p == nil { return false }
+	return p.AddMember || p.DeleteMember || p.EditMember || p.EditInfo ||
+		p.ArchiveRepository || p.DeleteRepository || p.EditHooks || p.EditWebHooks
+}

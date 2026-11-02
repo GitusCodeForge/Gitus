@@ -143,6 +143,17 @@ CREATE TABLE IF NOT EXISTS %s_pull_request_event (
 )`, pfx, pfx))
 	if err != nil { return err }
 	_, err = tx.Exec(ctx, fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_pull_request_review (
+    pull_request_abs_id BIGINT,
+    reviewer VARCHAR(64),
+    review_status SMALLINT,
+    reviewed_commit VARCHAR(64),
+    review_timestamp TIMESTAMP,
+    PRIMARY KEY (pull_request_abs_id, reviewer),
+    FOREIGN KEY (pull_request_abs_id) REFERENCES %s_pull_request(pull_request_absid)
+)`, pfx, pfx))
+	if err != nil { return err }
+	_, err = tx.Exec(ctx, fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS %s_user_email (
     username VARCHAR(64) REFERENCES %s_user(user_name),
 	email VARCHAR(256),
@@ -246,6 +257,17 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
 	if err != nil { return err }
 	_, err = dbif.pool.Exec(ctx, fmt.Sprintf(
 		`ALTER TABLE %s_repository ADD COLUMN IF NOT EXISTS repo_issue_label_list TEXT`, pfx))
+	if err != nil { return err }
+	_, err = dbif.pool.Exec(ctx, fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_pull_request_review (
+    pull_request_abs_id BIGINT,
+    reviewer VARCHAR(64),
+    review_status SMALLINT,
+    reviewed_commit VARCHAR(64),
+    review_timestamp TIMESTAMP,
+    PRIMARY KEY (pull_request_abs_id, reviewer),
+    FOREIGN KEY (pull_request_abs_id) REFERENCES %s_pull_request(pull_request_absid)
+)`, pfx, pfx))
 	if err != nil { return err }
 	for _, def := range indexDefinitions {
 		var name string

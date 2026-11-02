@@ -140,6 +140,15 @@ type GitusDatabaseInterface interface {
 	CheckPullRequestMergeConflict(absId int64) (*gitlib.MergeCheckResult, error)
 	DeletePullRequest(absId int64) error
 	GetAllPullRequestEventPaginated(absId int64, pageNum int64, pageSize int64) ([]*model.PullRequestEvent, error)
+	// reviews are the current, not the historical, state of each reviewer.
+	GetPullRequestReviews(absId int64) ([]*model.PullRequestReview, error)
+	// assigning an existing reviewer is a no-op.
+	AddPullRequestReviewer(absId int64, reviewer string) error
+	RemovePullRequestReviewer(absId int64, reviewer string) error
+	// status is PULL_REQUEST_REVIEW_APPROVED or
+	// PULL_REQUEST_REVIEW_CHANGES_REQUESTED; reviewedCommit is the provider
+	// branch tip the reviewer looked at.
+	SubmitPullRequestReview(absId int64, reviewer string, status int, reviewedCommit string) error
 	// method is one of gitlib.MergeMethods ("merge", "squash", "rebase").
 	// the branch is left untouched if the merge cannot be performed.
 	CheckAndMergePullRequest(absId int64, username string, method string) error

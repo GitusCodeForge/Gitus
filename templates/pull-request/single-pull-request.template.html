@@ -107,6 +107,59 @@
 		  {{end}}
 		</div>
 
+		<fieldset class="pull-request-reviewers">
+		  <legend>Reviewers</legend>
+		  {{if .Reviews}}
+		  <ul class="pull-request-review-list">
+			{{range .Reviews}}
+			<li>
+			  <a href="/u/{{.Reviewer}}">{{.Reviewer}}</a> —
+			  {{if eq .Status 0}}<span class="review-status-pending">pending</span>
+			  {{else if eq .Status 1}}<span class="review-status-approved">approved</span>{{if and $.CurrentProviderCommit (ne .ReviewedCommit $.CurrentProviderCommit)}} <span class="review-status-stale">(for an older commit)</span>{{end}}
+			  {{else if eq .Status 2}}<span class="review-status-changes">changes requested</span>
+			  {{end}}
+			  {{if $.CanRemoveReviewers}}
+			  <form action="" method="POST" class="inline-form">
+				<input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" />
+				<input type="hidden" name="type" value="remove-reviewer" />
+				<input type="hidden" name="reviewer" value="{{.Reviewer}}" />
+				<input type="submit" value="Remove" />
+			  </form>
+			  {{end}}
+			</li>
+			{{end}}
+		  </ul>
+		  {{else}}
+		  <p>No reviewers are assigned. The pull request can be merged after the merge check, as before.</p>
+		  {{end}}
+		  {{if .CanReview}}
+		  <div class="pull-request-review-actions">
+			<form action="" method="POST" class="inline-form">
+			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			  <input type="hidden" name="type" value="review-approve" />
+			  <input type="submit" value="Approve" />
+			</form>
+			<form action="" method="POST" class="inline-form">
+			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			  <input type="hidden" name="type" value="review-request-changes" />
+			  <input type="submit" value="Request Changes" />
+			</form>
+		  </div>
+		  {{end}}
+		  {{if .CanManageReviewers}}
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="type" value="add-reviewer" />
+			<label class="field-label" for="tf-reviewer">Add reviewer:</label>
+			<input class="field-tf" name="reviewer" id="tf-reviewer" placeholder="username" />
+			<input type="submit" value="Add Reviewer" />
+		  </form>
+		  {{end}}
+		  {{if and .Reviews (not .ApprovalsSatisfied) (eq .PullRequest.Status 1)}}
+		  <p class="merge-check-result-description">Every reviewer must approve the current commit before this pull request can be merged.</p>
+		  {{end}}
+		</fieldset>
+
 		<fieldset class="pull-request-merge-conflict-check">
 		  <legend>Last Merge Conflict Check Result</legend>
 		  {{if eq .PullRequest.Status 2}}
@@ -158,7 +211,7 @@
 			<input type="hidden" name="type" id="type" value="merge-check" />
 			<input type="submit" value="Merge Check" />
 		  </form>
-		  {{if and .PullRequest.MergeCheckResult .PullRequest.MergeCheckResult.Successful}}
+		  {{if and .PullRequest.MergeCheckResult .PullRequest.MergeCheckResult.Successful .ApprovalsSatisfied}}
 		  <form action="" method="POST">
 			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" id="type" value="close-as-merged" />

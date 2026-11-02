@@ -1812,6 +1812,73 @@ ORDER BY event_timestamp ASC LIMIT $2 OFFSET $3
 	return res, nil
 }
 
+func (dbif *MysqlGitusDatabaseInterface) GetPullRequestReviews(absId int64) ([]*model.PullRequestReview, error) {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	rows, err := dbif.query(ctx, fmt.Sprintf(`
+SELECT reviewer, review_status, reviewed_commit, review_timestamp
+FROM %s_pull_request_review
+WHERE pull_request_abs_id = $1
+ORDER BY reviewer
+`, pfx), absId)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	res := make([]*model.PullRequestReview, 0)
+	for rows.Next() {
+		var reviewer, commit string
+		var status int
+		var timestamp time.Time
+		err = rows.Scan(&reviewer, &status, &commit, &timestamp)
+		if err != nil { return nil, err }
+		res = append(res, &model.PullRequestReview{
+			PRAbsId: absId,
+			Reviewer: reviewer,
+			Status: status,
+			ReviewedCommit: commit,
+			Timestamp: timestamp.Unix(),
+		})
+	}
+	return res, rows.Err()
+}
+
+func (dbif *MysqlGitusDatabaseInterface) AddPullRequestReviewer(absId int64, reviewer string) error {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	_, err := dbif.exec(ctx, fmt.Sprintf(`
+INSERT IGNORE INTO %s_pull_request_review(pull_request_abs_id, reviewer, review_status, reviewed_commit, review_timestamp)
+VALUES ($1,$2,$3,$4,$5)
+`, pfx), absId, reviewer, model.PULL_REQUEST_REVIEW_PENDING, "", time.Now())
+	return err
+}
+
+func (dbif *MysqlGitusDatabaseInterface) RemovePullRequestReviewer(absId int64, reviewer string) error {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	_, err := dbif.exec(ctx, fmt.Sprintf(`
+DELETE FROM %s_pull_request_review WHERE pull_request_abs_id = $1 AND reviewer = $2
+`, pfx), absId, reviewer)
+	return err
+}
+
+func (dbif *MysqlGitusDatabaseInterface) SubmitPullRequestReview(absId int64, reviewer string, status int, reviewedCommit string) error {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	// MySQL's RowsAffected counts changed rows, not matched rows, so an update
+	// that writes the same values back would look like a missing reviewer.
+	var n int
+	err := dbif.queryRow(ctx, fmt.Sprintf(`
+SELECT COUNT(*) FROM %s_pull_request_review WHERE pull_request_abs_id = $1 AND reviewer = $2
+`, pfx), absId, reviewer).Scan(&n)
+	if err != nil { return err }
+	if n <= 0 { return db.ErrEntityNotFound }
+	_, err = dbif.exec(ctx, fmt.Sprintf(`
+UPDATE %s_pull_request_review
+SET review_status = $1, reviewed_commit = $2, review_timestamp = $3
+WHERE pull_request_abs_id = $4 AND reviewer = $5
+`, pfx), status, reviewedCommit, time.Now(), absId, reviewer)
+	return err
+}
+
 func (dbif *MysqlGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, username string, method string) error {
 	// WARNING: currently only works when when the source &
 	// the target is git repo. currently (2025.8.27) this check
@@ -1824,6 +1891,17 @@ func (dbif *MysqlGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, u
 	r, err := dbif.CheckPullRequestMergeConflict(absId)
 	if err != nil { return err }
 	if !r.Successful { return gitlib.ErrMergeConflict }
+	lgr := gitlib.NewLocalGitRepository(r.ReceiverLocation)
+	reviews, err := dbif.GetPullRequestReviews(absId)
+	if err != nil { return err }
+	if len(reviews) > 0 {
+		tip, err := lgr.ResolveRemoteBranchTip(r.ProviderRemoteName, r.ProviderBranch)
+		if err != nil { return err }
+		for _, review := range reviews {
+			if review.Status != model.PULL_REQUEST_REVIEW_APPROVED { return model.ErrPullRequestReviewRequired }
+			if review.ReviewedCommit != tip { return model.ErrPullRequestReviewStale }
+		}
+	}
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()
 	stmt0 := dbif.queryRow(ctx, fmt.Sprintf(`
@@ -1838,7 +1916,6 @@ SELECT title FROM %s_pull_request WHERE pull_request_absid = $1
 	var title string
 	err = stmtTitle.Scan(&title)
 	if err != nil { return err }
-	lgr := gitlib.NewLocalGitRepository(r.ReceiverLocation)
 	err = lgr.Merge(r.ProviderRemoteName, r.ProviderBranch, r.ReceiverBranch, method, userTitle, email, title)
 	if err != nil { return err }
 	tx, err := dbif.begin(ctx)

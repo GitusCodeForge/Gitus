@@ -2004,6 +2004,67 @@ ORDER BY event_timestamp ASC LIMIT ? OFFSET ?
 	return res, nil
 }
 
+func (dbif *SqliteGitusDatabaseInterface) GetPullRequestReviews(absId int64) ([]*model.PullRequestReview, error) {
+	pfx := dbif.config.Database.TablePrefix
+	stmt, err := dbif.prepare(fmt.Sprintf(`
+SELECT reviewer, review_status, reviewed_commit, review_timestamp
+FROM %s_pull_request_review
+WHERE pull_request_abs_id = ?
+ORDER BY reviewer
+`, pfx))
+	if err != nil { return nil, err }
+	r, err := stmt.Query(absId)
+	if err != nil { return nil, err }
+	defer r.Close()
+	res := make([]*model.PullRequestReview, 0)
+	for r.Next() {
+		var reviewer, commit string
+		var status int
+		var timestamp int64
+		err = r.Scan(&reviewer, &status, &commit, &timestamp)
+		if err != nil { return nil, err }
+		res = append(res, &model.PullRequestReview{
+			PRAbsId: absId,
+			Reviewer: reviewer,
+			Status: status,
+			ReviewedCommit: commit,
+			Timestamp: timestamp,
+		})
+	}
+	return res, r.Err()
+}
+
+func (dbif *SqliteGitusDatabaseInterface) AddPullRequestReviewer(absId int64, reviewer string) error {
+	pfx := dbif.config.Database.TablePrefix
+	_, err := dbif.connection.Exec(fmt.Sprintf(`
+INSERT OR IGNORE INTO %s_pull_request_review(pull_request_abs_id, reviewer, review_status, reviewed_commit, review_timestamp)
+VALUES (?,?,?,?,?)
+`, pfx), absId, reviewer, model.PULL_REQUEST_REVIEW_PENDING, "", time.Now().Unix())
+	return err
+}
+
+func (dbif *SqliteGitusDatabaseInterface) RemovePullRequestReviewer(absId int64, reviewer string) error {
+	pfx := dbif.config.Database.TablePrefix
+	_, err := dbif.connection.Exec(fmt.Sprintf(`
+DELETE FROM %s_pull_request_review WHERE pull_request_abs_id = ? AND reviewer = ?
+`, pfx), absId, reviewer)
+	return err
+}
+
+func (dbif *SqliteGitusDatabaseInterface) SubmitPullRequestReview(absId int64, reviewer string, status int, reviewedCommit string) error {
+	pfx := dbif.config.Database.TablePrefix
+	res, err := dbif.connection.Exec(fmt.Sprintf(`
+UPDATE %s_pull_request_review
+SET review_status = ?, reviewed_commit = ?, review_timestamp = ?
+WHERE pull_request_abs_id = ? AND reviewer = ?
+`, pfx), status, reviewedCommit, time.Now().Unix(), absId, reviewer)
+	if err != nil { return err }
+	n, err := res.RowsAffected()
+	if err != nil { return err }
+	if n <= 0 { return db.ErrEntityNotFound }
+	return nil
+}
+
 func (dbif *SqliteGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, username string, method string) error {
 	// WARNING: currently only works when when the source &
 	// the target is git repo. currently (2025.7.28) this check
@@ -2016,6 +2077,17 @@ func (dbif *SqliteGitusDatabaseInterface) CheckAndMergePullRequest(absId int64, 
 	r, err := dbif.CheckPullRequestMergeConflict(absId)
 	if err != nil { return err }
 	if !r.Successful { return gitlib.ErrMergeConflict }
+	lgr := gitlib.NewLocalGitRepository(r.ReceiverLocation)
+	reviews, err := dbif.GetPullRequestReviews(absId)
+	if err != nil { return err }
+	if len(reviews) > 0 {
+		tip, err := lgr.ResolveRemoteBranchTip(r.ProviderRemoteName, r.ProviderBranch)
+		if err != nil { return err }
+		for _, review := range reviews {
+			if review.Status != model.PULL_REQUEST_REVIEW_APPROVED { return model.ErrPullRequestReviewRequired }
+			if review.ReviewedCommit != tip { return model.ErrPullRequestReviewStale }
+		}
+	}
 	pfx := dbif.config.Database.TablePrefix
 	stmt0, err := dbif.prepare(fmt.Sprintf(`
 SELECT user_email, user_title FROM %s_user WHERE user_name = ?
@@ -2035,7 +2107,6 @@ SELECT title FROM %s_pull_request WHERE rowid = ?
 	if err != nil { return err }
 	// the squash commit takes the pull request title; the other methods
 	// build their own message.
-	lgr := gitlib.NewLocalGitRepository(r.ReceiverLocation)
 	err = lgr.Merge(r.ProviderRemoteName, r.ProviderBranch, r.ReceiverBranch, method, userTitle, email, title)
 	if err != nil { return err }
 	tx, err := dbif.connection.Begin()

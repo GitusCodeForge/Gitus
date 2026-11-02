@@ -194,6 +194,17 @@ ON %s_pull_request_event (pull_request_abs_id);
 	if err != nil { return err }
 
 	_, err = tx.Exec(fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_pull_request_review (
+    pull_request_abs_id INTEGER,
+    reviewer TEXT,
+    review_status INTEGER,
+    reviewed_commit TEXT,
+    review_timestamp INTEGER,
+    UNIQUE (pull_request_abs_id, reviewer)
+)`, pfx))
+	if err != nil { return err }
+
+	_, err = tx.Exec(fmt.Sprintf(`
 CREATE TABLE IF NOT EXISTS %s_user_email (
     username TEXT,
 	email TEXT,
@@ -300,6 +311,17 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
 	// The original CREATE TABLE was missing the comma before timestamp, so
 	// sqlite made it part of the reason column's type and inserts failed.
 	if err := dbif.ensureColumn(fmt.Sprintf("%s_user_reg_request", pfx), "timestamp", "INTEGER"); err != nil {
+		return err
+	}
+	if _, err := dbif.connection.Exec(fmt.Sprintf(`
+CREATE TABLE IF NOT EXISTS %s_pull_request_review (
+    pull_request_abs_id INTEGER,
+    reviewer TEXT,
+    review_status INTEGER,
+    reviewed_commit TEXT,
+    review_timestamp INTEGER,
+    UNIQUE (pull_request_abs_id, reviewer)
+)`, pfx)); err != nil {
 		return err
 	}
 	for _, def := range indexDefinitions {

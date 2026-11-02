@@ -91,3 +91,22 @@ func (gr LocalGitRepository) deleteRef(fullName string, kind string, name string
 	}
 	return nil
 }
+
+// ResolveBranchTip returns the commit id of a local branch. The branch list is
+// refreshed first, so the result is the current tip even when the repository
+// handle was created before the push.
+func (gr *LocalGitRepository) ResolveBranchTip(branch string) (string, error) {
+	if err := gr.SyncBranch(branch); err != nil { return "", err }
+	if gr.BranchIndex == nil { return "", ErrObjectNotFound }
+	b, ok := gr.BranchIndex[branch]
+	if !ok || len(b.HeadId) <= 0 { return "", ErrObjectNotFound }
+	return b.HeadId, nil
+}
+
+// ResolveRemoteBranchTip returns the commit id of a remote-tracking branch,
+// e.g. refs/remotes/ns:repo/branch. It is used after a fetch, when the
+// receiver needs to know exactly which provider commit it is about to merge.
+func (gr LocalGitRepository) ResolveRemoteBranchTip(remoteName string, branch string) (string, error) {
+	return runGitCommand(gr.GitDirectoryPath, nil,
+		"rev-parse", "--verify", fmt.Sprintf("refs/remotes/%s/%s", remoteName, branch))
+}

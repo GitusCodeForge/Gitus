@@ -85,3 +85,35 @@
 	color: var(--shade-degree-2);
 	font-style: italic;
 }
+
+.pull-request-reviewers {
+	margin-top: 2em;
+	margin-bottom: 2em;
+	padding-top: 1em;
+	padding-bottom: 1em;
+}
+.pull-request-review-list {
+	list-style: none;
+	padding-left: 0;
+}
+.pull-request-review-list li {
+	margin-bottom: 0.5rem;
+}
+.pull-request-review-actions form,
+.inline-form {
+	display: inline-block;
+	margin-right: 0.5rem;
+}
+.review-status-pending {
+	color: var(--shade-degree-2);
+}
+.review-status-approved {
+	font-weight: bold;
+}
+.review-status-changes {
+	font-weight: bold;
+}
+.review-status-stale {
+	color: var(--shade-degree-2);
+	font-style: italic;
+}
