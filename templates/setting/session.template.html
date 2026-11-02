@@ -44,7 +44,7 @@
 				<td>{{toPreciseTime .ExpiresAt}}</td>
 				<td>
 				  {{if .Current}}
-				  <a href="/logout">Log out</a>
+				  <a class="session-logout" href="/logout">Log out</a>
 				  {{else}}
 				  <form action="/setting/session" method="POST">
 					<input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" />

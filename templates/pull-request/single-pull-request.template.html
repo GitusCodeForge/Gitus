@@ -113,17 +113,19 @@
 		  <ul class="pull-request-review-list">
 			{{range .Reviews}}
 			<li>
-			  <a href="/u/{{.Reviewer}}">{{.Reviewer}}</a> —
-			  {{if eq .Status 0}}<span class="review-status-pending">pending</span>
-			  {{else if eq .Status 1}}<span class="review-status-approved">approved</span>{{if and $.CurrentProviderCommit (ne .ReviewedCommit $.CurrentProviderCommit)}} <span class="review-status-stale">(for an older commit)</span>{{end}}
-			  {{else if eq .Status 2}}<span class="review-status-changes">changes requested</span>
-			  {{end}}
+			  <span class="pull-request-reviewer-name">
+				<a href="/u/{{.Reviewer}}">{{.Reviewer}}</a> —
+				{{if eq .Status 0}}<span class="review-status-pending">pending</span>
+				{{else if eq .Status 1}}<span class="review-status-approved">approved</span>{{if and $.CurrentProviderCommit (ne .ReviewedCommit $.CurrentProviderCommit)}} <span class="review-status-stale">(for an older commit)</span>{{end}}
+				{{else if eq .Status 2}}<span class="review-status-changes">changes requested</span>
+				{{end}}
+			  </span>
 			  {{if $.CanRemoveReviewers}}
-			  <form action="" method="POST" class="inline-form">
+			  <form action="" method="POST" class="review-remove-form">
 				<input type="hidden" name="{{$csrf_key}}" value="{{$.LoginInfo.UserCSRFToken}}" />
 				<input type="hidden" name="type" value="remove-reviewer" />
 				<input type="hidden" name="reviewer" value="{{.Reviewer}}" />
-				<input type="submit" value="Remove" />
+				<input class="review-remove" type="submit" value="Remove" />
 			  </form>
 			  {{end}}
 			</li>
@@ -134,12 +136,12 @@
 		  {{end}}
 		  {{if .CanReview}}
 		  <div class="pull-request-review-actions">
-			<form action="" method="POST" class="inline-form">
+			<form action="" method="POST">
 			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			  <input type="hidden" name="type" value="review-approve" />
 			  <input type="submit" value="Approve" />
 			</form>
-			<form action="" method="POST" class="inline-form">
+			<form action="" method="POST">
 			  <input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			  <input type="hidden" name="type" value="review-request-changes" />
 			  <input type="submit" value="Request Changes" />
@@ -147,11 +149,13 @@
 		  </div>
 		  {{end}}
 		  {{if .CanManageReviewers}}
-		  <form action="" method="POST">
+		  <form action="" method="POST" class="pull-request-review-add">
 			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="type" value="add-reviewer" />
-			<label class="field-label" for="tf-reviewer">Add reviewer:</label>
-			<input class="field-tf" name="reviewer" id="tf-reviewer" placeholder="username" />
+			<div class="field">
+			  <label class="field-label" for="tf-reviewer">Add reviewer:</label>
+			  <input class="field-tf" name="reviewer" id="tf-reviewer" placeholder="username" />
+			</div>
 			<input type="submit" value="Add Reviewer" />
 		  </form>
 		  {{end}}

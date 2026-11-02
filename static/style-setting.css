@@ -139,3 +139,63 @@
 .recovery-code-list li {
 	margin-bottom: 0.2rem;
 }
+
+/* checkbox rows keep the box next to its label instead of at the far side of
+   an over-wide second column. */
+.field-table tr.field-checkbox td:first-child {
+	width: 1%;
+	white-space: nowrap;
+}
+.field-table tr.field-checkbox td:last-child {
+	width: 99%;
+}
+/* full-width explanation row of a field table */
+.field-table tr.field-description td {
+	max-width: none;
+	width: auto;
+	padding-top: 0;
+	padding-bottom: 0.75rem;
+}
+/* a paragraph that explains a setting or a state, longer than the inline
+   field-label-description is meant for */
+.setting-notice {
+	border: 1px solid var(--shade-degree-2);
+	padding: 0.75rem 1rem;
+	margin: 1rem 0;
+	font-size: 0.95rem;
+}
+.setting-notice p:first-child { margin-top: 0; }
+.setting-notice p:last-child { margin-bottom: 0; }
+/* action buttons inside tables should sit on the same line as the text */
+.setting-table input[type="submit"] {
+	margin-top: 0;
+}
+/* the logout action of the current session, made to look like the revoke
+   buttons in the same column */
+.session-logout {
+	display: inline-block;
+	background-color: var(--foreground-color);
+	color: var(--background-color);
+	padding: 0.15rem 0.5rem;
+	text-decoration: none;
+}
+.session-logout:hover {
+	background-color: var(--background-color);
+	color: var(--foreground-color);
+}
+/* a sub-section inside a fieldset, e.g. the recovery codes */
+.setting-subsection {
+	margin-top: 1.5rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--shade-degree-2);
+}
+.recovery-code-warning {
+	border-left: 4px solid var(--foreground-color);
+	padding-left: 0.75rem;
+}
+
+/* the email 2FA checkbox sits next to its label, with a little breathing room */
+#chkbox-email-enable {
+	margin-left: 0.5rem;
+}
+

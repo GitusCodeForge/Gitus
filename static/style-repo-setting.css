@@ -1,7 +1,10 @@
 .setting-repo-label-item {
+	display: inline-block;
 	background-color: var(--foreground-color);
 	color: var(--background-color);
 	padding: 0.2rem;
+	margin-right: 0.3rem;
+	margin-bottom: 0.2rem;
 }
 .setting-repo-label-item a {
 	background-color: var(--foreground-color);

@@ -86,15 +86,21 @@
 }
 
 .issue-label-list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem;
 	margin-top: 0.4rem;
 	margin-bottom: 0.4rem;
 }
 .issue-label {
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2rem;
 	border: 1px solid var(--foreground-color);
 	padding: 0 0.3rem;
-	margin-right: 0.3rem;
-	margin-bottom: 0.2rem;
+	margin-right: 0;
+	margin-bottom: 0;
 	font-size: 0.9rem;
 }
 .issue-label a {
@@ -118,11 +124,17 @@
 	color: var(--foreground-color);
 }
 .issue-label-add {
-	display: inline;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
 }
 .issue-label-add select {
-	width: unset;
+	width: auto;
+	margin: 0;
 }
 .issue-label-add input[type="submit"] {
 	margin-top: 0;
+}
+.issue-label-list > .field-label-description {
+	flex-basis: 100%;
 }

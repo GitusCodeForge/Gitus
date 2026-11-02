@@ -33,7 +33,7 @@
 			<input type="hidden" name="section" value="2fa" />
 			<input type="hidden" name="type" value="email" />
 			<table class="field-table">
-			  <tr class="field">
+			  <tr class="field field-checkbox">
 				<td><label class="field-label" for="chkbox-email-enable">Enable Email 2FA Confirm Code:</label></td>
 				<td><input type="checkbox" name="email-enable" id="chkbox-email-enable" {{if .User.TFAConfig.Email.Enable}}checked{{end}}/></td>
 			  </tr>
@@ -67,9 +67,9 @@
 			</table>
 		  </form>
 
-		  <h3>Recovery codes</h3>
+		  <h3 class="setting-subsection">Recovery codes</h3>
 		  {{if .NewRecoveryCodes}}
-		  <p><b>These codes are shown only once.</b> Keep them somewhere safe: each one lets you in once, in
+		  <p class="recovery-code-warning"><b>These codes are shown only once.</b> Keep them somewhere safe: each one lets you in once, in
 			place of the code from the app. They will not be shown again.</p>
 		  <ul class="recovery-code-list">
 			{{range .NewRecoveryCodes}}<li><code>{{.}}</code></li>{{end}}
@@ -141,7 +141,7 @@
 		  {{else}}
 		  <p>Use an authenticator app such as FreeOTP or Aegis instead of (or in addition to) the email code.
 			The code changes every 30 seconds (TOTP) or every time you ask the app for one (HOTP).</p>
-		  <p class="field-label-description">Gitus does not render a QR code, so add the secret to the app by hand or paste the otpauth URL.</p>
+		  <p class="field-label-description">After starting the setup you can scan the QR code, or add the secret to the app by hand if it cannot scan it.</p>
 		  <form action="" method="POST">
 			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
 			<input type="hidden" name="section" value="2fa" />

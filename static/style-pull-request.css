@@ -117,3 +117,42 @@
 	color: var(--shade-degree-2);
 	font-style: italic;
 }
+
+.pull-request-review-list li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	padding: 0.4rem 0;
+	border-bottom: 1px solid var(--shade-degree-2);
+}
+.pull-request-review-list li:first-child {
+	border-top: 1px solid var(--shade-degree-2);
+}
+.pull-request-reviewer-name {
+	flex: 1;
+}
+.review-remove-form {
+	margin: 0;
+}
+.review-remove {
+	width: auto;
+	margin: 0;
+	padding: 0 0.4rem;
+	font-size: 0.85rem;
+	line-height: 1.4;
+}
+.pull-request-review-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+.pull-request-review-actions form {
+	margin: 0;
+}
+.pull-request-review-actions input[type="submit"] {
+	margin-top: 0;
+}
+.pull-request-review-add {
+	margin-top: 1rem;
+}

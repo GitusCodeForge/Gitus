@@ -71,7 +71,7 @@
 				  <td>
 				  </td>
 				  <td>
-					<input type="submit" value="Change Info" />
+					<input class="field-submit" type="submit" value="Change Info" />
 				  </td>
 				</tr>
 			  </tbody>
@@ -107,7 +107,7 @@
 				<tr>
 				  <td>
 				  </td>
-				  <td><input type="submit" value="Change Password" /></td>
+				  <td><input class="field-submit" type="submit" value="Change Password" /></td>
 				</tr>
 			  </tbody>
 			</table>
@@ -116,10 +116,20 @@
 
 		<fieldset>
 		  <legend>Two-Factor Authentication</legend>
-		  <p>
-			{{if .User.TFAConfig.Email.Enable}}Email confirm code: <b>enabled</b>.{{else}}Email confirm code: disabled.{{end}}<br />
-			{{if .User.TFAConfig.OTP.Enable}}Authenticator app: <b>enabled</b> ({{if eq .User.TFAConfig.OTP.Type "hotp"}}HOTP{{else}}TOTP{{end}}), {{len .User.TFAConfig.OTP.RecoveryCodes}} recovery code(s) unused.{{else if .User.TFAConfig.OTP.Pending}}Authenticator app: setup started but not confirmed.{{else}}Authenticator app: disabled.{{end}}
-		  </p>
+		  <table class="field-table">
+			<tr class="field">
+			  <td><label class="field-label">Email confirm code:</label></td>
+			  <td>{{if .User.TFAConfig.Email.Enable}}<b>enabled</b>{{else}}disabled{{end}}</td>
+			</tr>
+			<tr class="field">
+			  <td><label class="field-label">Authenticator app:</label></td>
+			  <td>
+				{{if .User.TFAConfig.OTP.Enable}}<b>enabled</b> ({{if eq .User.TFAConfig.OTP.Type "hotp"}}HOTP{{else}}TOTP{{end}}), {{len .User.TFAConfig.OTP.RecoveryCodes}} recovery code(s) unused.
+				{{else if .User.TFAConfig.OTP.Pending}}setup started but not confirmed.
+				{{else}}disabled.{{end}}
+			  </td>
+			</tr>
+		  </table>
 		  {{if or .User.TFAConfig.Email.Enable .User.TFAConfig.OTP.Enable .User.TFAConfig.OTP.Pending}}
 		  <p class="field-label-description">Resetting drops both factors and the recovery codes, so the user can log in with the password only and set it up again. Their password and their sessions are not touched.</p>
 		  <form action="" method="POST">

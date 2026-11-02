@@ -37,19 +37,19 @@
 				<td><label class="field-label"  for="tf-depot-name">Depot name:</label></td>
 				<td><input name="depot-name" id="tf-depot-name" class="field-tf" value="{{.Config.DepotName}}" /></td>
 			  </tr>
-			  <tr class="field">
+			  <tr class="field field-checkbox">
 				<td><label class="field-label field-chkbox-label"  for="chkbox-use-namespace">Use Namespace:</label></td>
 				<td><input type="checkbox" name="use-namespace" id="chkbox-use-namespace" class="field-chkbox" {{if .Config.UseNamespace}}checked{{end}}/></td>
 			  </tr>
-			  <tr class="field">
+			  <tr class="field field-checkbox">
 				<td><label class="field-label field-chkbox-label"  for="chkbox-allow-registration">Allow Registration:</label></td>
 				<td><input type="checkbox" name="allow-registration" id="chkbox-allow-registration" class="field-chkbox" {{if .Config.AllowRegistration}}checked{{end}}/></td>
 			  </tr>
-			  <tr class="field">
+			  <tr class="field field-checkbox">
 				<td><label class="field-label field-chkbox-label"  for="chkbox-email-confirmation-required">Email Confirmation Required:</label></td>
 				<td><input type="checkbox" name="email-confirmation-required" id="chkbox-email-confirmation-required" class="field-chkbox" {{if .Config.EmailConfirmationRequired}}checked{{end}}/></td>
 			  </tr>
-			  <tr class="field">
+			  <tr class="field field-checkbox">
 				<td><label class="field-label field-chkbox-label"  for="chkbox-manual-approval">Manual Approval Required:</label></td>
 				<td><input type="checkbox" name="manual-approval" id="chkbox-manual-approval" class="field-chkbox" {{if .Config.ManualApproval}}checked{{end}}/></td>
 			  </tr>
@@ -67,17 +67,15 @@
 				<td><label class="field-label" for="tf-default-new-user-namespace">Default new user namespace:</label></td>
 				<td><input name="default-new-user-namespace" id="tf-default-new-user-namespace" class="field-tf" value="{{.Config.DefaultNewUserNamespace}}" /></td>
 			  </tr>
-			  <tr class="field">
-				<td></td>
-				<td class="field-label-description">New accounts get this status. <em>Normal User (No Namespace Creation)</em> keeps them from creating namespaces. When namespaces are enabled, new accounts are also added to the default namespace as members that may add repositories; leave it empty for none.</td>
+			  <tr class="field field-description">
+				<td colspan="2" class="field-label-description">New accounts get this status. <em>Normal User (No Namespace Creation)</em> keeps them from creating namespaces. When namespaces are enabled, new accounts are also added to the default namespace as members that may add repositories; leave it empty for none.</td>
 			  </tr>
-			  <tr class="field">
+			  <tr class="field field-checkbox">
 				<td><label class="field-label field-chkbox-label"  for="chkbox-debug-mode">Debug Mode:</label></td>
 				<td><input type="checkbox" name="debug-mode" id="chkbox-debug-mode" class="field-chkbox" {{if .Config.DebugMode}}checked{{end}}/></td>
 			  </tr>
-			  <tr class="field">
-				<td></td>
-				<td class="field-label-description">Debug mode shows internal error messages (file paths, database errors, ...) to visitors. Turn it off when the instance is reachable by anybody else.</td>
+			  <tr class="field field-description">
+				<td colspan="2" class="field-label-description">Debug mode shows internal error messages (file paths, database errors, ...) to visitors. Turn it off when the instance is reachable by anybody else.</td>
 			  </tr>
 			  <tr class="field">
 				<td></td>
@@ -117,9 +115,8 @@
 				<td><label class="field-label" for="tf-repository-size-limit">Repository size limit:</label></td>
 				<td><input name="repository-size-limit" id="tf-repository-size-limit" class="field-tf" value="{{formatSizeExact .Config.GitConfig.RepositorySizeLimit}}" /></td>
 			  </tr>
-			  <tr class="field">
-				<td></td>
-				<td class="field-label-description">The most disk space one repository may occupy, e.g. <code>1 GiB</code> or <code>512M</code>. A push that would take a repository over the limit is refused. <code>0</code> means no limit.</td>
+			  <tr class="field field-description">
+				<td colspan="2" class="field-label-description">The most disk space one repository may occupy, e.g. <code>1 GiB</code> or <code>512M</code>. A push that would take a repository over the limit is refused. <code>0</code> means no limit.</td>
 			  </tr>
 			  <tr class="field">
 				<td></td>
@@ -157,9 +154,8 @@
 				<td><label class="field-label" for="tf-ssh-auth-timeout">Provider timeout (seconds):</label></td>
 				<td><input name="ssh-auth-timeout" id="tf-ssh-auth-timeout" class="field-tf" type="number" min="1" max="300" value="{{if .Config.SSHAuth.Timeout}}{{.Config.SSHAuth.Timeout}}{{else}}5{{end}}" /></td>
 			  </tr>
-			  <tr class="field">
-				<td></td>
-				<td class="field-label-description">AuthorizedKeysCommand makes sshd call <code>gitus authorized-keys</code> for every login attempt; disable <code>AuthorizedKeysFile</code> in sshd_config or sshd will consult the file first. The external command (an absolute path) is run with the SSH username and the offered key or fingerprint, and must print authorized_keys lines. Fixed arguments can be set with <code>sshAuth.args</code> in the config file.</td>
+			  <tr class="field field-description">
+				<td colspan="2" class="field-label-description">AuthorizedKeysCommand makes sshd call <code>gitus authorized-keys</code> for every login attempt; disable <code>AuthorizedKeysFile</code> in sshd_config or sshd will consult the file first. The external command (an absolute path) is run with the SSH username and the offered key or fingerprint, and must print authorized_keys lines. Fixed arguments can be set with <code>sshAuth.args</code> in the config file.</td>
 			  </tr>
 			  <tr class="field">
 				<td></td>
