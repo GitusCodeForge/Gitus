@@ -1,5 +1,25 @@
 Copyright 2025 Zetian Lin
 
+2026-11-02 Zetian Lin <bctnry@sdf.org>
+
+	* v0.2.0
+	+ HOTP/TOTP two-factor authentication with recovery codes, and admin reset
+	+ issue labels
+	+ session metadata and a user-managed session list
+	+ web UI for creating and deleting branches and tags
+	+ configurable repository size limit enforced by a pre-receive hook
+	+ pull request reviewers, with approvals tied to the current provider commit
+	+ choose the merge method on the pull request page
+	+ SSH key authentication through sshd AuthorizedKeysCommand
+	+ control namespace creation and default membership for new accounts
+	+ SVG icon sprite symbol listing
+	+ configurable commit message tags, starting with !no-webhook and !no-ci
+	+ maintenance announcement before shutdown
+	+ proper git submodule handling
+	+ stricter limits on HTTP clone requests
+	+ settings, review, issue label, diff and fork page UI fixes
+	+ bug fixes for CSRF-checked forms, missing pull requests and diff line numbers
+
 2026-11-01 Zetian Lin <bctnry@sdf.org>
 
 	* v0.1.7
