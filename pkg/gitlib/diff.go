@@ -189,6 +189,8 @@ func parseGitDiff(br *bytes.Buffer) (*Diff, error) {
 				}
 				lineContent := l[1:]
 				var lineType uint8
+				f1LineNum := f1LineNumberCounter
+				f2LineNum := f2LineNumberCounter
 				switch l[0] {
 				case ' ':
 					lineType = SAME
@@ -203,8 +205,8 @@ func parseGitDiff(br *bytes.Buffer) (*Diff, error) {
 				}
 				pLines = append(pLines, AnnotatedLine{
 					Type: lineType,
-					F1LineNum: f1LineNumberCounter,
-					F2LineNum: f2LineNumberCounter,
+					F1LineNum: f1LineNum,
+					F2LineNum: f2LineNum,
 					Line: lineContent,
 				})
 			}

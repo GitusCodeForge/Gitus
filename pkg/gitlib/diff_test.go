@@ -42,6 +42,46 @@ index 0000000..8e50ff3
 	}
 }
 
+func TestParseDiffLineNumbers(t *testing.T) {
+	src := `abc123
+diff --git a/a b/a
+index 1111111..2222222 100644
+--- a/a
++++ b/a
+@@ -2,3 +2,4 @@
+ same
+-old
++new
++extra
+ same
+`
+	d, err := parseGitDiff(bytes.NewBufferString(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := d.ItemList[0].PatchList[0].LineList
+	want := []struct {
+		lineType uint8
+		f1, f2   int64
+	}{
+		{SAME, 2, 2},
+		{DELETE, 3, 3},
+		{APPEND, 4, 3},
+		{APPEND, 4, 4},
+		{SAME, 4, 5},
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("got %d lines, want %d", len(lines), len(want))
+	}
+	for i, w := range want {
+		if lines[i].Type != w.lineType || lines[i].F1LineNum != w.f1 || lines[i].F2LineNum != w.f2 {
+			t.Fatalf("line %d = {%d %d %d}, want {%d %d %d}",
+				i, lines[i].Type, lines[i].F1LineNum, lines[i].F2LineNum,
+				w.lineType, w.f1, w.f2)
+		}
+	}
+}
+
 func TestParseDiffWithoutNewlineMarker(t *testing.T) {
 	src := `abc123
 diff --git a/a b/a
