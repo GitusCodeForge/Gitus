@@ -9,7 +9,7 @@ import (
 )
 
 func TestPolicyForCommand(t *testing.T) {
-	for _, command := range []string{"web-server", "ssh", "web-hooks", "update-trigger", "storage-check", "host-mode", "install-hooks"} {
+	for _, command := range []string{"web-server", "ssh", "web-hooks", "update-trigger", "storage-check", "authorized-keys", "host-mode", "install-hooks"} {
 		p := policyForCommand(command)
 		if !p.refuseRoot || p.warnRoot {
 			t.Fatalf("%s: policy = %+v; want refuseRoot", command, p)
@@ -53,7 +53,7 @@ func TestCheckRunUserAsRoot(t *testing.T) {
 	cfg := &gitus.GitusConfig{GitUser: "git"}
 	t.Setenv(allowRootEnv, "")
 
-	for _, command := range []string{"web-server", "ssh", "web-hooks", "update-trigger", "storage-check", "host-mode", "install-hooks"} {
+	for _, command := range []string{"web-server", "ssh", "web-hooks", "update-trigger", "storage-check", "authorized-keys", "host-mode", "install-hooks"} {
 		if err := checkRunUser(cfg, command, false); err == nil {
 			t.Fatalf("%s was allowed as root without -allow-root", command)
 		}

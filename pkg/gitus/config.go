@@ -103,6 +103,10 @@ type GitusConfig struct {
 	properSshHostName string
 	gitSshHostName string
 
+	// SSHAuth selects how sshd learns the keys of the git user. See
+	// docs/ssh.org.
+	SSHAuth GitusSSHAuthConfig `json:"sshAuth"`
+
 	BindAddress string `json:"bindAddress"`
 	BindPort int `json:"bindPort"`
 
@@ -315,6 +319,70 @@ type GitusGitConfig struct {
 	// in bytes; 0 means no limit. A push that would take the repository over
 	// the limit is refused by the pre-receive hook. See docs/storage.org.
 	RepositorySizeLimit int64 `json:"repositorySizeLimit"`
+}
+
+const (
+	SSH_AUTH_MODE_AUTHORIZED_KEYS = "authorized_keys"
+	SSH_AUTH_MODE_AUTHORIZED_KEYS_COMMAND = "authorized_keys_command"
+
+	SSH_AUTH_PROVIDER_BUILTIN = "builtin"
+	SSH_AUTH_PROVIDER_COMMAND = "command"
+
+	DefaultSSHAuthTimeout = 5
+)
+
+// GitusSSHAuthConfig controls how SSH keys are handed to sshd.
+//
+// In the default "authorized_keys" mode Gitus writes the managed keys into the
+// git user's authorized_keys file. In "authorized_keys_command" mode sshd
+// calls `gitus authorized-keys` for every login attempt and the file is left
+// alone; the operator has to disable AuthorizedKeysFile in sshd_config.
+type GitusSSHAuthConfig struct {
+	Mode string `json:"mode"`
+	// Provider is "builtin" (look the key up in the Gitus database) or
+	// "command" (run Command and forward its stdout).
+	Provider string `json:"provider"`
+	// Command is an absolute path to an external provider. It is executed
+	// with Args followed by the SSH username and the offered key or
+	// fingerprint, and prints authorized_keys lines.
+	Command string `json:"command"`
+	Args []string `json:"args"`
+	// Timeout is the external provider timeout in seconds; 0 means
+	// DefaultSSHAuthTimeout.
+	Timeout int `json:"timeout"`
+}
+
+func (s GitusSSHAuthConfig) UsesAuthorizedKeysCommand() bool {
+	return strings.EqualFold(strings.TrimSpace(s.Mode), SSH_AUTH_MODE_AUTHORIZED_KEYS_COMMAND)
+}
+
+func (s GitusSSHAuthConfig) UsesExternalProvider() bool {
+	return strings.EqualFold(strings.TrimSpace(s.Provider), SSH_AUTH_PROVIDER_COMMAND)
+}
+
+func (s GitusSSHAuthConfig) EffectiveTimeout() time.Duration {
+	t := s.Timeout
+	if t <= 0 { t = DefaultSSHAuthTimeout }
+	return time.Duration(t) * time.Second
+}
+
+// ValidSSHAuthMode reports whether mode is one of the two supported modes.
+func ValidSSHAuthMode(mode string) bool {
+	switch strings.TrimSpace(mode) {
+	case "", SSH_AUTH_MODE_AUTHORIZED_KEYS, SSH_AUTH_MODE_AUTHORIZED_KEYS_COMMAND:
+		return true
+	}
+	return false
+}
+
+// ValidSSHAuthProvider reports whether provider is one of the two supported
+// providers.
+func ValidSSHAuthProvider(provider string) bool {
+	switch strings.TrimSpace(provider) {
+	case "", SSH_AUTH_PROVIDER_BUILTIN, SSH_AUTH_PROVIDER_COMMAND:
+		return true
+	}
+	return false
 }
 
 type GitusSessionConfig struct {
@@ -585,6 +653,11 @@ func CreateConfigFile(p string) error {
 			BackgroundColor: "white",
 		},
 		MaxSessionLifetime: 7 * 24 * 60 * 60,
+		SSHAuth: GitusSSHAuthConfig{
+			Mode: SSH_AUTH_MODE_AUTHORIZED_KEYS,
+			Provider: SSH_AUTH_PROVIDER_BUILTIN,
+			Timeout: DefaultSSHAuthTimeout,
+		},
 		NoInteractiveShellMessage: "Direct shell access is forbidden on this host.",
 		IPCServer: GitusIPCServerConfig{
 			Type: "unix",

@@ -130,6 +130,46 @@
 		</fieldset>
 		
 		<fieldset class="setting-section">
+		  <legend>SSH Authentication</legend>
+		  <form action="" method="POST">
+			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />
+			<input type="hidden" name="section" value="ssh-auth" />
+			<table class="field-table">
+			  <tr class="field">
+				<td><label class="field-label" for="s-ssh-auth-mode">Key source:</label></td>
+				<td><select class="field-select" name="ssh-auth-mode" id="s-ssh-auth-mode">
+					<option value="authorized_keys" {{if or (eq .Config.SSHAuth.Mode "") (eq .Config.SSHAuth.Mode "authorized_keys")}}selected{{end}}>authorized_keys file</option>
+					<option value="authorized_keys_command" {{if eq .Config.SSHAuth.Mode "authorized_keys_command"}}selected{{end}}>AuthorizedKeysCommand</option>
+				</select></td>
+			  </tr>
+			  <tr class="field">
+				<td><label class="field-label" for="s-ssh-auth-provider">Provider:</label></td>
+				<td><select class="field-select" name="ssh-auth-provider" id="s-ssh-auth-provider">
+					<option value="builtin" {{if or (eq .Config.SSHAuth.Provider "") (eq .Config.SSHAuth.Provider "builtin")}}selected{{end}}>Built-in (Gitus database)</option>
+					<option value="command" {{if eq .Config.SSHAuth.Provider "command"}}selected{{end}}>External command</option>
+				</select></td>
+			  </tr>
+			  <tr class="field">
+				<td><label class="field-label" for="tf-ssh-auth-command">External command:</label></td>
+				<td><input name="ssh-auth-command" id="tf-ssh-auth-command" class="field-tf" value="{{.Config.SSHAuth.Command}}" placeholder="/usr/local/bin/ssh-auth-provider" /></td>
+			  </tr>
+			  <tr class="field">
+				<td><label class="field-label" for="tf-ssh-auth-timeout">Provider timeout (seconds):</label></td>
+				<td><input name="ssh-auth-timeout" id="tf-ssh-auth-timeout" class="field-tf" type="number" min="1" max="300" value="{{if .Config.SSHAuth.Timeout}}{{.Config.SSHAuth.Timeout}}{{else}}5{{end}}" /></td>
+			  </tr>
+			  <tr class="field">
+				<td></td>
+				<td class="field-label-description">AuthorizedKeysCommand makes sshd call <code>gitus authorized-keys</code> for every login attempt; disable <code>AuthorizedKeysFile</code> in sshd_config or sshd will consult the file first. The external command (an absolute path) is run with the SSH username and the offered key or fingerprint, and must print authorized_keys lines. Fixed arguments can be set with <code>sshAuth.args</code> in the config file.</td>
+			  </tr>
+			  <tr class="field">
+				<td></td>
+				<td><input class="field-submit" type="submit" value="Save Config" /></td>
+			  </tr>
+			</table>
+		  </form>
+		</fieldset>
+
+		<fieldset class="setting-section">
 		  <legend>Web Setting</legend>
 		  <form action="" method="POST">
 			<input type="hidden" name="{{$csrf_key}}" value="{{.LoginInfo.UserCSRFToken}}" />

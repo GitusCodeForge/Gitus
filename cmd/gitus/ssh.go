@@ -152,10 +152,16 @@ func HandleSSHLogin(ctx *routes.RouterContext, username string, keyname string) 
 		printGitError(err.Error())
 		os.Exit(1)
 	}
-	authorizedKey := ctx.SSHKeyManagingContext.GetAuthorizedKey(username, keyname)
-	if authorizedKey != m.KeyText {
-		printGitError(fmt.Sprintf("Integrity check failed:\n auth: %s\nkt: %s", authorizedKey, m.KeyText))
-		os.Exit(1)
+	// With AuthorizedKeysCommand sshd has already matched the offered key
+	// against what Gitus printed; there is no authorized_keys file to compare
+	// with. The database lookup above still makes sure the key has not been
+	// revoked since sshd checked it.
+	if !ctx.Config.SSHAuth.UsesAuthorizedKeysCommand() {
+		authorizedKey := ctx.SSHKeyManagingContext.GetAuthorizedKey(username, keyname)
+		if authorizedKey != m.KeyText {
+			printGitError(fmt.Sprintf("Integrity check failed:\n auth: %s\nkt: %s", authorizedKey, m.KeyText))
+			os.Exit(1)
+		}
 	}
 	origCmd := os.Getenv("SSH_ORIGINAL_COMMAND")
 	// one might be tempted to think that one can just pass SSH_ORIGINAL_COMMAND

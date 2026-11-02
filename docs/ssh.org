@@ -48,6 +48,63 @@ after obtaining the pubkey, we can reverse query the main database and retrieve 
 
 this requires one to change sshd_config of the server that would be receiving git-clone requests. since ~AuthorizedKeysFile~ has higher priority than ~AuthorizedKeysCommand~, one should remove or disable the keys configured in the ~authorized_keys~ file before enabling ~AuthorizedKeysCommand~.
 
+** authorized keys command mode
+
+Gitus can be the program sshd asks for the keys instead of maintaining the
+=authorized_keys= file. The relevant configuration is:
+
+#+begin_src json
+"sshAuth": {
+  "mode": "authorized_keys_command",
+  "provider": "builtin",
+  "command": "",
+  "args": [],
+  "timeout": 5
+}
+#+end_src
+
++ =mode= is =authorized_keys= (the default) or =authorized_keys_command=;
++ =provider= is =builtin= (look the offered key up in the Gitus database) or
+  =command= (run an external provider);
++ =command= is an absolute path used by the =command= provider; =args= are
+  optional fixed arguments;
++ =timeout= is the external provider timeout in seconds, =5= by default.
+
+sshd has to be pointed at the command and must not read the file first:
+
+#+begin_src sshd_config
+AuthorizedKeysCommand /usr/local/bin/gitus -config /etc/gitus/config.json authorized-keys %u %k
+AuthorizedKeysCommandUser git
+# AuthorizedKeysFile none
+#+end_src
+
+=%k= is the public key the client offered; if that token is not available, use
+=%f= (the fingerprint) instead. The builtin provider accepts either the key
+body or a =SHA256:=/=MD5:= fingerprint and prints one =authorized_keys= entry
+for every key it finds. The SSH username sshd passes is the shared =git=
+account, so the lookup goes through every user's keys and the entry carries the
+Gitus user and key name in its forced command.
+
+=AuthorizedKeysFile= takes precedence over =AuthorizedKeysCommand=, so remove
+or disable the keys from =~git/.ssh/authorized_keys= before switching modes.
+Gitus stops writing that file in command mode; adding or removing a key from
+=/setting/ssh= only changes the database then.
+
+*** external provider
+
+with =provider = "command"= Gitus runs =command= with =args= followed by the
+SSH username and the offered key (or fingerprint). The provider's stdout is
+passed to sshd unchanged and must contain =authorized_keys= lines, normally with
+the same
+
+#+begin_example
+command="gitus -config {config-path} ssh {gitus-user} {key-name}" {ssh-key}
+#+end_example
+
+form. Exit status 0 with no output means "this key is not accepted"; a non-zero
+exit or a timeout denies the login. This is deliberately a plain argv
+interface, not a shell command: the provider is started directly.
+
 ** issued command
 
 =git-receive-pack= is issued by the client (the user, not the Gitus instance) when doing =git push=. One could imagine =git-upload-pack= and =git-upload-archive= are issued during =git clone=.

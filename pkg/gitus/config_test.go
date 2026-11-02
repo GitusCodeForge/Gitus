@@ -142,3 +142,32 @@ func TestEffectiveCommitMessageTags(t *testing.T) {
 		t.Fatalf("tags for an unknown behaviour = %v", got)
 	}
 }
+
+func TestSSHAuthConfig(t *testing.T) {
+	var s GitusSSHAuthConfig
+	if s.UsesAuthorizedKeysCommand() || s.UsesExternalProvider() {
+		t.Error("the zero value should use the authorized_keys file and the builtin provider")
+	}
+	if got := s.EffectiveTimeout(); got != 5*time.Second {
+		t.Errorf("default timeout = %s", got)
+	}
+	s = GitusSSHAuthConfig{
+		Mode: SSH_AUTH_MODE_AUTHORIZED_KEYS_COMMAND,
+		Provider: SSH_AUTH_PROVIDER_COMMAND,
+		Timeout: 30,
+	}
+	if !s.UsesAuthorizedKeysCommand() || !s.UsesExternalProvider() {
+		t.Errorf("configured modes were not recognized: %+v", s)
+	}
+	if got := s.EffectiveTimeout(); got != 30*time.Second {
+		t.Errorf("timeout = %s", got)
+	}
+	for _, mode := range []string{"", SSH_AUTH_MODE_AUTHORIZED_KEYS, SSH_AUTH_MODE_AUTHORIZED_KEYS_COMMAND} {
+		if !ValidSSHAuthMode(mode) { t.Errorf("mode %q rejected", mode) }
+	}
+	if ValidSSHAuthMode("file") { t.Error("an unknown mode was accepted") }
+	for _, provider := range []string{"", SSH_AUTH_PROVIDER_BUILTIN, SSH_AUTH_PROVIDER_COMMAND} {
+		if !ValidSSHAuthProvider(provider) { t.Errorf("provider %q rejected", provider) }
+	}
+	if ValidSSHAuthProvider("ldap") { t.Error("an unknown provider was accepted") }
+}

@@ -17,6 +17,10 @@ type GitusDatabaseInterface interface {
 	GetUserByName(name string) (*model.GitusUser, error)
 	GetUserLoginInfo(name string) (*model.GitusUserLoginInfo, error)
 	GetAllAuthKeyByUsername(name string) ([]model.GitusAuthKey, error)
+	// GetAllAuthKey returns every public key of every user. The
+	// AuthorizedKeysCommand path has to find the owner of an offered key
+	// before sshd knows which account it belongs to.
+	GetAllAuthKey() ([]model.GitusAuthKey, error)
 	GetAuthKeyByName(userName string, keyName string) (*model.GitusAuthKey, error)
 	RegisterAuthKey(username string, keyname string, keytext string) error
 	UpdateAuthKey(username string, keyname string, keytext string) error

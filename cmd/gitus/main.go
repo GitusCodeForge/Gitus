@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -80,9 +81,10 @@ func main() {
 	isWebHooks := containsCommand && mainCall[0] == "web-hooks"
 	isUpdateTrigger := containsCommand && mainCall[0] == "update-trigger"
 	isStorageCheck := containsCommand && mainCall[0] == "storage-check"
+	isAuthorizedKeys := containsCommand && mainCall[0] == "authorized-keys"
 	isInstallHooks := containsCommand && mainCall[0] == "install-hooks"
 	isResetAdmin := containsCommand && mainCall[0] == "reset-admin"
-	dbifNeeded := isWebServer || (containsCommand && (isSsh || isWebHooks || isUpdateTrigger || isStorageCheck || isInstallHooks || isResetAdmin))
+	dbifNeeded := isWebServer || (containsCommand && (isSsh || isWebHooks || isUpdateTrigger || isStorageCheck || isAuthorizedKeys || isInstallHooks || isResetAdmin))
 	ssifNeeded := isWebServer
 	keyctxNeeded := isWebServer || (containsCommand && isSsh)
 	rsifNeeded := isWebServer
@@ -266,6 +268,16 @@ func main() {
 				return
 			}
 			HandleUpdateTrigger(&context, mainCall[1], mainCall[2], mainCall[3], mainCall[4], mainCall[5])
+			return
+		case "authorized-keys":
+			if len(mainCall) < 3 {
+				fmt.Fprint(os.Stderr, "Error format for `gitus authorized-keys`.\n")
+				os.Exit(1)
+			}
+			if err := HandleAuthorizedKeys(&context, mainCall[1], strings.Join(mainCall[2:], " ")); err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				os.Exit(1)
+			}
 			return
 		case "storage-check":
 			if len(mainCall) < 2 {

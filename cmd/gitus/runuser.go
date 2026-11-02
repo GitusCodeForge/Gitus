@@ -63,6 +63,8 @@ func commandLabel(command string) string {
 		return "the update hook"
 	case "storage-check":
 		return "the storage check"
+	case "authorized-keys":
+		return "the authorized keys command"
 	case "host-mode":
 		return "host-mode"
 	case "install-hooks":

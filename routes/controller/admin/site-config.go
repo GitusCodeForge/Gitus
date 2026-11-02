@@ -3,10 +3,12 @@ package admin
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/GitusCodeForge/Gitus/pkg/auxfuncs"
+	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/model"
 	"github.com/GitusCodeForge/Gitus/pkg/gitus/newuser"
 	. "github.com/GitusCodeForge/Gitus/routes"
@@ -160,6 +162,74 @@ func bindAdminSiteConfigController(ctx *RouterContext) {
 						ErrorMsg: fmt.Sprintf("Error while saving config: %s. Please contact site owner for this...", err.Error()),
 					}))
 					return
+				}
+				rc.ReportRedirect("/admin/site-config", 3, "Updated", "Your specifie config has been updated.", w, r)
+			case "ssh-auth":
+				mode := strings.TrimSpace(r.Form.Get("ssh-auth-mode"))
+				if !gitus.ValidSSHAuthMode(mode) {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: fmt.Sprintf("Unknown SSH authentication mode: %q.", mode),
+					}))
+					return
+				}
+				provider := strings.TrimSpace(r.Form.Get("ssh-auth-provider"))
+				if !gitus.ValidSSHAuthProvider(provider) {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: fmt.Sprintf("Unknown SSH authentication provider: %q.", provider),
+					}))
+					return
+				}
+				command := strings.TrimSpace(r.Form.Get("ssh-auth-command"))
+				if provider == gitus.SSH_AUTH_PROVIDER_COMMAND && !filepath.IsAbs(command) {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: "The external SSH authentication command must be an absolute path.",
+					}))
+					return
+				}
+				timeout, err := strconv.Atoi(strings.TrimSpace(r.Form.Get("ssh-auth-timeout")))
+				if err != nil || timeout <= 0 || timeout > 300 {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: "The provider timeout must be a number of seconds between 1 and 300.",
+					}))
+					return
+				}
+				rc.Config.SSHAuth.Mode = mode
+				rc.Config.SSHAuth.Provider = provider
+				rc.Config.SSHAuth.Command = command
+				rc.Config.SSHAuth.Timeout = timeout
+				err = rc.Config.Sync()
+				if err != nil {
+					LogTemplateError(rc.LoadTemplate("admin/site-config").Execute(w, &templates.AdminConfigTemplateModel{
+						Config: rc.Config,
+						LoginInfo: rc.LoginInfo,
+						ErrorMsg: fmt.Sprintf("Error while saving config: %s. Please contact site owner for this...", err.Error()),
+					}))
+					return
+				}
+				// Switching back to the file mode should populate the file from
+				// the database instead of waiting for the next key change.
+				if !rc.Config.SSHAuth.UsesAuthorizedKeysCommand() && rc.SSHKeyManagingContext != nil {
+					keys, err := rc.DatabaseInterface.GetAllAuthKey()
+					if err != nil {
+						rc.ReportInternalError(fmt.Sprintf("Failed to read SSH keys: %s", err), w, r)
+						return
+					}
+					rc.SSHKeyManagingContext.Managed = nil
+					for _, k := range keys {
+						rc.SSHKeyManagingContext.AddAuthorizedKey(k.UserName, k.KeyName, k.KeyText)
+					}
+					if err := rc.SSHKeyManagingContext.Sync(); err != nil {
+						rc.ReportInternalError(fmt.Sprintf("Failed to write authorized_keys: %s", err), w, r)
+						return
+					}
 				}
 				rc.ReportRedirect("/admin/site-config", 3, "Updated", "Your specifie config has been updated.", w, r)
 			case "theme-config":

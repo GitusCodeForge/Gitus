@@ -112,6 +112,28 @@ SELECT key_text FROM %s_user_authkey WHERE user_name = $1 AND key_name = $2
 	}, nil
 }
 
+func (dbif *PostgresGitusDatabaseInterface) GetAllAuthKey() ([]model.GitusAuthKey, error) {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	stmt, err := dbif.pool.Query(ctx, fmt.Sprintf(`
+SELECT user_name, key_name, key_text FROM %s_user_authkey
+`, pfx))
+	if err != nil { return nil, err }
+	defer stmt.Close()
+	res := make([]model.GitusAuthKey, 0)
+	for stmt.Next() {
+		var userName, keyName, keyText string
+		err := stmt.Scan(&userName, &keyName, &keyText)
+		if err != nil { return nil, err }
+		res = append(res, model.GitusAuthKey{
+			UserName: userName,
+			KeyName: keyName,
+			KeyText: keyText,
+		})
+	}
+	return res, stmt.Err()
+}
+
 func (dbif *PostgresGitusDatabaseInterface) RegisterAuthKey(username string, keyname string, keytext string) error {
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()

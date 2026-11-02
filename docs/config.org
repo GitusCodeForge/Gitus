@@ -60,6 +60,15 @@ field is not mentioned at all, ={"!no-webhook": "no-webhook", "!no-ci":
 "no-ci"}= applies; ={}= turns every tag off. See
 [[file:commit-message.org][commit message]].
 
+** ssh authentication
+
+=sshAuth.mode= is =authorized_keys= (the default, Gitus writes the git user's
+=authorized_keys= file) or =authorized_keys_command= (sshd asks Gitus for the
+keys on every login). =sshAuth.provider= is =builtin= (the Gitus database) or
+=command= (an external executable in =sshAuth.command=, with optional
+=sshAuth.args= and =sshAuth.timeout=). See [[file:ssh.org][ssh]] for the sshd
+configuration and the provider interface.
+
 ** new users
 
 =defaultNewUserStatus= is the status an account created through registration

@@ -74,6 +74,28 @@ WHERE user_name = $1
 	return res, nil
 }
 
+func (dbif *MysqlGitusDatabaseInterface) GetAllAuthKey() ([]model.GitusAuthKey, error) {
+	pfx := dbif.config.Database.TablePrefix
+	ctx := context.Background()
+	stmt, err := dbif.query(ctx, fmt.Sprintf(`
+SELECT user_name, key_name, key_text FROM %s_user_authkey
+`, pfx))
+	if err != nil { return nil, err }
+	defer stmt.Close()
+	res := make([]model.GitusAuthKey, 0)
+	for stmt.Next() {
+		var userName, keyName, keyText string
+		err := stmt.Scan(&userName, &keyName, &keyText)
+		if err != nil { return nil, err }
+		res = append(res, model.GitusAuthKey{
+			UserName: userName,
+			KeyName: keyName,
+			KeyText: keyText,
+		})
+	}
+	return res, stmt.Err()
+}
+
 // GetUserLoginInfo returns only what UseLoginInfo needs, without decoding the
 // 2FA config and the website preference JSON that GetUserByName has to read.
 func (dbif *MysqlGitusDatabaseInterface) GetUserLoginInfo(name string) (*model.GitusUserLoginInfo, error) {

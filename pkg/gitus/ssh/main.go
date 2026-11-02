@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"fmt"
 	"maps"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/GitusCodeForge/Gitus/pkg/gitus"
 	"github.com/GitusCodeForge/Gitus/pkg/shellparse"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type SSHKeyManagingContext struct {
@@ -18,6 +20,9 @@ type SSHKeyManagingContext struct {
 	keyFilePath string
 	Managed map[string]map[string]string
 	notManaged []string
+	// config is kept live: an administrator can switch to
+	// AuthorizedKeysCommand through the web panel without restarting.
+	config *gitus.GitusConfig
 }
 
 var reParseKey = regexp.MustCompile("\\s*command=\"gitus -config .* ssh ([^ ]*) ([^ ]*)\"\\s*(.*)")	
@@ -51,6 +56,7 @@ func NewContext(cfg *gitus.GitusConfig) (*SSHKeyManagingContext, error) {
 		keyFilePath: p,
 		Managed: nil,
 		notManaged: notManaged,
+		config: cfg,
 	}, nil
 	
 }
@@ -97,19 +103,21 @@ func ToContext(cfg *gitus.GitusConfig) (*SSHKeyManagingContext, error) {
 		keyFilePath: p,
 		Managed: managed,
 		notManaged: notManaged,
+		config: cfg,
 	}, nil
 }
 
 func (ctx *SSHKeyManagingContext) Sync() error {
+	if ctx.config != nil && ctx.config.SSHAuth.UsesAuthorizedKeysCommand() { return nil }
+	// Pick up keys that somebody added to the file by hand since this context
+	// was created; they are not managed by Gitus and must survive the rewrite.
+	if err := ctx.ReloadNotManaged(); err != nil { return err }
 	f, err := os.OpenFile(ctx.keyFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil { return err }
 	defer f.Close()
-	quotedConfig := shellparse.Quote(ctx.configFilePath)
 	for userName, pack := range ctx.Managed {
 		for keyName, key := range pack {
-			_, err := fmt.Fprintf(f, "command=\"gitus -config \\\"%s\\\" ssh %s %s\" %s", quotedConfig, userName, shellparse.Quote(keyName), key)
-			if err != nil { return err }
-			_, err = f.WriteString("\n")
+			_, err := fmt.Fprintln(f, AuthorizedKeyLine(ctx.configFilePath, userName, keyName, key))
 			if err != nil { return err }
 		}
 		f.WriteString("\n")
@@ -122,6 +130,17 @@ func (ctx *SSHKeyManagingContext) Sync() error {
 		_, err = f.WriteString("\n")
 		if err != nil { return err }
 	}
+	return nil
+}
+
+// ReloadNotManaged re-reads the authorized_keys file and replaces the list of
+// lines that are not managed by Gitus. Sync calls it before rewriting the file
+// so manual additions made after startup are not lost.
+func (ctx *SSHKeyManagingContext) ReloadNotManaged() error {
+	if ctx.config == nil { return nil }
+	fresh, err := NewContext(ctx.config)
+	if err != nil { return err }
+	ctx.notManaged = fresh.notManaged
 	return nil
 }
 
@@ -153,3 +172,35 @@ func (ctx *SSHKeyManagingContext) GetAuthorizedKey(username string, keyname stri
 	return s
 }
 
+// AuthorizedKeyLine is one authorized_keys entry that runs the gitus ssh
+// handler with the Gitus user and key name baked in.
+func AuthorizedKeyLine(configPath string, userName string, keyName string, keyText string) string {
+	return fmt.Sprintf("command=\"gitus -config \\\"%s\\\" ssh %s %s\" %s",
+		shellparse.Quote(configPath), userName, shellparse.Quote(keyName), strings.TrimSpace(keyText))
+}
+
+// MatchAuthorizedKey reports whether offered is the public key in keyText.
+// offered can also be an OpenSSH SHA256/MD5 fingerprint (the %f token of
+// AuthorizedKeysCommand), in which case the fingerprints are compared.
+func MatchAuthorizedKey(keyText string, offered string) bool {
+	stored, err := parseAuthorizedKey(keyText)
+	if err != nil { return false }
+	offered = strings.TrimSpace(offered)
+	switch {
+	case strings.HasPrefix(offered, "SHA256:"):
+		return gossh.FingerprintSHA256(stored) == offered
+	case strings.HasPrefix(offered, "MD5:"):
+		return "MD5:"+gossh.FingerprintLegacyMD5(stored) == offered
+	case strings.Count(offered, ":") == 15:
+		// OpenSSH's older %f form omitted the MD5: prefix.
+		return gossh.FingerprintLegacyMD5(stored) == offered
+	}
+	key, err := parseAuthorizedKey(offered)
+	if err != nil { return false }
+	return bytes.Equal(stored.Marshal(), key.Marshal())
+}
+
+func parseAuthorizedKey(s string) (gossh.PublicKey, error) {
+	pub, _, _, _, err := gossh.ParseAuthorizedKey([]byte(strings.TrimSpace(s)))
+	return pub, err
+}

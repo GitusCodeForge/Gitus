@@ -133,6 +133,29 @@ WHERE user_name = ?
 	return res, nil
 }
 
+func (dbif *SqliteGitusDatabaseInterface) GetAllAuthKey() ([]model.GitusAuthKey, error) {
+	pfx := dbif.config.Database.TablePrefix
+	stmt, err := dbif.prepare(fmt.Sprintf(`
+SELECT user_name, key_name, key_text FROM %s_user_authkey
+`, pfx))
+	if err != nil { return nil, err }
+	r, err := stmt.Query()
+	if err != nil { return nil, err }
+	defer r.Close()
+	res := make([]model.GitusAuthKey, 0)
+	for r.Next() {
+		var userName, keyName, keyText string
+		err = r.Scan(&userName, &keyName, &keyText)
+		if err != nil { return nil, err }
+		res = append(res, model.GitusAuthKey{
+			UserName: userName,
+			KeyName: keyName,
+			KeyText: keyText,
+		})
+	}
+	return res, r.Err()
+}
+
 func (dbif *SqliteGitusDatabaseInterface) RegisterAuthKey(username string, keyname string, keytext string) error {
 	pfx := dbif.config.Database.TablePrefix
 	stmt1, err := dbif.prepare(fmt.Sprintf(`

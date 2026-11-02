@@ -22,6 +22,9 @@
 
 	  <div class="setting-main main-side">
 		<h2>SSH Keys</h2>
+		{{if .Config.SSHAuth.UsesAuthorizedKeysCommand}}
+		<p class="field-label-description">This instance authenticates SSH keys through sshd's <code>AuthorizedKeysCommand</code>. Keys are read from the database when sshd asks, so adding or removing one here takes effect immediately; the git user's <code>authorized_keys</code> file is not updated.</p>
+		{{end}}
 		
 		{{if .KeyList}}
 		{{if gt (len .KeyList) 0}}
