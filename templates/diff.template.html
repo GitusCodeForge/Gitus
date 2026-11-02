@@ -20,62 +20,75 @@
 	<hr />
 
 	{{if .Diff}}
-	<div class="diff">
-	{{range $i, $k := .Diff.ItemList}}
-	{{$from := trimDiffPath $k.File1}}
-	{{$to := trimDiffPath $k.File2}}
-	<section id="I{{$i}}" class="diff-file">
-	  <div class="diff-file-header">
-		<a class="diff-file-anchor" href="#I{{$i}}">#</a>
-		<span class="diff-file-path">
-		  {{if eq $k.File1 "/dev/null"}}
-		  <span class="diff-file-name">{{$to}}</span>
-		  <span class="diff-file-tag">new</span>
-		  {{else if eq $k.File2 "/dev/null"}}
-		  <span class="diff-file-name">{{$from}}</span>
-		  <span class="diff-file-tag">deleted</span>
-		  {{else if eq $from $to}}
-		  <span class="diff-file-name">{{$to}}</span>
-		  {{else}}
-		  <span class="diff-file-name">{{$from}}</span>
-		  <span class="diff-file-arrow">→</span>
-		  <span class="diff-file-name">{{$to}}</span>
-		  <span class="diff-file-tag">renamed</span>
+	<main>
+	  <div class="left-side diff-sidebar">
+		<div class="diff-sidebar-inner">
+		<div class="diff-sidebar-title">Files ({{len .Diff.ItemList}})</div>
+		<ul class="diff-sidebar-list">
+		  {{range $i, $k := .Diff.ItemList}}
+		  <li><a class="diff-sidebar-link" href="#I{{$i}}">{{if eq $k.File2 "/dev/null"}}{{trimDiffPath $k.File1}}{{else}}{{trimDiffPath $k.File2}}{{end}}</a></li>
 		  {{end}}
-		</span>
-	  </div>
-	  <div class="diff-file-body">
-		{{range $kk := $k.PatchList}}
-		<div class="diff-hunk">
-		  <div class="diff-hunk-header">@@ -{{$kk.LStart}},{{$kk.LLineCount}} +{{$kk.RStart}},{{$kk.RLineCount}} @@</div>
-		  <div class="diff-hunk-scroll">
-			<table class="diff-table">
-			  <colgroup>
-				<col class="diff-col-num" />
-				<col class="diff-col-num" />
-				<col class="diff-col-mark" />
-				<col />
-			  </colgroup>
-			  <tbody>
-				{{range $l := $kk.LineList}}
-				{{$t := ""}}
-				{{if eq $l.Type 1}}{{$t = "add"}}{{else if eq $l.Type 2}}{{$t = "del"}}{{else}}{{$t = "same"}}{{end}}
-				<tr class="diff-line diff-line-{{$t}}">
-				  <td class="diff-num diff-num-old">{{if or (eq $l.Type 4) (eq $l.Type 2)}}{{$l.F1LineNum}}{{end}}</td>
-				  <td class="diff-num diff-num-new">{{if or (eq $l.Type 4) (eq $l.Type 1)}}{{$l.F2LineNum}}{{end}}</td>
-				  <td class="diff-mark">{{if eq $t "add"}}+{{else if eq $t "del"}}−{{else}}&nbsp;{{end}}</td>
-				  <td class="diff-code">{{$l.Line}}</td>
-				</tr>
-				{{end}}
-			  </tbody>
-			</table>
-		  </div>
+		</ul>
 		</div>
-		{{end}}
 	  </div>
-	</section>
-	{{end}}
-	</div>
+
+	  <div class="main-side diff-main">
+	  {{range $i, $k := .Diff.ItemList}}
+	  {{$from := trimDiffPath $k.File1}}
+	  {{$to := trimDiffPath $k.File2}}
+	  <section id="I{{$i}}" class="diff-file">
+		<div class="diff-file-header">
+		  <a class="diff-file-anchor" href="#I{{$i}}">#</a>
+		  <span class="diff-file-path">
+			{{if eq $k.File1 "/dev/null"}}
+			<span class="diff-file-name">{{$to}}</span>
+			<span class="diff-file-tag">new</span>
+			{{else if eq $k.File2 "/dev/null"}}
+			<span class="diff-file-name">{{$from}}</span>
+			<span class="diff-file-tag">deleted</span>
+			{{else if eq $from $to}}
+			<span class="diff-file-name">{{$to}}</span>
+			{{else}}
+			<span class="diff-file-name">{{$from}}</span>
+			<span class="diff-file-arrow">→</span>
+			<span class="diff-file-name">{{$to}}</span>
+			<span class="diff-file-tag">renamed</span>
+			{{end}}
+		  </span>
+		</div>
+		<div class="diff-file-body">
+		  {{range $kk := $k.PatchList}}
+		  <div class="diff-hunk">
+			<div class="diff-hunk-header">@@ -{{$kk.LStart}},{{$kk.LLineCount}} +{{$kk.RStart}},{{$kk.RLineCount}} @@</div>
+			<div class="diff-hunk-scroll">
+			  <table class="diff-table">
+				<colgroup>
+				  <col class="diff-col-num" />
+				  <col class="diff-col-num" />
+				  <col class="diff-col-mark" />
+				  <col />
+				</colgroup>
+				<tbody>
+				  {{range $l := $kk.LineList}}
+				  {{$t := ""}}
+				  {{if eq $l.Type 1}}{{$t = "add"}}{{else if eq $l.Type 2}}{{$t = "del"}}{{else}}{{$t = "same"}}{{end}}
+				  <tr class="diff-line diff-line-{{$t}}">
+					<td class="diff-num diff-num-old">{{if or (eq $l.Type 4) (eq $l.Type 2)}}{{$l.F1LineNum}}{{end}}</td>
+					<td class="diff-num diff-num-new">{{if or (eq $l.Type 4) (eq $l.Type 1)}}{{$l.F2LineNum}}{{end}}</td>
+					<td class="diff-mark">{{if eq $t "add"}}+{{else if eq $t "del"}}−{{else}}&nbsp;{{end}}</td>
+					<td class="diff-code">{{$l.Line}}</td>
+				  </tr>
+				  {{end}}
+				</tbody>
+			  </table>
+			</div>
+		  </div>
+		  {{end}}
+		</div>
+	  </section>
+	  {{end}}
+	  </div>
+	</main>
 	{{else}}
 	<p class="diff-empty">No diff available.</p>
 	{{end}}
