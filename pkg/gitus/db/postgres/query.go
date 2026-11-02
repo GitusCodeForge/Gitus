@@ -2062,17 +2062,17 @@ func (dbif *PostgresGitusDatabaseInterface) ApproveRegistrationRequest(absid int
 	pfx := dbif.config.Database.TablePrefix
 	ctx := context.Background()
 	stmt1 := dbif.pool.QueryRow(ctx, fmt.Sprintf(`
-SELECT username, email, password_hash FROM %s_user_reg_request
+SELECT username FROM %s_user_reg_request
 WHERE request_absid = $1
 `, pfx), absid)
-	var username, email, passwordHash string
-	err := stmt1.Scan(&username, &email, &passwordHash)
+	var username string
+	err := stmt1.Scan(&username)
 	if err != nil { return err }
 	if dbif.config.EmailConfirmationRequired {
-		_, err = dbif.RegisterUser(username, email, passwordHash, model.NORMAL_USER_CONFIRM_NEEDED)
+		err = dbif.UpdateUserStatus(username, model.NORMAL_USER_CONFIRM_NEEDED)
 		if err != nil { return err }
 	} else {
-		_, err = dbif.RegisterUser(username, email, passwordHash, model.NORMAL_USER)
+		err = dbif.UpdateUserStatus(username, model.NORMAL_USER)
 		if err != nil { return err }
 	}
 	tx, err := dbif.pool.Begin(ctx)

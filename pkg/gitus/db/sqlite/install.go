@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS %s_user_reg_request (
     username TEXT,
 	email TEXT,
     password_hash TEXT,
-	reason TEXT
+	reason TEXT,
     timestamp INTEGER
 )`, pfx))
 	if err != nil { return err }
@@ -295,6 +295,11 @@ CREATE TABLE IF NOT EXISTS %s_id_counter (
 		return err
 	}
 	if err := dbif.ensureColumn(fmt.Sprintf("%s_repository", pfx), "repo_issue_label_list", "TEXT"); err != nil {
+		return err
+	}
+	// The original CREATE TABLE was missing the comma before timestamp, so
+	// sqlite made it part of the reason column's type and inserts failed.
+	if err := dbif.ensureColumn(fmt.Sprintf("%s_user_reg_request", pfx), "timestamp", "INTEGER"); err != nil {
 		return err
 	}
 	for _, def := range indexDefinitions {

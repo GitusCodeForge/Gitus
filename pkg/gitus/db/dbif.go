@@ -164,7 +164,9 @@ type GitusDatabaseInterface interface {
 	GetRegistrationRequestPaginated(pageNum int64, pageSize int64) ([]*model.RegistrationRequest, error)
 	GetRequestOfUsernamePaginated(username string, pageNum int64, pageSize int64) ([]*model.RegistrationRequest, error)
 	
-	// NOTE: implementer should perform the RegisterUser action in this method as well. (but not the RegisterNamespace!...)
+	// NOTE: the registering flow creates the user before the request is
+	// approved, so this method only updates the user's status (and never
+	// creates the namespace; that is the caller's job).
 	ApproveRegistrationRequest(absid int64) error
 	DisapproveRegistrationRequest(absid int64) error
 	CountRegistrationRequest(query string) (int64, error)

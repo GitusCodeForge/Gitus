@@ -2394,7 +2394,7 @@ DELETE FROM %s_user_reg_request WHERE username = ?
 func (dbif *SqliteGitusDatabaseInterface) GetRegistrationRequestPaginated(pageNum int64, pageSize int64) ([]*model.RegistrationRequest, error) {
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT username, email, password_hash, reason, timestamp
+SELECT rowid, username, email, password_hash, reason, timestamp
 FROM %s_user_reg_request
 ORDER BY timestamp DESC LIMIT ? OFFSET ?
 `, pfx))
@@ -2403,12 +2403,13 @@ ORDER BY timestamp DESC LIMIT ? OFFSET ?
 	if err != nil { return nil, err }
 	defer r.Close()
 	res := make([]*model.RegistrationRequest, 0)
+	var rowid, timestamp int64
 	var username, email, passwordHash, reason string
-	var timestamp int64
 	for r.Next() {
-		err = r.Scan(&username, &email, &passwordHash, &reason, &timestamp)
+		err = r.Scan(&rowid, &username, &email, &passwordHash, &reason, &timestamp)
 		if err != nil { return nil, err }
 		res = append(res, &model.RegistrationRequest{
+			AbsId: rowid,
 			Username: username,
 			Email: email,
 			PasswordHash: passwordHash,
@@ -2428,14 +2429,14 @@ WHERE username = ?
 ORDER BY timestamp DESC LIMIT ? OFFSET ?
 `, pfx))
 	if err != nil { return nil, err }
-	r, err := stmt.Query(pageSize, pageNum*pageSize)
+	r, err := stmt.Query(username, pageSize, pageNum*pageSize)
 	if err != nil { return nil, err }
 	defer r.Close()
 	res := make([]*model.RegistrationRequest, 0)
 	var email, passwordHash, reason string
 	var rowid, timestamp int64
 	for r.Next() {
-		err = r.Scan(&rowid, &username, &email, &passwordHash, &reason, &timestamp)
+		err = r.Scan(&rowid, &email, &passwordHash, &reason, &timestamp)
 		if err != nil { return nil, err }
 		res = append(res, &model.RegistrationRequest{
 			AbsId: rowid,
@@ -2480,14 +2481,14 @@ func (dbif *SqliteGitusDatabaseInterface) SearchRegistrationRequestPaginated(que
 	query = strings.TrimSpace(query)
 	if len(query) <= 0 {
 		stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, username, email, password_hash, timestamp FROM %s_user_reg_request ORDER BY timestamp DESC LIMIT ? OFFSET ?
+SELECT rowid, username, email, password_hash, reason, timestamp FROM %s_user_reg_request ORDER BY timestamp DESC LIMIT ? OFFSET ?
 `, pfx))
 		if err != nil { return nil, err }
 		r, err = stmt.Query(pageSize, pageNum*pageSize)
 		if err != nil { return nil, err }
 	} else {
 		stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, username, email, password_hash, timestamp FROM %s_user_reg_request WHERE  username LIKE ? ESCAPE ? ORDER BY timestamp LIMIT ? OFFSET ?
+SELECT rowid, username, email, password_hash, reason, timestamp FROM %s_user_reg_request WHERE  username LIKE ? ESCAPE ? ORDER BY timestamp LIMIT ? OFFSET ?
 `, pfx))
 		if err != nil { return nil, err }
 		r, err = stmt.Query(db.ToSqlSearchPattern(query), "\\",  pageSize, pageNum*pageSize)
@@ -2495,17 +2496,18 @@ SELECT rowid, username, email, password_hash, timestamp FROM %s_user_reg_request
 	}
 	defer r.Close()
 	var absid int64
-	var username, email, passwordHash string
+	var username, email, passwordHash, reason string
 	var timestamp int64
 	res := make([]*model.RegistrationRequest, 0)
 	for r.Next() {
-		err := r.Scan(&absid, &username, &email, &passwordHash, &timestamp)
+		err := r.Scan(&absid, &username, &email, &passwordHash, &reason, &timestamp)
 		if err != nil { return nil, err }
 		res = append(res, &model.RegistrationRequest{
 			AbsId: absid,
 			Username: username,
 			Email: email,
 			PasswordHash: passwordHash,
+			Reason: reason,
 			Timestamp: time.Unix(timestamp, 0),
 		})
 	}
@@ -2515,21 +2517,23 @@ SELECT rowid, username, email, password_hash, timestamp FROM %s_user_reg_request
 func (dbif *SqliteGitusDatabaseInterface) GetRegistrationRequestByAbsId(absid int64) (*model.RegistrationRequest, error) {
 	pfx := dbif.config.Database.TablePrefix
 	stmt, err := dbif.prepare(fmt.Sprintf(`
-SELECT rowid, username, email, password_hash, timestamp FROM %s_user_reg_request WHERE rowid = ?
+SELECT rowid, username, email, password_hash, reason, timestamp FROM %s_user_reg_request WHERE rowid = ?
 `, pfx))
 	if err != nil { return nil, err }
 	r, err := stmt.Query(absid)
 	if err != nil { return nil, err }
 	defer r.Close()
+	if !r.Next() { return nil, db.ErrEntityNotFound }
 	var rowid, timestamp int64
-	var username, email, passwordHash string
-	err = r.Scan(&rowid, &username, &email, &passwordHash, &timestamp)
+	var username, email, passwordHash, reason string
+	err = r.Scan(&rowid, &username, &email, &passwordHash, &reason, &timestamp)
 	if err != nil { return nil, err }
 	return &model.RegistrationRequest{
 		AbsId: rowid,
 		Username: username,
 		Email: email,
 		PasswordHash: passwordHash,
+		Reason: reason,
 		Timestamp: time.Unix(timestamp, 0),
 	}, nil
 }
